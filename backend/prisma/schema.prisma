@@ -1,0 +1,41 @@
+// ---added by akmal--This is your Prisma schema file,
+// ---added by akmal--learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id               String       @id @default(uuid())
+  email            String       @unique
+  password         String
+  fullName         String?
+  phone            String?      @unique
+  signupCompleted  Boolean      @default(false)
+  role             Role         @default(USER)
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([email])
+}
+
+enum Role {
+  ADMIN
+  USER
+  MANAGER
+}
