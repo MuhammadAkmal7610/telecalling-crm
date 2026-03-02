@@ -14,6 +14,7 @@ const Signup = () => {
     // Form State
     const [formData, setFormData] = useState({
         orgName: '',
+        name: '',        // Owner's personal name
         email: '',
         phone: '',
         password: '',
@@ -35,6 +36,7 @@ const Signup = () => {
     const handleOrgSubmit = (e) => {
         e.preventDefault();
         if (!formData.orgName.trim()) return toast.error("Organization name is required");
+        if (!formData.name.trim()) return toast.error("Your name is required");
         nextStep(2);
     };
 
@@ -61,6 +63,7 @@ const Signup = () => {
         try {
             const { data, error } = await signUp(formData.email, formData.password, {
                 orgName: formData.orgName,
+                name: formData.name,
                 phone: formData.phone
             });
 
@@ -82,6 +85,24 @@ const Signup = () => {
         { id: 3, label: "Phone" },
         { id: 4, label: "Security" },
         { id: 5, label: "Done" }
+    ];
+
+    // Labels per step
+    const stepHeadings = [
+        '', // 0
+        'Create Your Organization',   // 1
+        'Admin Email',                // 2
+        'Mobile Number',              // 3
+        'Set Password',               // 4
+        'Account Ready!',             // 5
+    ];
+    const stepSubs = [
+        '',
+        'You will be the owner (root admin) of this organization.',
+        'This email is your admin login.',
+        'Used for account recovery and 2FA.',
+        'Set a strong password for your admin account.',
+        '',
     ];
 
     return (
@@ -113,26 +134,39 @@ const Signup = () => {
                 <div className="text-center mb-8">
                     <img src={Logo} alt="Logo" className="w-12 h-12 mx-auto mb-4" />
                     <h1 className="text-3xl font-bold text-white mb-2">
-                        {step === 1 && "Start Your Agency"}
-                        {step === 2 && "Connect Email"}
-                        {step === 3 && "Mobile Number"}
-                        {step === 4 && "Set Password"}
-                        {step === 5 && "Verification Sent"}
+                        {stepHeadings[step] || ''}
                     </h1>
+                    {step < 5 && (
+                        <p className="text-slate-400 text-sm">{stepSubs[step]}</p>
+                    )}
                 </div>
 
                 <div className="bg-slate-800/50 backdrop-blur-md p-8 rounded-2xl border border-slate-700 shadow-2xl">
                     {step === 1 && (
                         <form onSubmit={handleOrgSubmit}>
-                            <label className="block text-sm font-medium text-slate-400 mb-2">Workspace Name</label>
-                            <input
-                                autoFocus
-                                type="text"
-                                className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-white text-lg transition-all"
-                                value={formData.orgName}
-                                onChange={e => updateFormData({ orgName: e.target.value })}
-                                placeholder="e.g. Acme CRM"
-                            />
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-2">Organization Name</label>
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-white text-lg transition-all"
+                                        value={formData.orgName}
+                                        onChange={e => updateFormData({ orgName: e.target.value })}
+                                        placeholder="e.g. Acme Corp"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-2">Your Full Name</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-white text-lg transition-all"
+                                        value={formData.name}
+                                        onChange={e => updateFormData({ name: e.target.value })}
+                                        placeholder="e.g. John Doe"
+                                    />
+                                </div>
+                            </div>
                             <button className="w-full mt-6 py-4 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-500 transition-all">
                                 Continue
                             </button>
@@ -216,8 +250,14 @@ const Signup = () => {
                     {step === 5 && (
                         <div className="text-center">
                             <div className="w-16 h-16 bg-teal-500/20 rounded-full flex items-center justify-center mx-auto mb-6 text-teal-400 text-2xl">✓</div>
-                            <p className="text-lg mb-6">Verification link sent to <strong>{formData.email}</strong></p>
-                            <Link to="/login" className="block w-full py-4 bg-slate-700 text-white rounded-xl font-bold hover:bg-slate-600 transition-all text-center">
+                            <p className="text-lg mb-3">Organization created!</p>
+                            <p className="text-slate-400 text-sm mb-6">
+                                Logged in as <strong className="text-white">{formData.email}</strong><br />
+                                You are the <strong className="text-teal-400">root admin</strong> of <strong className="text-white">{formData.orgName}</strong>.
+                                <br /><br />
+                                <span className="text-slate-500">Invite team members from the <strong>Users</strong> page inside the app.</span>
+                            </p>
+                            <Link to="/login" className="block w-full py-4 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-500 transition-all text-center">
                                 Go to Login
                             </Link>
                         </div>
@@ -225,9 +265,11 @@ const Signup = () => {
                 </div>
 
                 {step === 1 && (
-                    <p className="mt-8 text-center text-slate-500">
-                        Work for an agency? <Link to="/login" className="text-teal-400 hover:underline">Log in instead</Link>
-                    </p>
+                    <div className="mt-8 text-center text-slate-500">
+                        Already have an account? <Link to="/login" className="text-teal-400 hover:underline">Log in</Link>
+                        <br />
+                        <span className="text-xs text-slate-600 mt-2 block">Team members are invited by their admin — no public signup needed.</span>
+                    </div>
                 )}
             </div>
         </div>

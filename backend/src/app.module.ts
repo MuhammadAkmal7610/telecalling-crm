@@ -28,6 +28,7 @@ import { ExternalLeadsModule } from './modules/external-leads/external-leads.mod
 import { SearchModule } from './modules/search/search.module';
 import { ScriptsModule } from './modules/scripts/scripts.module';
 import { PublicModule } from './modules/public/public.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { PublicModule } from './modules/public/public.module';
     SearchModule,
     ScriptsModule,
     PublicModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

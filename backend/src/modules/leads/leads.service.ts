@@ -65,6 +65,7 @@ export class LeadsService {
             status: mappedData.status ?? LeadStatus.FRESH,
             created_by: userId,
             organization_id: organizationId,
+            workspace_id: user.workspaceId,
             assignee_id: mappedData.assignee_id ?? userId,
         };
 
@@ -78,8 +79,8 @@ export class LeadsService {
         return data;
     }
 
-    async findAll(query: LeadQueryDto, organizationId: string) {
-        if (!organizationId) throw new BadRequestException('Organization ID is required');
+    async findAll(query: LeadQueryDto, workspaceId: string) {
+        if (!workspaceId) throw new BadRequestException('Workspace ID is required');
         const supabase = this.supabaseService.getAdminClient();
         const { page = 1, limit = 20, search, status, source, assigneeId, stageId, archive } = query;
         const from = (page - 1) * limit;
@@ -88,7 +89,7 @@ export class LeadsService {
         let q = supabase
             .from(this.TABLE)
             .select('*, stage:lead_stages(id,name,color), assignee:users!assignee_id(id,name,email)', { count: 'exact' })
-            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .order('created_at', { ascending: false })
             .range(from, to);
 
@@ -112,31 +113,31 @@ export class LeadsService {
         return { data, total: count, page, limit };
     }
 
-    async findOne(id: string, organizationId: string) {
-        if (!organizationId) throw new BadRequestException('Organization ID is required');
+    async findOne(id: string, workspaceId: string) {
+        if (!workspaceId) throw new BadRequestException('Workspace ID is required');
         const supabase = this.supabaseService.getAdminClient();
 
         const { data, error } = await supabase
             .from(this.TABLE)
             .select('*, stage:lead_stages(id,name,color,type), assignee:users!assignee_id(id,name,email)')
             .eq('id', id)
-            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .single();
 
         if (error || !data) throw new NotFoundException(`Lead ${id} not found`);
         return data;
     }
 
-    async update(id: string, dto: UpdateLeadDto, organizationId: string) {
+    async update(id: string, dto: UpdateLeadDto, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        await this.findOne(id, organizationId);
+        await this.findOne(id, workspaceId);
         const mappedData = this.mapDtoToDb(dto);
 
         const { data, error } = await supabase
             .from(this.TABLE)
             .update({ ...mappedData, updated_at: new Date().toISOString() })
             .eq('id', id)
-            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .select()
             .single();
 
@@ -144,10 +145,10 @@ export class LeadsService {
         return data;
     }
 
-    async remove(id: string, organizationId: string) {
+    async remove(id: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        await this.findOne(id, organizationId);
-        const { error } = await supabase.from(this.TABLE).delete().eq('id', id).eq('organization_id', organizationId);
+        await this.findOne(id, workspaceId);
+        const { error } = await supabase.from(this.TABLE).delete().eq('id', id).eq('workspace_id', workspaceId);
         if (error) throw new BadRequestException(error.message);
         return { message: 'Lead deleted successfully' };
     }
@@ -163,6 +164,7 @@ export class LeadsService {
                 status: mapped.status ?? LeadStatus.FRESH,
                 created_by: userId,
                 organization_id: organizationId,
+                workspace_id: user.workspaceId,
                 assignee_id: mapped.assignee_id ?? userId,
             };
         });
@@ -172,36 +174,36 @@ export class LeadsService {
         return { inserted: data?.length || 0, data };
     }
 
-    async bulkAssign(leadIds: string[], assigneeId: string, organizationId: string) {
-        if (!organizationId) throw new BadRequestException('Organization ID is required');
+    async bulkAssign(leadIds: string[], assigneeId: string, workspaceId: string) {
+        if (!workspaceId) throw new BadRequestException('Workspace ID is required');
         const supabase = this.supabaseService.getAdminClient();
 
         const { data, error } = await supabase
             .from(this.TABLE)
             .update({ assignee_id: assigneeId, updated_at: new Date().toISOString() })
             .in('id', leadIds)
-            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .select();
 
         if (error) throw new BadRequestException(error.message);
         return { count: data?.length || 0, data };
     }
 
-    async assignLead(leadId: string, assigneeId: string, organizationId: string) {
-        return this.update(leadId, { assigneeId } as UpdateLeadDto, organizationId);
+    async assignLead(leadId: string, assigneeId: string, workspaceId: string) {
+        return this.update(leadId, { assigneeId } as UpdateLeadDto, workspaceId);
     }
 
-    async updateStatus(leadId: string, status: LeadStatus, organizationId: string, lostReason?: string) {
-        return this.update(leadId, { status, lostReason } as UpdateLeadDto, organizationId);
+    async updateStatus(leadId: string, status: LeadStatus, workspaceId: string, lostReason?: string) {
+        return this.update(leadId, { status, lostReason } as UpdateLeadDto, workspaceId);
     }
 
-    async getStats(organizationId: string) {
-        if (!organizationId) throw new BadRequestException('Organization ID is required');
+    async getStats(workspaceId: string) {
+        if (!workspaceId) throw new BadRequestException('Workspace ID is required');
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.TABLE)
             .select('status')
-            .eq('organization_id', organizationId);
+            .eq('workspace_id', workspaceId);
 
         if (error) throw new BadRequestException(error.message);
 
@@ -213,12 +215,12 @@ export class LeadsService {
         return stats;
     }
 
-    async getDuplicates(organizationId: string, type: 'phone' | 'email' = 'phone') {
+    async getDuplicates(workspaceId: string, type: 'phone' | 'email' = 'phone') {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.TABLE)
             .select('id, name, phone, email, status, assignee_id, assignee:users!assignee_id(id,name)')
-            .eq('organization_id', organizationId);
+            .eq('workspace_id', workspaceId);
 
         if (error) throw new BadRequestException(error.message);
 

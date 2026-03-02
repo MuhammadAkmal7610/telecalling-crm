@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import WorkspaceModal from '../components/WorkspaceModal';
 import { supabase } from '../lib/supabaseClient';
+import { usePermission } from '../hooks/usePermission';
 import {
     ArrowRightOnRectangleIcon,
     PlusIcon,
@@ -21,6 +22,7 @@ const ManageWorkspaces = () => {
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const navigate = useNavigate();
+    const { can } = usePermission();
 
     useEffect(() => {
         fetchWorkspaces();
@@ -126,15 +128,23 @@ const ManageWorkspaces = () => {
                                 )}
                             </div>
 
-                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 rounded-b-xl flex justify-center">
-                                <button
-                                    onClick={() => setModalOpen(true)}
-                                    className="flex items-center gap-2 text-sm font-bold text-[#08A698] hover:bg-[#08A698]/10 px-6 py-2.5 rounded-lg transition-colors border border-transparent hover:border-[#08A698]/20"
-                                >
-                                    <PlusIcon className="w-5 h-5" strokeWidth={2.5} />
-                                    Create New Workspace
-                                </button>
-                            </div>
+                            {/* Create button — admin only */}
+                            {can('manage_workspaces') && (
+                                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 rounded-b-xl flex justify-center">
+                                    <button
+                                        onClick={() => setModalOpen(true)}
+                                        className="flex items-center gap-2 text-sm font-bold text-[#08A698] hover:bg-[#08A698]/10 px-6 py-2.5 rounded-lg transition-colors border border-transparent hover:border-[#08A698]/20"
+                                    >
+                                        <PlusIcon className="w-5 h-5" strokeWidth={2.5} />
+                                        Create New Workspace
+                                    </button>
+                                </div>
+                            )}
+                            {!can('manage_workspaces') && (
+                                <div className="px-6 py-3 border-t border-gray-100 bg-gray-50/30 rounded-b-xl text-center">
+                                    <p className="text-xs text-gray-400">Contact your admin to create workspaces.</p>
+                                </div>
+                            )}
                         </div>
 
                     </div>

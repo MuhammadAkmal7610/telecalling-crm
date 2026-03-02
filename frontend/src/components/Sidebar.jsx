@@ -1,14 +1,16 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { usePermission } from '../hooks/usePermission';
 
 import {
     HomeIcon, MagnifyingGlassIcon, UserPlusIcon, ListBulletIcon,
     MegaphoneIcon, FunnelIcon, QueueListIcon, ChartBarIcon, PhoneIcon,
     BoltIcon, CpuChipIcon, Cog6ToothIcon, PresentationChartLineIcon,
     DocumentArrowUpIcon, UserIcon, ArrowPathRoundedSquareIcon, CalendarIcon, ClipboardDocumentListIcon, CodeBracketIcon,
-    TrophyIcon, ArrowDownTrayIcon, DocumentDuplicateIcon, // New imports for Reports
-    UserGroupIcon, IdentificationIcon, ClipboardDocumentCheckIcon, ChatBubbleLeftRightIcon, // New imports for Filters
-    GlobeAltIcon, CursorArrowRaysIcon, ArchiveBoxIcon, Squares2X2Icon, ViewColumnsIcon, DocumentTextIcon // New imports for Campaigns
+    TrophyIcon, ArrowDownTrayIcon, DocumentDuplicateIcon,
+    UserGroupIcon, IdentificationIcon, ClipboardDocumentCheckIcon, ChatBubbleLeftRightIcon,
+    GlobeAltIcon, CursorArrowRaysIcon, ArchiveBoxIcon, Squares2X2Icon, ViewColumnsIcon, DocumentTextIcon,
+    ShieldCheckIcon, BuildingOfficeIcon, CreditCardIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../assets/Logo.png';
 
@@ -29,6 +31,7 @@ const navigation = [
 
 export default function Sidebar({ isOpen, setIsOpen }) {
     const location = useLocation();
+    const { can } = usePermission();
 
     return (
         <>
@@ -278,6 +281,41 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                         return LinkContent;
                     })}
                 </nav>
+
+                {/* Admin Section — only for admin/root */}
+                {can('manage_users') && (
+                    <div className="mt-auto w-full pb-2">
+                        <div className="mx-2 mb-1">
+                            <div className="h-px bg-gray-100"></div>
+                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest text-center py-1">Admin</p>
+                        </div>
+                        {[
+                            { name: 'Admin', icon: ShieldCheckIcon, path: '/admin' },
+                            { name: 'Users', icon: UserGroupIcon, path: '/users' },
+                            { name: 'Workspaces', icon: BuildingOfficeIcon, path: '/manage-workspaces' },
+                            { name: 'Billing', icon: CreditCardIcon, path: '/billing' },
+                        ].map(item => {
+                            const Icon = item.icon;
+                            const isActive = location.pathname === item.path;
+                            return (
+                                <Link
+                                    key={item.name}
+                                    to={item.path}
+                                    className="group/item flex flex-col items-center justify-center w-full py-1 px-2 rounded-lg transition-colors duration-200 hover:bg-gray-50"
+                                >
+                                    <div className={`flex items-center justify-center w-10 h-7 rounded-full mb-0.5 transition-colors duration-200 ${isActive ? 'bg-gray-100 text-[#08A698]' : 'bg-transparent text-gray-400 group-hover/item:text-gray-900'
+                                        }`}>
+                                        <Icon className="h-4 w-4" />
+                                    </div>
+                                    <span className={`text-[8px] font-medium truncate max-w-full px-1 transition-colors duration-200 ${isActive ? 'text-[#08A698]' : 'text-gray-400 group-hover/item:text-gray-700'
+                                        }`}>
+                                        {item.name}
+                                    </span>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* Mobile Sidebar (Drawer) */}

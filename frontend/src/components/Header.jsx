@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useWorkspace } from '../context/WorkspaceContext';
 import {
     Bars3Icon, BellIcon, PhoneIcon, ChevronDownIcon, MagnifyingGlassIcon,
     BuildingOfficeIcon, Cog8ToothIcon, ListBulletIcon, FunnelIcon,
@@ -11,6 +12,7 @@ import Logo from '../assets/Logo.png';
 
 export default function Header({ setIsSidebarOpen }) {
     const { signOut } = useAuth();
+    const { workspaces, currentWorkspace, switchWorkspace } = useWorkspace();
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
@@ -100,18 +102,35 @@ export default function Header({ setIsSidebarOpen }) {
             </div>
 
             <div className="flex items-center gap-4">
-                {/* Workspace Settings Dropdown */}
+                {/* Workspace Switcher & Settings Dropdown */}
                 <div className="relative group">
                     <button className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all focus:ring-2 focus:ring-[#08A698]/20 focus:border-[#08A698]">
-                        <BuildingOfficeIcon className="h-4 w-4 text-gray-500" />
-                        <span>Workspace Settings</span>
+                        <BuildingOfficeIcon className="h-4 w-4 text-[#08A698]" />
+                        <span className="max-w-[120px] truncate">{currentWorkspace ? currentWorkspace.name : 'Loading Workspace...'}</span>
                         <ChevronDownIcon className="h-4 w-4 text-gray-400" />
                     </button>
 
                     {/* Dropdown Menu */}
                     <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible z-50 overflow-hidden ring-1 ring-black/5 transition-all duration-200 ease-in-out delay-200 group-hover:delay-75">
 
-                        {/* Section: WORKSPACE */}
+                        {/* Section: MY WORKSPACES */}
+                        <div className="bg-gray-50/50 px-4 py-2 border-b border-gray-100">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">My Workspaces</span>
+                        </div>
+                        <div className="max-h-32 overflow-y-auto p-1">
+                            {workspaces.map((ws) => (
+                                <button
+                                    key={ws.id}
+                                    onClick={() => switchWorkspace(ws.id)}
+                                    className={`w-full text-left flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors ${currentWorkspace?.id === ws.id ? 'bg-[#08A698]/10 text-[#08A698] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                                >
+                                    <div className={`w-2 h-2 rounded-full ${currentWorkspace?.id === ws.id ? 'bg-[#08A698]' : 'bg-gray-300'}`}></div>
+                                    <span className="truncate">{ws.name}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Section: MAIN SETTINGS */}
                         <div className="bg-gray-50/50 px-4 py-2 border-b border-gray-100">
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Workspace</span>
                         </div>

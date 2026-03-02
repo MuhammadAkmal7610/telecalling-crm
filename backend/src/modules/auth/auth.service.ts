@@ -15,7 +15,7 @@ export class AuthService {
     async signup(signupDto: SignupDto) {
         const adminSupabase = this.supabaseService.getAdminClient();
 
-        // ---added by akmal--1. Create Organization
+        // 1. Create Organization
         let org;
         try {
             org = await this.workspacesService.create(signupDto.orgName);
@@ -23,16 +23,16 @@ export class AuthService {
             throw new BadRequestException(`Organization creation failed: ${error.message}`);
         }
 
-        // ---added by akmal--2. Sign up user in Supabase Auth using Admin Client (Bypasses email verification)
+        // 2. Sign up user in Supabase Auth using Admin Client
         const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
             email: signupDto.email,
             password: signupDto.password,
-            email_confirm: true, // ---added by akmal--Auto-confirm email
+            email_confirm: true,
             user_metadata: {
-                full_name: signupDto.orgName,
+                full_name: signupDto.name || signupDto.orgName,
                 org_name: signupDto.orgName,
                 phone: signupDto.phone,
-                role: 'admin',
+                role: 'root',          // Org founder is always root
                 organization_id: org.id,
                 signup_completed: true,
             },
@@ -43,27 +43,42 @@ export class AuthService {
             throw new BadRequestException(authError?.message || 'User creation failed');
         }
 
-        // ---added by akmal--3. Create entry in users table
+        // 3. Create entry in users table
         const { error: userError } = await adminSupabase
             .from('users')
             .insert({
                 id: authData.user.id,
                 organization_id: org.id,
                 email: signupDto.email,
-                name: signupDto.orgName,
-                role: 'admin',
+                name: signupDto.name || signupDto.orgName,
+                role: 'root',          // Org founder = root
+                status: 'Working',
             });
 
         if (userError) {
             this.logger.error(`User record creation error: ${userError.message}`);
         }
 
+        // 4. Create a default workspace for this org and enroll the owner
+        let defaultWorkspace: any = null;
+        try {
+            defaultWorkspace = await this.workspacesService.createDefaultWorkspace(
+                org.id,
+                authData.user.id,
+                signupDto.orgName,
+            );
+        } catch (wsError) {
+            this.logger.warn(`Default workspace creation failed: ${wsError.message}`);
+        }
+
         return {
             message: 'Signup successful. You can now log in.',
             user: authData.user,
             organization: org,
+            defaultWorkspace,
         };
     }
+
 
     async login(loginDto: LoginDto) {
         const supabase = this.supabaseService.getClient();

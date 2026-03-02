@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
-import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
+import { usePermission } from '../hooks/usePermission';
 import {
     MagnifyingGlassIcon,
     ChevronDownIcon,
@@ -546,8 +547,9 @@ const AddUserModal = ({ isOpen, onClose, onSubmit }) => {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
             if (res.ok) {
-                const data = await res.json();
-                setTemplates(data);
+                const result = await res.json();
+                const data = result.data?.data || result.data || [];
+                setTemplates(Array.isArray(data) ? data : []);
             }
         } catch (error) {
             console.error('Error fetching templates:', error);
@@ -755,6 +757,7 @@ const AddUserModal = ({ isOpen, onClose, onSubmit }) => {
 
 export default function UsersManagement() {
     const navigate = useNavigate();
+    const { can } = usePermission();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
     const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
@@ -940,50 +943,57 @@ export default function UsersManagement() {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-3">
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-colors text-sm font-medium shadow-sm">
-                                    <ArrowDownTrayIcon className="w-4 h-4" />
-                                    Export
-                                </button>
-
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setIsAddUserOpen(!isAddUserOpen)}
-                                        className={`flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-all text-sm font-medium shadow-sm ${isAddUserOpen ? 'ring-2 ring-[#08A698]/20 bg-[#08A698]/5' : ''}`}
-                                    >
-                                        <UserPlusIcon className="w-4 h-4" />
-                                        Add User
-                                        <ChevronDownIcon className={`w-3 h-3 ml-1 transition-transform duration-200 ${isAddUserOpen ? 'rotate-180' : ''}`} />
+                                {can('export_data') && (
+                                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-colors text-sm font-medium shadow-sm">
+                                        <ArrowDownTrayIcon className="w-4 h-4" />
+                                        Export
                                     </button>
+                                )}
 
-                                    {/* Dropdown Menu */}
-                                    {isAddUserOpen && (
-                                        <>
-                                            <div
-                                                className="fixed inset-0 z-10 opacity-0"
-                                                onClick={() => setIsAddUserOpen(false)}
-                                            ></div>
-                                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-20 py-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                <button
-                                                    onClick={() => { setIsAddUserOpen(false); setIsInviteModalOpen(true); }}
-                                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#08A698] transition-colors text-left group">
-                                                    <UserPlusIcon className="w-4 h-4 text-gray-400 group-hover:text-[#08A698]" />
-                                                    Add single user
-                                                </button>
-                                                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#08A698] transition-colors text-left group">
-                                                    <TableCellsIcon className="w-4 h-4 text-gray-400 group-hover:text-[#08A698]" />
-                                                    Add from excel
-                                                </button>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                                <button
-                                    onClick={() => navigate('/billing')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-colors text-sm font-medium shadow-sm"
-                                >
-                                    <CreditCardIcon className="w-4 h-4" />
-                                    Buy Licenses
-                                </button>
+                                {can('manage_users') && (
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setIsAddUserOpen(!isAddUserOpen)}
+                                            className={`flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-all text-sm font-medium shadow-sm ${isAddUserOpen ? 'ring-2 ring-[#08A698]/20 bg-[#08A698]/5' : ''}`}
+                                        >
+                                            <UserPlusIcon className="w-4 h-4" />
+                                            Add User
+                                            <ChevronDownIcon className={`w-3 h-3 ml-1 transition-transform duration-200 ${isAddUserOpen ? 'rotate-180' : ''}`} />
+                                        </button>
+
+                                        {/* Dropdown Menu */}
+                                        {isAddUserOpen && (
+                                            <>
+                                                <div
+                                                    className="fixed inset-0 z-10 opacity-0"
+                                                    onClick={() => setIsAddUserOpen(false)}
+                                                ></div>
+                                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-20 py-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                    <button
+                                                        onClick={() => { setIsAddUserOpen(false); setIsInviteModalOpen(true); }}
+                                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#08A698] transition-colors text-left group">
+                                                        <UserPlusIcon className="w-4 h-4 text-gray-400 group-hover:text-[#08A698]" />
+                                                        Add single user
+                                                    </button>
+                                                    <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#08A698] transition-colors text-left group">
+                                                        <TableCellsIcon className="w-4 h-4 text-gray-400 group-hover:text-[#08A698]" />
+                                                        Add from excel
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+
+                                {can('view_billing') && (
+                                    <button
+                                        onClick={() => navigate('/billing')}
+                                        className="flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-colors text-sm font-medium shadow-sm"
+                                    >
+                                        <CreditCardIcon className="w-4 h-4" />
+                                        Buy Licenses
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -1023,13 +1033,15 @@ export default function UsersManagement() {
                                         </button>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setIsLicenseModalOpen(true)}
-                                    className="px-3 py-1 bg-green-50 text-green-700 hover:bg-green-100 text-xs font-bold rounded-full border border-green-100 hover:border-green-200 flex items-center gap-1.5 transition-all cursor-pointer"
-                                >
-                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                                    1 License Available
-                                </button>
+                                {can('view_billing') && (
+                                    <button
+                                        onClick={() => setIsLicenseModalOpen(true)}
+                                        className="px-3 py-1 bg-green-50 text-green-700 hover:bg-green-100 text-xs font-bold rounded-full border border-green-100 hover:border-green-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                                    >
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                                        1 License Available
+                                    </button>
+                                )}
                             </div>
 
                             {/* Table */}
@@ -1037,9 +1049,11 @@ export default function UsersManagement() {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-white">
                                         <tr>
-                                            <th className="px-6 py-4 text-left w-10">
-                                                <input type="checkbox" className="rounded border-gray-300 text-[#08A698] focus:ring-[#08A698]" />
-                                            </th>
+                                            {can('manage_users') && (
+                                                <th className="px-6 py-4 text-left w-10">
+                                                    <input type="checkbox" className="rounded border-gray-300 text-[#08A698] focus:ring-[#08A698]" />
+                                                </th>
+                                            )}
                                             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
                                             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
                                             <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
@@ -1067,9 +1081,11 @@ export default function UsersManagement() {
                                         ) : (
                                             filteredUsers.map((user) => (
                                                 <tr key={user.id} className="hover:bg-gray-50/50 transition-colors group">
-                                                    <td className="px-6 py-4">
-                                                        <input type="checkbox" className="rounded border-gray-300 text-[#08A698] focus:ring-[#08A698]" />
-                                                    </td>
+                                                    {can('manage_users') && (
+                                                        <td className="px-6 py-4">
+                                                            <input type="checkbox" className="rounded border-gray-300 text-[#08A698] focus:ring-[#08A698]" />
+                                                        </td>
+                                                    )}
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="flex items-center gap-3">
                                                             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ${user.color}`}>

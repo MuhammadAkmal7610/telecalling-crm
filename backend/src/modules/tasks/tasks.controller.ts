@@ -6,11 +6,13 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, TaskQueryDto } from './dto/task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('tasks')
 export class TasksController {
     constructor(private readonly tasksService: TasksService) { }
@@ -18,37 +20,38 @@ export class TasksController {
     @Post()
     @ApiOperation({ summary: 'Create a task' })
     create(@Body() dto: CreateTaskDto, @CurrentUser() user: any) {
-        return this.tasksService.create(dto, user.id, user.organizationId);
+        return this.tasksService.create(dto, user.id, user.workspaceId, user.organizationId);
     }
 
     @Get()
     @ApiOperation({ summary: 'List tasks with filtering & pagination' })
     findAll(@Query() query: TaskQueryDto, @CurrentUser() user: any) {
-        return this.tasksService.findAll(query, user.organizationId);
+        return this.tasksService.findAll(query, user.workspaceId);
     }
 
     @Get(':id')
     @ApiOperation({ summary: 'Get a single task' })
     findOne(@Param('id') id: string, @CurrentUser() user: any) {
-        return this.tasksService.findOne(id, user.organizationId);
+        return this.tasksService.findOne(id, user.workspaceId);
     }
 
     @Patch(':id')
     @ApiOperation({ summary: 'Update a task' })
     update(@Param('id') id: string, @Body() dto: UpdateTaskDto, @CurrentUser() user: any) {
-        return this.tasksService.update(id, dto, user.organizationId);
+        return this.tasksService.update(id, dto, user.workspaceId);
     }
 
     @Delete(':id')
+    @Roles('admin', 'manager', 'root')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Delete a task' })
     remove(@Param('id') id: string, @CurrentUser() user: any) {
-        return this.tasksService.remove(id, user.organizationId);
+        return this.tasksService.remove(id, user.workspaceId);
     }
 
     @Post('bulk')
     @ApiOperation({ summary: 'Bulk create tasks' })
     bulkCreate(@Body() body: { tasks: CreateTaskDto[] }, @CurrentUser() user: any) {
-        return this.tasksService.bulkCreate(body.tasks, user.id, user.organizationId);
+        return this.tasksService.bulkCreate(body.tasks, user.id, user.workspaceId, user.organizationId);
     }
 }

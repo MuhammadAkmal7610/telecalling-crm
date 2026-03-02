@@ -9,7 +9,7 @@ export class CampaignsService {
 
     constructor(private readonly supabaseService: SupabaseService) { }
 
-    async create(dto: CreateCampaignDto, userId: string, organizationId: string) {
+    async create(dto: CreateCampaignDto, userId: string, workspaceId: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
 
         // Map camelCase to snake_case for the database
@@ -18,6 +18,7 @@ export class CampaignsService {
             ...rest,
             assignee_ids: assigneeIds || [],
             created_by: userId,
+            workspace_id: workspaceId,
             organization_id: organizationId,
             progress: 0
         };
@@ -32,7 +33,7 @@ export class CampaignsService {
         return data;
     }
 
-    async findAll(query: CampaignQueryDto, organizationId: string) {
+    async findAll(query: CampaignQueryDto, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { page = 1, limit = 20, search, status, priority } = query;
         const from = (page - 1) * limit;
@@ -40,7 +41,7 @@ export class CampaignsService {
         let q = supabase
             .from(this.TABLE)
             .select('*, creator:users!created_by(id,name)', { count: 'exact' })
-            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .order('created_at', { ascending: false })
             .range(from, from + limit - 1);
 
@@ -71,22 +72,22 @@ export class CampaignsService {
         return { data: campaignsWithStats, total: count, page, limit };
     }
 
-    async findOne(id: string, organizationId: string) {
+    async findOne(id: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.TABLE)
             .select('*, creator:users!created_by(id,name)')
             .eq('id', id)
-            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .single();
 
-        if (error || !data) throw new NotFoundException(`Campaign ${id} not found in your organization`);
+        if (error || !data) throw new NotFoundException(`Campaign ${id} not found in this workspace`);
         return data;
     }
 
-    async update(id: string, dto: UpdateCampaignDto, organizationId: string) {
+    async update(id: string, dto: UpdateCampaignDto, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        await this.findOne(id, organizationId);
+        await this.findOne(id, workspaceId);
 
         const { assigneeIds, ...rest } = dto;
         const updateData = {
@@ -99,7 +100,7 @@ export class CampaignsService {
             .from(this.TABLE)
             .update(updateData)
             .eq('id', id)
-            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .select()
             .single();
 
@@ -107,23 +108,23 @@ export class CampaignsService {
         return data;
     }
 
-    async remove(id: string, organizationId: string) {
+    async remove(id: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        await this.findOne(id, organizationId);
-        const { error } = await supabase.from(this.TABLE).delete().eq('id', id).eq('organization_id', organizationId);
+        await this.findOne(id, workspaceId);
+        const { error } = await supabase.from(this.TABLE).delete().eq('id', id).eq('workspace_id', workspaceId);
         if (error) throw new BadRequestException(error.message);
         return { message: 'Campaign deleted' };
     }
 
-    async getStats(id: string, organizationId: string) {
+    async getStats(id: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        await this.findOne(id, organizationId);
+        await this.findOne(id, workspaceId);
         // ---added by akmal--Get campaign lead progress stats
         const { data, error } = await supabase
             .from('leads')
             .select('status', { count: 'exact' })
             .eq('campaign_id', id)
-            .eq('organization_id', organizationId);
+            .eq('workspace_id', workspaceId);
 
         if (error) throw new BadRequestException(error.message);
 

@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { SchedulesService } from './schedules.service';
 import { SchedulesController } from './schedules.controller';
-import { SupabaseModule } from '../supabase/supabase.module';
+import { TasksModule } from '../tasks/tasks.module';
 
 @Module({
-  imports: [SupabaseModule],
+  imports: [TasksModule],
   controllers: [SchedulesController],
   providers: [SchedulesService],
   exports: [SchedulesService],

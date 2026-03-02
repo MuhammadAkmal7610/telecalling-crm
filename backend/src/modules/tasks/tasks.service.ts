@@ -13,7 +13,7 @@ export class TasksService {
         private readonly notificationsService: NotificationsService
     ) { }
 
-    async create(dto: CreateTaskDto, userId: string, organizationId: string) {
+    async create(dto: CreateTaskDto, userId: string, workspaceId: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
 
         const taskData = {
@@ -25,6 +25,7 @@ export class TasksService {
             lead_id: dto.leadId && dto.leadId !== "" ? dto.leadId : null,
             assignee_id: (dto.assigneeId && dto.assigneeId !== "") ? dto.assigneeId : userId,
             created_by: userId,
+            workspace_id: workspaceId,
             organization_id: organizationId,
         };
 
@@ -59,7 +60,7 @@ export class TasksService {
         return data;
     }
 
-    async findAll(query: TaskQueryDto, organizationId: string) {
+    async findAll(query: TaskQueryDto, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { page = 1, limit = 20, type, status, priority, assigneeId, leadId, due } = query;
         const from = (page - 1) * limit;
@@ -68,7 +69,7 @@ export class TasksService {
         let q = supabase
             .from(this.TABLE)
             .select('*, lead:leads(id,name,phone), assignee:users!assignee_id(id,name)', { count: 'exact' })
-            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .order('due_date', { ascending: true })
             .range(from, to);
 
@@ -99,22 +100,22 @@ export class TasksService {
         return { data, total: count, page, limit };
     }
 
-    async findOne(id: string, organizationId: string) {
+    async findOne(id: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.TABLE)
             .select('*, lead:leads(id,name,phone), assignee:users!assignee_id(id,name,email), creator:users!created_by(id,name)')
             .eq('id', id)
-            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .single();
 
-        if (error || !data) throw new NotFoundException(`Task ${id} not found in your organization`);
+        if (error || !data) throw new NotFoundException(`Task ${id} not found in this workspace`);
         return data;
     }
 
-    async update(id: string, dto: UpdateTaskDto, organizationId: string) {
+    async update(id: string, dto: UpdateTaskDto, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        await this.findOne(id, organizationId);
+        await this.findOne(id, workspaceId);
 
         const updateData: any = {
             updated_at: new Date().toISOString()
@@ -133,7 +134,7 @@ export class TasksService {
             .from(this.TABLE)
             .update(updateData)
             .eq('id', id)
-            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .select()
             .single();
 
@@ -141,15 +142,15 @@ export class TasksService {
         return data;
     }
 
-    async remove(id: string, organizationId: string) {
+    async remove(id: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        await this.findOne(id, organizationId);
-        const { error } = await supabase.from(this.TABLE).delete().eq('id', id).eq('organization_id', organizationId);
+        await this.findOne(id, workspaceId);
+        const { error } = await supabase.from(this.TABLE).delete().eq('id', id).eq('workspace_id', workspaceId);
         if (error) throw new BadRequestException(error.message);
         return { message: 'Task deleted' };
     }
 
-    async bulkCreate(tasks: CreateTaskDto[], userId: string, organizationId: string) {
+    async bulkCreate(tasks: CreateTaskDto[], userId: string, workspaceId: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const rows = tasks.map((t) => {
             return {
@@ -161,6 +162,7 @@ export class TasksService {
                 lead_id: t.leadId && t.leadId !== "" ? t.leadId : null,
                 assignee_id: (t.assigneeId && t.assigneeId !== "") ? t.assigneeId : userId,
                 created_by: userId,
+                workspace_id: workspaceId,
                 organization_id: organizationId,
             };
         });
