@@ -173,14 +173,27 @@ export class AdminService {
      */
     async getRecentActivity(organizationId: string, limit = 20) {
         const supabase = this.supabaseService.getAdminClient();
+
+        // activities schema: id, organization_id, lead_id, user_id, type, details (JSONB), created_at
+        // 'outcome' and 'notes' live inside details JSON, not as stand-alone columns
         const { data, error } = await supabase
             .from('activities')
-            .select('id, type, outcome, notes, created_at, user:users(name, email), lead:leads(name, phone)')
+            .select('id, type, details, created_at, user:users(name, email), lead:leads(name, phone)')
             .eq('organization_id', organizationId)
             .order('created_at', { ascending: false })
             .limit(limit);
 
-        if (error) throw new Error(error.message);
-        return data;
+        if (!error) return data || [];
+
+        // Fallback: simple query without joins if schema/FK issue
+        this.logger.warn(`Activity join query failed (${error.message}). Falling back to simple query.`);
+        const { data: fallback } = await supabase
+            .from('activities')
+            .select('id, type, details, created_at')
+            .eq('organization_id', organizationId)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        return fallback || [];
     }
 }

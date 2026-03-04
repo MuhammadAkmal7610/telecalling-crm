@@ -13,41 +13,69 @@ export class UsersService {
     async invite(dto: InviteUserDto, invitedBy: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
 
-        let userId: string;
+        let userId: string = '';          // initialized; will be set before use
         let authData: any;
+        let authUserWasNew = false;   // tracks if WE created the auth user (for rollback)
 
-        if (dto.password) {
-            // Direct creation if password is provided
-            const { data, error: authError } = await supabase.auth.admin.createUser({
-                email: dto.email,
-                password: dto.password,
-                email_confirm: true,
-                user_metadata: {
-                    name: dto.name,
-                    role: dto.role ?? 'caller',
-                    invited_by: invitedBy,
-                    organization_id: organizationId,
-                },
-            });
-            if (authError) throw new BadRequestException(authError.message);
-            userId = data.user.id;
-            authData = data;
-        } else {
-            // Invite via email
-            const { data, error: authError } = await supabase.auth.admin.inviteUserByEmail(dto.email, {
-                data: {
-                    name: dto.name,
-                    role: dto.role ?? 'caller',
-                    invited_by: invitedBy,
-                    organization_id: organizationId,
-                },
-            });
-            if (authError) throw new BadRequestException(authError.message);
-            userId = data.user.id;
-            authData = data;
+        // ── Step 1: Check if a DB record already exists ─────────────────────────
+        const { data: existingDbUser } = await supabase
+            .from(this.TABLE)
+            .select('id, email')
+            .eq('email', dto.email)
+            .maybeSingle();
+
+        if (existingDbUser) {
+            throw new BadRequestException(`A user with the email "${dto.email}" already exists in this organization.`);
         }
 
-        // Create profile record in users table
+        // ── Step 2: Check if an orphaned Auth user exists (partial previous failure) ─
+        let orphanedAuthId: string | null = null;
+        const { data: authList } = await supabase.auth.admin.listUsers();
+        const existingAuthUser = authList?.users?.find((u: any) => u.email === dto.email);
+        if (existingAuthUser) {
+            this.logger.warn(`Orphaned auth user found for ${dto.email} (id: ${existingAuthUser.id}). Reusing for DB record.`);
+            orphanedAuthId = existingAuthUser.id;
+            userId = existingAuthUser.id;
+            authData = { user: existingAuthUser };
+        }
+
+        // ── Step 3: Create Auth user only if no orphan found ────────────────────
+        if (!orphanedAuthId) {
+            if (dto.password) {
+                // Direct creation if password is provided
+                const { data, error: authError } = await supabase.auth.admin.createUser({
+                    email: dto.email,
+                    password: dto.password,
+                    email_confirm: true,
+                    user_metadata: {
+                        name: dto.name,
+                        role: dto.role ?? 'caller',
+                        invited_by: invitedBy,
+                        organization_id: organizationId,
+                    },
+                });
+                if (authError) throw new BadRequestException(authError.message);
+                userId = data.user.id;
+                authData = data;
+                authUserWasNew = true;
+            } else {
+                // Invite via email
+                const { data, error: authError } = await supabase.auth.admin.inviteUserByEmail(dto.email, {
+                    data: {
+                        name: dto.name,
+                        role: dto.role ?? 'caller',
+                        invited_by: invitedBy,
+                        organization_id: organizationId,
+                    },
+                });
+                if (authError) throw new BadRequestException(authError.message);
+                userId = data.user.id;
+                authData = data;
+                authUserWasNew = true;
+            }
+        }
+
+        // ── Step 4: Create profile record in users table ─────────────────────────
         const { data, error } = await supabase
             .from(this.TABLE)
             .insert({
@@ -58,15 +86,23 @@ export class UsersService {
                 phone: dto.phone,
                 role: dto.role ?? 'caller',
                 status: 'Invited',
-                permission_template_id: dto.permissionTemplateId,
-                license_type: dto.licenseType,
+                permission_template_id: dto.permissionTemplateId || null,
+                license_type: dto.licenseType || null,
                 invited_by: invitedBy,
                 organization_id: organizationId,
             })
             .select()
             .single();
 
-        if (error) throw new BadRequestException(error.message);
+        if (error) {
+            // ── Rollback: remove the Auth user we just created so retry is clean ──
+            if (authUserWasNew && userId) {
+                this.logger.error(`DB insert failed for ${dto.email}. Rolling back Auth user ${userId}.`);
+                await supabase.auth.admin.deleteUser(userId);
+            }
+            throw new BadRequestException(error.message);
+        }
+
         return { message: dto.password ? 'User created successfully' : 'Invitation sent', user: data };
     }
 

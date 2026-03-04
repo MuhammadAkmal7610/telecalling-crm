@@ -46,8 +46,8 @@ const ManageWorkspaces = () => {
             });
 
             if (response.ok) {
-                const data = await response.json();
-                setWorkspaces(data);
+                const result = await response.json();
+                setWorkspaces(result.data || []);
             }
         } catch (error) {
             console.error('Error fetching workspaces:', error);

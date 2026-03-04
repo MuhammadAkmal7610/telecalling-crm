@@ -36,7 +36,7 @@ export default function WorkflowWizard({ isOpen, onClose, onSuccess }) {
             const result = await res.json();
             const data = result.data?.data || result.data || result || [];
             // Filter only callers/managers/admins for assignment
-            setUsers(data.filter(u => ['caller', 'manager', 'admin', 'root'].includes(u.role)));
+            setUsers(data.filter(u => ['caller', 'manager', 'admin'].includes(u.role)));
         } catch (error) {
             console.error('Error fetching users:', error);
             toast.error('Failed to load users');

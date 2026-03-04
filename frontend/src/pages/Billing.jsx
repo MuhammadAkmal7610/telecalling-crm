@@ -1,7 +1,7 @@
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabaseClient';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
     PencilSquareIcon,
     ShoppingCartIcon,

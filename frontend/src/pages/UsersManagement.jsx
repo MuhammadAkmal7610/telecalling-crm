@@ -535,6 +535,8 @@ const AddUserModal = ({ isOpen, onClose, onSubmit }) => {
     });
     const [templates, setTemplates] = useState([]);
     const [loadingTemplates, setLoadingTemplates] = useState(false);
+    const [error, setError] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -584,6 +586,14 @@ const AddUserModal = ({ isOpen, onClose, onSubmit }) => {
 
                 {/* Form Content */}
                 <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                    {error && (
+                        <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl flex items-center justify-between">
+                            <span className="text-sm font-medium">{error}</span>
+                            <button onClick={() => setError(null)} className="p-1 hover:bg-red-100 rounded-full transition-colors">
+                                <XMarkIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 gap-6">
 
                         {/* Name & Initials */}
@@ -743,15 +753,31 @@ const AddUserModal = ({ isOpen, onClose, onSubmit }) => {
                     <button
                         onClick={onClose}
                         className="px-8 py-2.5 border border-gray-200 text-gray-700 rounded-xl font-medium text-sm hover:bg-white transition-all active:scale-95 shadow-sm"
+                        disabled={isSubmitting}
                     >
                         Cancel
                     </button>
                     <button
-                        onClick={() => onSubmit(formData)}
+                        onClick={async () => {
+                            setError(null);
+                            setIsSubmitting(true);
+                            try {
+                                await onSubmit(formData);
+                            } catch (e) {
+                                setError(e.message);
+                            } finally {
+                                setIsSubmitting(false);
+                            }
+                        }}
                         className="px-8 py-2.5 bg-[#08A698] text-white rounded-xl font-bold text-sm hover:bg-[#079084] transition-all active:scale-95 shadow-md shadow-[#08A698]/20 disabled:opacity-50"
-                        disabled={!formData.email || !formData.name}
+                        disabled={!formData.email || !formData.name || isSubmitting}
                     >
-                        Save Changes
+                        {isSubmitting ? (
+                            <div className="flex items-center gap-2">
+                                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                                <span>Saving...</span>
+                            </div>
+                        ) : 'Save Changes'}
                     </button>
                 </div>
             </div>
@@ -950,9 +976,12 @@ export default function UsersManagement() {
             if (!session) return;
 
             // Prepend country code if phone is provided and doesn't start with +
+            // Also ensure empty UUID fields are sent as null
             const body = {
                 ...formData,
-                phone: formData.phone && !formData.phone.startsWith('+') ? `+92${formData.phone}` : formData.phone
+                phone: formData.phone && !formData.phone.startsWith('+') ? `+92${formData.phone}` : formData.phone,
+                permissionTemplateId: formData.permissionTemplateId || null,
+                licenseType: formData.licenseType || null
             };
 
             const res = await fetch(`${API_URL}/users/invite`, {

@@ -29,7 +29,8 @@ export default function BulkAssignModal({ isOpen, onClose, selectedLeadIds, onSu
                 headers: { Authorization: `Bearer ${session.access_token}` }
             });
             const userData = res.data.data?.data || res.data.data || res.data || [];
-            setUsers(userData);
+            const validUsers = (Array.isArray(userData) ? userData : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
+            setUsers(validUsers);
         } catch (error) {
             console.error('Error fetching users:', error);
             toast.error('Failed to load users');

@@ -17,6 +17,15 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 export class LeadsController {
     constructor(private readonly leadsService: LeadsService) { }
 
+    @Get('debug-all')
+    @ApiOperation({ summary: 'TEMPORARY DEBUG - List all leads without filters' })
+    async debugAll() {
+        // Use service to access supabase client
+        const supabase = this.leadsService['supabaseService'].getAdminClient();
+        const { data, error } = await supabase.from('leads').select('id, name, workspace_id, assignee_id').limit(10);
+        return { data, error };
+    }
+
     @Post()
     @ApiOperation({ summary: 'Create a new lead' })
     create(@Body() dto: CreateLeadDto, @CurrentUser() user: any) {

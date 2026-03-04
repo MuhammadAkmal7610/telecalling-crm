@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
-import { supabase } from '../lib/supabaseClient';
+import { useApi } from '../hooks/useApi';
 import { toast } from 'react-hot-toast';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import {
@@ -15,6 +15,7 @@ import {
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 export default function AddLead() {
+    const { apiFetch } = useApi();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -47,34 +48,17 @@ export default function AddLead() {
 
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                toast.error('Session expired. Please login again.');
-                return;
-            }
-
-            const response = await fetch(`${API_URL}/leads`, {
+            const response = await apiFetch('/leads', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
                 body: JSON.stringify(formData)
             });
 
             if (response.ok) {
                 toast.success('Lead added successfully!');
-                setFormData({
-                    name: '',
-                    phone: '',
-                    alt_phone: '',
-                    email: '',
-                    source: '',
-                    custom_fields: {}
-                });
+                setFormData({ name: '', phone: '', alt_phone: '', email: '', source: '', custom_fields: {} });
             } else {
                 const error = await response.json();
-                toast.error(error.message || 'Failed to add lead');
+                toast.error(error.error?.message || error.message || 'Failed to add lead');
             }
         } catch (error) {
             console.error('Error adding lead:', error);

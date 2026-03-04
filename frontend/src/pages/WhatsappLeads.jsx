@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import FilterPageTemplate from '../components/FilterPageTemplate';
 import LeadDetailModal from '../components/LeadDetailModal';
-import { supabase } from '../lib/supabaseClient';
+import { useApi } from '../hooks/useApi';
+import { useWorkspace } from '../context/WorkspaceContext';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 export default function WhatsappLeads() {
+    const { apiFetch } = useApi();
+    const { currentWorkspace } = useWorkspace();
     const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState(null);
@@ -14,17 +17,12 @@ export default function WhatsappLeads() {
 
     useEffect(() => {
         fetchWhatsappLeads();
-    }, []);
+    }, [currentWorkspace]);
 
     const fetchWhatsappLeads = async () => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const res = await fetch(`${API_URL}/leads?source=whatsapp`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
+            const res = await apiFetch('/leads?source=whatsapp');
             const result = await res.json();
             const data = result.data?.data || result.data || [];
 

@@ -3,7 +3,8 @@ import Header from '../components/Header';
 import LeadDetailModal from '../components/LeadDetailModal';
 import LeadFormModal from '../components/LeadFormModal';
 import WorkspaceGuard from '../components/WorkspaceGuard';
-import { supabase } from '../lib/supabaseClient';
+import { useApi } from '../hooks/useApi';
+import { useWorkspace } from '../context/WorkspaceContext';
 import { useEffect, useState } from 'react';
 
 import {
@@ -22,6 +23,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 
 export default function Pipeline() {
+    const { apiFetch } = useApi();
+    const { currentWorkspace } = useWorkspace();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [columns, setColumns] = useState({});
     const [loading, setLoading] = useState(true);
@@ -32,19 +35,14 @@ export default function Pipeline() {
 
     useEffect(() => {
         fetchPipelineData();
-    }, []);
+    }, [currentWorkspace]);
 
     const fetchPipelineData = async () => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const headers = { 'Authorization': `Bearer ${session.access_token}` };
-
             const [stagesRes, leadsRes] = await Promise.all([
-                fetch(`${API_URL}/lead-stages`, { headers }),
-                fetch(`${API_URL}/leads?limit=1000`, { headers }) // Fetch enough for pipeline
+                apiFetch('/lead-stages'),
+                apiFetch('/leads?limit=1000')
             ]);
 
             const stagesData = await stagesRes.json();
@@ -55,7 +53,6 @@ export default function Pipeline() {
 
             setTotalLeads(leads.length);
 
-            // Build columns from stages
             const cols = {};
             stages.forEach(stage => {
                 cols[stage.id] = {

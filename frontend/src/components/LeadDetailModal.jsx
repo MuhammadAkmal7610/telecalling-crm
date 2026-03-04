@@ -3,13 +3,14 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, PhoneIcon, ChatBubbleLeftRightIcon, CalendarIcon, UserCircleIcon, ClockIcon, PaperAirplaneIcon, BarsArrowDownIcon, EnvelopeIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { useDialer } from '../context/DialerContext';
 import { toast } from 'react-hot-toast';
-import { supabase } from '../lib/supabaseClient';
+import { useApi } from '../hooks/useApi';
 import TaskModal from './TaskModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
     const { startCallLog } = useDialer();
+    const { apiFetch } = useApi();
     const [isScheduling, setIsScheduling] = useState(false);
     const [activeTab, setActiveTab] = useState('Activity');
     const [note, setNote] = useState('');
@@ -50,11 +51,7 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
     const fetchStages = async () => {
         setLoadingStages(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            const res = await fetch(`${API_URL}/lead-stages`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
+            const res = await apiFetch('/lead-stages');
             if (res.ok) {
                 const result = await res.json();
                 setStages(Array.isArray(result.data) ? result.data : (Array.isArray(result) ? result : []));
@@ -69,14 +66,8 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
     const fetchTimeline = async () => {
         setLoadingTimeline(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            const token = session.access_token;
-
             // Fetch Activities
-            const actRes = await fetch(`${API_URL}/activities?leadId=${lead.id}&limit=20`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const actRes = await apiFetch(`/activities?leadId=${lead.id}&limit=20`);
             let activitiesData = [];
             if (actRes.ok) {
                 const result = await actRes.json();
@@ -84,9 +75,7 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
             }
 
             // Fetch Tasks
-            const taskRes = await fetch(`${API_URL}/tasks?leadId=${lead.id}&limit=20`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const taskRes = await apiFetch(`/tasks?leadId=${lead.id}&limit=20`);
             let tasksData = [];
             if (taskRes.ok) {
                 const result = await taskRes.json();
@@ -109,10 +98,6 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
         if (!remark && selectedStatus === lead.status) return;
         setSaving(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return toast.error('Session expired');
-            const token = session.access_token;
-
             // 1. Log Activity
             if (remark) {
                 const activityTitle = {
@@ -122,12 +107,8 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
                     'note': 'Note Added'
                 }[selectedActivityType] || 'Activity Logged';
 
-                await fetch(`${API_URL}/activities`, {
+                await apiFetch('/activities', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
                     body: JSON.stringify({
                         type: selectedActivityType,
                         title: activityTitle,
@@ -139,16 +120,9 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
 
             // 2. Update Lead Status/Stage if changed
             if (selectedStatus !== lead.status || selectedStage !== lead.stage_id) {
-                await fetch(`${API_URL}/leads/${lead.id}`, {
+                await apiFetch(`/leads/${lead.id}`, {
                     method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        status: selectedStatus,
-                        stageId: selectedStage
-                    })
+                    body: JSON.stringify({ status: selectedStatus, stageId: selectedStage })
                 });
                 toast.success('Lead updated!');
             }

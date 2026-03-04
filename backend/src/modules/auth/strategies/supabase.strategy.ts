@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { passportJwtSecret } from 'jwks-rsa';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { getHigherRole } from '../../../common/roles';
 
 @Injectable()
 export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
@@ -65,11 +66,17 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
         const workspaceId = request.headers['x-workspace-id'] || null;
 
         // Fetch the user's current role and organization from DB (single source of truth)
-        const { data: userRecord } = await supabase
+        const { data: userRecord, error: fetchError } = await supabase
             .from('users')
             .select('id, email, name, role, organization_id, status')
             .eq('id', payload.sub)
             .single();
+
+        if (fetchError) {
+            this.logger.warn(`Failed to fetch user record for ${payload.sub}: ${fetchError.message}`);
+        } else {
+            this.logger.debug(`User record found: id=${userRecord.id}, role=${userRecord.role}, org=${userRecord.organization_id}`);
+        }
 
         if (userRecord && (userRecord.status === 'Suspended' || userRecord.status === 'Deleted')) {
             throw new UnauthorizedException(`Your account is ${userRecord.status.toLowerCase()}. Please contact your administrator.`);
@@ -81,8 +88,9 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
             payload.user_metadata?.organization_id ||
             payload.user_metadata?.org_id;
 
-        // If a workspace is specified, resolve workspace-scoped role from workspace_members
-        let workspaceRole = userRecord?.role || payload.user_metadata?.role || 'caller';
+        // Resolve workspace-scoped role from workspace_members
+        let finalRole = userRecord?.role || payload.user_metadata?.role || 'caller';
+
         if (workspaceId && userRecord) {
             const { data: membership } = await supabase
                 .from('workspace_members')
@@ -92,19 +100,31 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
                 .single();
 
             if (membership) {
-                workspaceRole = membership.role;
+                // Pick the higher role between organization and workspace membership
+                finalRole = getHigherRole(userRecord.role, membership.role);
             }
         }
 
-        return {
+        const userObj = {
             id: payload.sub,
             email: userRecord?.email || payload.email,
             name: userRecord?.name,
-            role: workspaceRole,         // workspace-scoped role (falls back to org role)
+            role: finalRole,             // Highest role found
             orgRole: userRecord?.role,   // always the org-level role
             organizationId,
             workspaceId,
             status: userRecord?.status,
         };
+
+        this.logger.debug(`SupabaseStrategy.validate returning user: ${JSON.stringify({
+            id: userObj.id,
+            email: userObj.email,
+            role: userObj.role,
+            orgRole: userObj.orgRole,
+            orgId: userObj.organizationId,
+            workspaceId: userObj.workspaceId
+        })}`);
+
+        return userObj;
     }
 }

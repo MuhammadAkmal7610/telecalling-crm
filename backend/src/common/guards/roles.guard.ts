@@ -13,14 +13,7 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
  *
  * Role hierarchy: root > admin > manager > marketing > caller
  */
-const ROLE_HIERARCHY: Record<string, number> = {
-    root: 100,
-    billing_admin: 90,
-    admin: 80,
-    manager: 60,
-    marketing: 40,
-    caller: 20,
-};
+import { ROLE_HIERARCHY } from '../roles';
 
 @Injectable()
 export class RolesGuard implements CanActivate {

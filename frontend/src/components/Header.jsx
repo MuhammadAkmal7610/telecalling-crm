@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 import { useWorkspace } from '../context/WorkspaceContext';
 import {
     Bars3Icon, BellIcon, PhoneIcon, ChevronDownIcon, MagnifyingGlassIcon,
@@ -20,45 +21,47 @@ export default function Header({ setIsSidebarOpen }) {
     useEffect(() => {
         const fetchNotifications = async () => {
             try {
-                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-                if (!token) return;
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) return;
                 const res = await fetch(`${API_URL}/notifications`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    setNotifications(data);
+                    setNotifications(data?.data || data || []);
                 }
             } catch (error) {
-                console.error("Failed to fetch notifications");
+                // Silently fail — notifications are not critical
             }
         };
         fetchNotifications();
-    }, [API_URL]);
+    }, []);
 
     const handleMarkAsRead = async (id) => {
         try {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
             await fetch(`${API_URL}/notifications/${id}/read`, {
                 method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
             setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
         } catch (error) {
-            console.error("Failed to mark as read");
+            // Silently fail
         }
     };
 
     const handleMarkAllAsRead = async () => {
         try {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
             await fetch(`${API_URL}/notifications/mark-all-read`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
             setNotifications(notifications.map(n => ({ ...n, isRead: true })));
         } catch (error) {
-            console.error("Failed to mark all as read");
+            // Silently fail
         }
     };
 

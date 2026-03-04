@@ -40,7 +40,8 @@ export default function TaskModal({ isOpen, onClose, onSuccess, leadId = null, l
             if (res.ok) {
                 const result = await res.json();
                 const userList = result.data?.data || result.data || [];
-                setUsers(userList);
+                const validUsers = (Array.isArray(userList) ? userList : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
+                setUsers(validUsers);
 
                 // Optional: Set default assignee logic here if needed
             }

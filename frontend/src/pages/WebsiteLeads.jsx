@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import WorkspaceGuard from '../components/WorkspaceGuard';
-import { supabase } from '../lib/supabaseClient';
+import { useApi } from '../hooks/useApi';
+import { useWorkspace } from '../context/WorkspaceContext';
 import {
     MagnifyingGlassIcon,
     FunnelIcon,
@@ -29,6 +30,8 @@ import { toast } from 'react-hot-toast';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 export default function WebsiteLeads() {
+    const { apiFetch } = useApi();
+    const { currentWorkspace } = useWorkspace();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [selectedLeadId, setSelectedLeadId] = useState(null);
     const [leads, setLeads] = useState([]);
@@ -39,7 +42,7 @@ export default function WebsiteLeads() {
 
     useEffect(() => {
         fetchWebsiteLeads();
-    }, []);
+    }, [currentWorkspace]);
 
     useEffect(() => {
         if (selectedLeadId) {
@@ -50,19 +53,11 @@ export default function WebsiteLeads() {
     const fetchWebsiteLeads = async () => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const res = await fetch(`${API_URL}/leads?source=website&limit=100`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
+            const res = await apiFetch('/leads?source=website&limit=100');
             const result = await res.json();
             const data = result.data?.data || result.data || [];
-
             setLeads(data);
-            if (data.length > 0 && !selectedLeadId) {
-                setSelectedLeadId(data[0].id);
-            }
+            if (data.length > 0 && !selectedLeadId) setSelectedLeadId(data[0].id);
         } catch (error) {
             console.error('Error fetching website leads:', error);
         } finally {
@@ -72,12 +67,7 @@ export default function WebsiteLeads() {
 
     const fetchLeadActivities = async (leadId) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const res = await fetch(`${API_URL}/activities?leadId=${leadId}`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
+            const res = await apiFetch(`/activities?leadId=${leadId}`);
             const result = await res.json();
             setActivities(result.data || result || []);
         } catch (error) {

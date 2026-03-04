@@ -101,8 +101,15 @@ export default function AdminDashboard() {
                 fetch(`${API_URL}/admin/activity?limit=15`, { headers }),
             ]);
 
-            if (statsRes.ok) setStats(await statsRes.json());
-            if (activityRes.ok) setActivity(await activityRes.json());
+            if (statsRes.ok) {
+                const json = await statsRes.json();
+                // Handle both wrapped { data: {...} } and direct response
+                setStats(json?.data || json);
+            }
+            if (activityRes.ok) {
+                const json = await activityRes.json();
+                setActivity(json?.data || json || []);
+            }
         } catch (e) {
             console.error('Admin data fetch failed', e);
         } finally {
@@ -337,7 +344,12 @@ export default function AdminDashboard() {
                                                             <span className="font-medium capitalize">{a.type}</span>
                                                             {a.lead?.name && <> with <span className="font-semibold">{a.lead.name}</span></>}
                                                         </p>
-                                                        {a.outcome && <p className="text-xs text-gray-500 mt-0.5">Outcome: {a.outcome}</p>}
+                                                        {(a.details?.outcome || a.details?.notes) && (
+                                                            <p className="text-xs text-gray-500 mt-0.5">
+                                                                {a.details?.outcome && <>Outcome: {a.details.outcome}</>}
+                                                                {a.details?.notes && <> — {a.details.notes}</>}
+                                                            </p>
+                                                        )}
                                                         <p className="text-xs text-gray-400 mt-0.5">
                                                             {new Date(a.created_at).toLocaleString()}
                                                         </p>

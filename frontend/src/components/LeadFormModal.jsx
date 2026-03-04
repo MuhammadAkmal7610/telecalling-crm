@@ -63,7 +63,8 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
                 headers: { Authorization: `Bearer ${session.access_token}` }
             });
             const data = res.data.data?.data || res.data.data || res.data || [];
-            setUsers(Array.isArray(data) ? data : []);
+            const validUsers = (Array.isArray(data) ? data : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
+            setUsers(validUsers);
             // Set default assignee to current user
             setFormData(prev => ({ ...prev, assigneeId: session.user.id }));
         } catch (error) {

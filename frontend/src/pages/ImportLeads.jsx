@@ -75,12 +75,16 @@ export default function ImportLeads() {
             });
             const rawData = res.data.data?.data || res.data.data || res.data || [];
             const userData = Array.isArray(rawData) ? rawData : [];
-            setUsers(userData);
+            const validUsers = userData.filter(u => u.role !== 'root' && u.role !== 'billing_admin');
+            setUsers(validUsers);
 
-            // Default assignment: everything to self or first user if self not found
-            const self = session.user.id;
+            // Default assignment: everything to first valid user
             const leadsCount = Array.isArray(fileData) ? fileData.length : 0;
-            setAssignments({ [self]: leadsCount });
+            if (validUsers.length > 0) {
+                setAssignments({ [validUsers[0].id]: leadsCount });
+            } else {
+                setAssignments({});
+            }
         } catch (error) {
             console.error('Error fetching users:', error);
             toast.error("Failed to load users for assignment");

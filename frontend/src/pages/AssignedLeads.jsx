@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import FilterPageTemplate from '../components/FilterPageTemplate';
 import LeadDetailModal from '../components/LeadDetailModal';
+import { useApi } from '../hooks/useApi';
+import { useWorkspace } from '../context/WorkspaceContext';
 import { supabase } from '../lib/supabaseClient';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 export default function AssignedLeads() {
+    const { apiFetch } = useApi();
+    const { currentWorkspace } = useWorkspace();
     const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState(null);
@@ -14,18 +18,15 @@ export default function AssignedLeads() {
 
     useEffect(() => {
         fetchAssignedLeads();
-    }, []);
+    }, [currentWorkspace]);
 
     const fetchAssignedLeads = async () => {
         setLoading(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-
             const userId = session.user.id;
-            const res = await fetch(`${API_URL}/leads?assigneeId=${userId}`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
+            const res = await apiFetch(`/leads?assigneeId=${userId}`);
             const result = await res.json();
             const data = result.data?.data || result.data || [];
 

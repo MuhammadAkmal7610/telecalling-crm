@@ -33,7 +33,7 @@ const WorkspaceModal = ({ isOpen, onClose, onCreated }) => {
             const data = await response.json();
 
             if (response.ok) {
-                onCreated(data);
+                onCreated(data.data);
                 setName('');
                 setDescription('');
                 onClose();

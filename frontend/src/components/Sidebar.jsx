@@ -10,7 +10,7 @@ import {
     TrophyIcon, ArrowDownTrayIcon, DocumentDuplicateIcon,
     UserGroupIcon, IdentificationIcon, ClipboardDocumentCheckIcon, ChatBubbleLeftRightIcon,
     GlobeAltIcon, CursorArrowRaysIcon, ArchiveBoxIcon, Squares2X2Icon, ViewColumnsIcon, DocumentTextIcon,
-    ShieldCheckIcon, BuildingOfficeIcon, CreditCardIcon
+    ShieldCheckIcon, BuildingOfficeIcon, CreditCardIcon, ArrowTrendingUpIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../assets/Logo.png';
 
