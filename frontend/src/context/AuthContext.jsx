@@ -56,7 +56,8 @@ export const AuthProvider = ({ children }) => {
                 body: JSON.stringify({
                     email,
                     password,
-                    orgName: extraData.orgName || extraData.full_name || 'My CRM',
+                    orgName: extraData.orgName || 'My CRM',
+                    name: extraData.full_name || extraData.name || '',
                     phone: extraData.phone || ''
                 })
             });
@@ -113,10 +114,44 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const forgotPassword = async (email) => {
+        try {
+            const res = await fetch(`${API_URL}/auth/forgot-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.message || 'Failed to send reset email');
+            return { data: result, error: null };
+        } catch (error) {
+            console.error('Forgot password error:', error);
+            return { data: null, error };
+        }
+    };
+
+    const resetPassword = async (password) => {
+        try {
+            const res = await fetch(`${API_URL}/auth/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.message || 'Failed to reset password');
+            return { data: result, error: null };
+        } catch (error) {
+            console.error('Reset password error:', error);
+            return { data: null, error };
+        }
+    };
+
     const value = {
         signUp,
         signIn,
         signOut,
+        forgotPassword,
+        resetPassword,
         user,
         loading,
         isAuthenticated: !!user,

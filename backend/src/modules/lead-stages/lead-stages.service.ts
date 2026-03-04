@@ -15,14 +15,15 @@ export class LeadStagesService {
 
     // ---added by akmal--─── Stages ───────────────────────────────────────────────────────────────
 
-    async create(dto: CreateLeadStageDto, organizationId: string) {
+    async create(dto: CreateLeadStageDto, organizationId: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
 
-        // ---added by akmal--Get current max position for this organization
+        // ---added by akmal--Get current max position for this organization & workspace
         const { data: existing } = await supabase
             .from(this.TABLE)
             .select('position')
             .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .order('position', { ascending: false })
             .limit(1)
             .single();
@@ -31,7 +32,7 @@ export class LeadStagesService {
 
         const { data, error } = await supabase
             .from(this.TABLE)
-            .insert({ ...dto, organization_id: organizationId, position })
+            .insert({ ...dto, organization_id: organizationId, workspace_id: workspaceId, position })
             .select()
             .single();
 
@@ -39,40 +40,43 @@ export class LeadStagesService {
         return data;
     }
 
-    async findAll(organizationId: string) {
+    async findAll(organizationId: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.TABLE)
             .select('*')
             .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .order('position', { ascending: true });
 
         if (error) throw new BadRequestException(error.message);
         return data;
     }
 
-    async findOne(id: string, organizationId: string) {
+    async findOne(id: string, organizationId: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.TABLE)
             .select('*')
             .eq('id', id)
             .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .single();
 
-        if (error || !data) throw new NotFoundException(`Stage ${id} not found in your organization`);
+        if (error || !data) throw new NotFoundException(`Stage ${id} not found in your workspace`);
         return data;
     }
 
-    async update(id: string, dto: UpdateLeadStageDto, organizationId: string) {
+    async update(id: string, dto: UpdateLeadStageDto, organizationId: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        await this.findOne(id, organizationId);
+        await this.findOne(id, organizationId, workspaceId);
 
         const { data, error } = await supabase
             .from(this.TABLE)
             .update(dto)
             .eq('id', id)
             .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .select()
             .single();
 
@@ -80,48 +84,61 @@ export class LeadStagesService {
         return data;
     }
 
-    async remove(id: string, organizationId: string) {
+    async remove(id: string, organizationId: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        const stage = await this.findOne(id, organizationId);
+        const stage = await this.findOne(id, organizationId, workspaceId);
 
         if (stage.is_default) {
             throw new BadRequestException('Cannot delete the default stage');
         }
 
-        const { error } = await supabase.from(this.TABLE).delete().eq('id', id).eq('organization_id', organizationId);
+        const { error } = await supabase
+            .from(this.TABLE)
+            .delete()
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId);
+
         if (error) throw new BadRequestException(error.message);
         return { message: 'Stage deleted' };
     }
 
-    async reorder(stageIds: string[], organizationId: string) {
+    async reorder(stageIds: string[], organizationId: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const updates = stageIds.map((id, idx) =>
-            supabase.from(this.TABLE).update({ position: idx }).eq('id', id).eq('organization_id', organizationId),
+            supabase
+                .from(this.TABLE)
+                .update({ position: idx })
+                .eq('id', id)
+                .eq('organization_id', organizationId)
+                .eq('workspace_id', workspaceId),
         );
         await Promise.all(updates);
-        return this.findAll(organizationId);
+        return this.findAll(organizationId, workspaceId);
     }
 
     // ---added by akmal--─── Lost Reasons ─────────────────────────────────────────────────────────
 
-    async getLostReasons(organizationId: string) {
+    async getLostReasons(organizationId: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.LOST_REASONS_TABLE)
             .select('*')
             .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .order('position', { ascending: true });
 
         if (error) throw new BadRequestException(error.message);
         return data;
     }
 
-    async createLostReason(dto: CreateLostReasonDto, organizationId: string) {
+    async createLostReason(dto: CreateLostReasonDto, organizationId: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { data: existing } = await supabase
             .from(this.LOST_REASONS_TABLE)
             .select('position')
             .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .order('position', { ascending: false })
             .limit(1)
             .single();
@@ -129,7 +146,7 @@ export class LeadStagesService {
         const position = dto.position ?? ((existing?.position ?? 0) + 1);
         const { data, error } = await supabase
             .from(this.LOST_REASONS_TABLE)
-            .insert({ ...dto, organization_id: organizationId, position })
+            .insert({ ...dto, organization_id: organizationId, workspace_id: workspaceId, position })
             .select()
             .single();
 
@@ -137,13 +154,14 @@ export class LeadStagesService {
         return data;
     }
 
-    async updateLostReason(id: string, dto: UpdateLostReasonDto, organizationId: string) {
+    async updateLostReason(id: string, dto: UpdateLostReasonDto, organizationId: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.LOST_REASONS_TABLE)
             .update(dto)
             .eq('id', id)
             .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .select()
             .single();
 
@@ -151,13 +169,15 @@ export class LeadStagesService {
         return data;
     }
 
-    async removeLostReason(id: string, organizationId: string) {
+    async removeLostReason(id: string, organizationId: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { error } = await supabase
             .from(this.LOST_REASONS_TABLE)
             .delete()
             .eq('id', id)
-            .eq('organization_id', organizationId);
+            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId);
+
         if (error) throw new BadRequestException(error.message);
         return { message: 'Lost reason deleted' };
     }

@@ -35,14 +35,14 @@ export class WorkspacesController {
 
     /** Create a new workspace (admin only) */
     @Post()
-    @Roles('admin')
+    @Roles('admin', 'root')
     create(@Body() dto: { name: string; description?: string }, @CurrentUser() user: any) {
-        return this.workspacesService.createWorkspace(dto, user.organizationId, user.id);
+        return this.workspacesService.createWorkspace(dto, user);
     }
 
     /** Update workspace name/description (admin only) */
     @Patch(':id')
-    @Roles('admin')
+    @Roles('admin', 'root')
     update(
         @Param('id') id: string,
         @Body() dto: { name?: string; description?: string },
@@ -53,7 +53,7 @@ export class WorkspacesController {
 
     /** Delete a workspace (admin only, cannot delete default) */
     @Delete(':id')
-    @Roles('admin')
+    @Roles('admin', 'root')
     remove(@Param('id') id: string, @CurrentUser() user: any) {
         return this.workspacesService.deleteWorkspace(id, user.organizationId);
     }
@@ -69,7 +69,7 @@ export class WorkspacesController {
 
     /** Add a user to a workspace (admin only) */
     @Post(':id/members')
-    @Roles('admin')
+    @Roles('admin', 'root')
     addMember(
         @Param('id') id: string,
         @Body() body: { userId: string; role?: string },
@@ -80,7 +80,7 @@ export class WorkspacesController {
 
     /** Change a member's role within a workspace (admin only) */
     @Patch(':id/members/:userId')
-    @Roles('admin')
+    @Roles('admin', 'root')
     updateMemberRole(
         @Param('id') id: string,
         @Param('userId') userId: string,
@@ -92,7 +92,7 @@ export class WorkspacesController {
 
     /** Remove a member from a workspace (admin only) */
     @Delete(':id/members/:userId')
-    @Roles('admin')
+    @Roles('admin', 'root')
     removeMember(
         @Param('id') id: string,
         @Param('userId') userId: string,

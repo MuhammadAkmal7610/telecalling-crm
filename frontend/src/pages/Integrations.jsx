@@ -14,6 +14,7 @@ export default function Integrations() {
     const [selectedIntegration, setSelectedIntegration] = useState(null);
     const [userOrgId, setUserOrgId] = useState('');
     const [copied, setCopied] = useState(false);
+    const [webhookToken, setWebhookToken] = useState('');
 
     useEffect(() => {
         fetchIntegrations();
@@ -23,11 +24,7 @@ export default function Integrations() {
     const fetchUserInfo = async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-            // organizationId is stored in the JWT claims or we can fetch from users table
-            // Usually it's in the app_metadata or user_metadata in Supabase if set up
-            // Or we fetch from our own /users/me endpoint
-            setUserOrgId(session.user.id); // Defaulting to userId for now if orgId not found
-            // Let's try to get orgId from metadata
+            setUserOrgId(session.user.id);
             const orgId = session.user.app_metadata?.organizationId || session.user.user_metadata?.organizationId;
             if (orgId) setUserOrgId(orgId);
         }
@@ -42,7 +39,9 @@ export default function Integrations() {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
             const result = await res.json();
-            setIntegrations(result.data || []);
+            const data = result.data || result;
+            setIntegrations(data.integrations || []);
+            setWebhookToken(data.webhookToken || '');
         } catch (error) {
             console.error('Error fetching integrations:', error);
         } finally {
@@ -60,9 +59,10 @@ export default function Integrations() {
 
     const getWebhookUrl = (id) => {
         const baseUrl = API_URL.replace('/api/v1', '');
-        if (id === 'im') return `${baseUrl}/api/v1/external-leads/indiamart?orgId=${userOrgId}`;
-        if (id === 'jd') return `${baseUrl}/api/v1/external-leads/justdial?orgId=${userOrgId}`;
-        return '';
+        const tokenQuery = webhookToken ? `&token=${webhookToken}` : '';
+        if (id === 'im') return `${baseUrl}/api/v1/external-leads/indiamart?orgId=${userOrgId}${tokenQuery}`;
+        if (id === 'jd') return `${baseUrl}/api/v1/external-leads/justdial?orgId=${userOrgId}${tokenQuery}`;
+        return `${baseUrl}/api/v1/external-leads/webhook/${userOrgId}/${id}?token=${webhookToken}`;
     };
 
     const copyToClipboard = (text) => {

@@ -11,7 +11,7 @@ import {
 import Logo from '../assets/Logo.png';
 
 export default function Header({ setIsSidebarOpen }) {
-    const { signOut } = useAuth();
+    const { user, signOut } = useAuth();
     const { workspaces, currentWorkspace, switchWorkspace } = useWorkspace();
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
@@ -84,7 +84,7 @@ export default function Header({ setIsSidebarOpen }) {
                 <div className="flex items-center gap-3">
                     {/* <img src={Logo} alt="WeWave" className="w-10 h-10 object-contain" /> */}
                     <span className="text-2xl font-semibold text-gray-900 tracking-tight">
-                        WeWave Inc.
+                        {user?.user_metadata?.orgName || 'CRM'}
                     </span>
                 </div>
             </div>
@@ -288,14 +288,16 @@ export default function Header({ setIsSidebarOpen }) {
                             {/* User Info Header */}
                             <div className="p-4 bg-gray-50/50 border-b border-gray-100">
                                 <div className="flex items-center justify-between mb-1">
-                                    <span className="font-semibold text-gray-900">WeWave Inc.</span>
-                                    <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded-full text-[10px] font-semibold text-gray-600 flex items-center gap-1.5 uppercase tracking-wider">
+                                    <span className="font-semibold text-gray-900 truncate max-w-[140px]">
+                                        {user?.user_metadata?.name || user?.user_metadata?.full_name || 'User'}
+                                    </span>
+                                    <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded-full text-[10px] font-semibold text-gray-600 flex items-center gap-1.5 uppercase tracking-wider shrink-0">
                                         <UsersIcon className="w-3 h-3 text-gray-500" />
-                                        Root
+                                        {user?.user_metadata?.role || 'User'}
                                     </span>
                                 </div>
                                 <div className="text-xs text-[#08A698] font-medium truncate">
-                                    admin@wewave.site
+                                    {user?.email}
                                 </div>
                             </div>
 

@@ -36,3 +36,16 @@ export class LoginDto {
     @IsString()
     password: string;
 }
+
+export class ForgotPasswordDto {
+    @ApiProperty({ example: 'test@example.com' })
+    @IsEmail()
+    email: string;
+}
+
+export class ResetPasswordDto {
+    @ApiProperty({ example: 'newpassword123' })
+    @IsString()
+    @MinLength(6)
+    password: string;
+}

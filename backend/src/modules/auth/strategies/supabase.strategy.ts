@@ -71,6 +71,10 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
             .eq('id', payload.sub)
             .single();
 
+        if (userRecord && (userRecord.status === 'Suspended' || userRecord.status === 'Deleted')) {
+            throw new UnauthorizedException(`Your account is ${userRecord.status.toLowerCase()}. Please contact your administrator.`);
+        }
+
         // If user not found in DB, fall back to JWT metadata (e.g. during signup flow)
         const organizationId =
             userRecord?.organization_id ||

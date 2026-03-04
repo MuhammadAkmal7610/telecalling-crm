@@ -255,21 +255,33 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                     </div>
 
                                     {/* Hover Card */}
-                                    <div className="absolute left-14 top-0 ml-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 p-2 hidden group-hover:block z-50 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="absolute left-14 top-0 ml-2 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 p-2 hidden group-hover:block z-50 animate-in fade-in zoom-in-95 duration-200">
                                         <div className="flex flex-col gap-1">
                                             {/* Arrow visual */}
                                             <div className="absolute top-4 -left-1.5 w-3 h-3 bg-white border-t border-l border-gray-100 transform -rotate-45"></div>
 
-                                            <Link to="/leaderboard" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-md cursor-pointer text-xs font-medium text-gray-700 transition-colors flex items-center gap-2">
+                                            <p className="px-3 py-1 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Insights</p>
+
+                                            <Link to="/leaderboard" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-lg cursor-pointer text-xs font-semibold text-gray-700 transition-all flex items-center gap-2">
                                                 <TrophyIcon className="w-4 h-4" /> Leaderboard
                                             </Link>
-                                            <Link to="/call-report" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-md cursor-pointer text-xs font-medium text-gray-700 transition-colors flex items-center gap-2">
+                                            <Link to="/call-report" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-lg cursor-pointer text-xs font-semibold text-gray-700 transition-all flex items-center gap-2">
                                                 <PhoneIcon className="w-4 h-4" /> Call Report
                                             </Link>
-                                            <Link to="/report-download" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-md cursor-pointer text-xs font-medium text-gray-700 transition-colors flex items-center gap-2">
+                                            <Link to="/reports" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-lg cursor-pointer text-xs font-semibold text-gray-700 transition-all flex items-center gap-2">
+                                                <ArrowTrendingUpIcon className="w-4 h-4 text-teal-500" /> Conversion Rate
+                                            </Link>
+                                            <Link to="/reports" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-lg cursor-pointer text-xs font-semibold text-gray-700 transition-all flex items-center gap-2">
+                                                <UserGroupIcon className="w-4 h-4 text-teal-500" /> Agent Performance
+                                            </Link>
+
+                                            <div className="h-px bg-gray-50 my-1"></div>
+                                            <p className="px-3 py-1 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Downloads</p>
+
+                                            <Link to="/report-download" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-lg cursor-pointer text-xs font-semibold text-gray-700 transition-all flex items-center gap-2">
                                                 <ArrowDownTrayIcon className="w-4 h-4" /> Report Download
                                             </Link>
-                                            <Link to="/all-duplicates" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-md cursor-pointer text-xs font-medium text-gray-700 transition-colors flex items-center gap-2">
+                                            <Link to="/all-duplicates" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-lg cursor-pointer text-xs font-semibold text-gray-700 transition-all flex items-center gap-2">
                                                 <DocumentDuplicateIcon className="w-4 h-4" /> All Duplicates
                                             </Link>
                                         </div>
@@ -282,19 +294,20 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     })}
                 </nav>
 
-                {/* Admin Section — only for admin/root */}
-                {can('manage_users') && (
+                {/* Admin Section */}
+                {(can('manage_users') || can('manage_workspaces') || can('view_billing')) && (
                     <div className="mt-auto w-full pb-2">
                         <div className="mx-2 mb-1">
                             <div className="h-px bg-gray-100"></div>
                             <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest text-center py-1">Admin</p>
                         </div>
                         {[
-                            { name: 'Admin', icon: ShieldCheckIcon, path: '/admin' },
-                            { name: 'Users', icon: UserGroupIcon, path: '/users' },
-                            { name: 'Workspaces', icon: BuildingOfficeIcon, path: '/manage-workspaces' },
-                            { name: 'Billing', icon: CreditCardIcon, path: '/billing' },
+                            { name: 'Admin', icon: ShieldCheckIcon, path: '/admin', permission: 'manage_users' },
+                            { name: 'Users', icon: UserGroupIcon, path: '/users', permission: 'manage_users' },
+                            { name: 'Workspaces', icon: BuildingOfficeIcon, path: '/manage-workspaces', permission: 'manage_workspaces' },
+                            { name: 'Billing', icon: CreditCardIcon, path: '/billing', permission: 'view_billing' },
                         ].map(item => {
+                            if (item.permission && !can(item.permission)) return null;
                             const Icon = item.icon;
                             const isActive = location.pathname === item.path;
                             return (

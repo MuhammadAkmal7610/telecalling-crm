@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import WorkspaceGuard from '../components/WorkspaceGuard';
 import { supabase } from '../lib/supabaseClient';
 import {
     ArrowPathIcon,
@@ -205,39 +206,41 @@ export default function LeadFields() {
             <div className="flex flex-1 flex-col overflow-hidden">
                 <Header setIsSidebarOpen={setSidebarOpen} />
                 <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-                    <div className="max-w-5xl mx-auto space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                    Fields Settings
-                                    <button onClick={fetchFields} className="p-1 text-gray-400 hover:text-[#08A698] hover:bg-[#08A698]/5 rounded-full transition-colors">
-                                        <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                                    </button>
-                                </h1>
-                            </div>
-                            <button onClick={() => setModalState({ isOpen: true, mode: 'create', field: null })} className="bg-[#08A698] hover:bg-[#068f82] text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-                                <PlusIcon className="w-4 h-4" /> Add a new field
-                            </button>
-                        </div>
-
-                        <div>
-                            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Primary Fields</h2>
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
-                                {primaryFields.map(f => (<FieldRow key={f.id} field={f} onEdit={f => setModalState({ isOpen: true, mode: 'edit', field: f })} />))}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Other Fields</h2>
-                            {otherFields.length === 0 ? (
-                                <div className="p-8 text-center text-gray-400 italic bg-white rounded-lg border border-dashed border-gray-200">No custom fields created yet</div>
-                            ) : (
-                                <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
-                                    {otherFields.map(f => (<FieldRow key={f.id} field={f} onEdit={f => setModalState({ isOpen: true, mode: 'edit', field: f })} />))}
+                    <WorkspaceGuard>
+                        <div className="max-w-5xl mx-auto space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                        Fields Settings
+                                        <button onClick={fetchFields} className="p-1 text-gray-400 hover:text-[#08A698] hover:bg-[#08A698]/5 rounded-full transition-colors">
+                                            <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                                        </button>
+                                    </h1>
                                 </div>
-                            )}
+                                <button onClick={() => setModalState({ isOpen: true, mode: 'create', field: null })} className="bg-[#08A698] hover:bg-[#068f82] text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                                    <PlusIcon className="w-4 h-4" /> Add a new field
+                                </button>
+                            </div>
+
+                            <div>
+                                <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Primary Fields</h2>
+                                <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
+                                    {primaryFields.map(f => (<FieldRow key={f.id} field={f} onEdit={f => setModalState({ isOpen: true, mode: 'edit', field: f })} />))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Other Fields</h2>
+                                {otherFields.length === 0 ? (
+                                    <div className="p-8 text-center text-gray-400 italic bg-white rounded-lg border border-dashed border-gray-200">No custom fields created yet</div>
+                                ) : (
+                                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
+                                        {otherFields.map(f => (<FieldRow key={f.id} field={f} onEdit={f => setModalState({ isOpen: true, mode: 'edit', field: f })} />))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    </WorkspaceGuard>
                 </main>
             </div>
         </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import FilterPageTemplate from '../components/FilterPageTemplate';
 import LeadDetailModal from '../components/LeadDetailModal';
 import LeadFormModal from '../components/LeadFormModal';
+import WorkspaceGuard from '../components/WorkspaceGuard';
 import { supabase } from '../lib/supabaseClient';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
@@ -63,7 +64,7 @@ export default function AllLeads() {
     };
 
     return (
-        <>
+        <WorkspaceGuard>
             <FilterPageTemplate
                 title="All Leads"
                 data={leads}
@@ -82,6 +83,6 @@ export default function AllLeads() {
                 onClose={() => setIsAddModalOpen(false)}
                 onSuccess={fetchLeads}
             />
-        </>
+        </WorkspaceGuard>
     );
 }

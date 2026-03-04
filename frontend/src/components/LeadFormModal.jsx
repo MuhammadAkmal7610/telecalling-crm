@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { XMarkIcon, UserCircleIcon, PhoneIcon, EnvelopeIcon, MapPinIcon, BriefcaseIcon, CalendarIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UserCircleIcon, PhoneIcon, EnvelopeIcon, MapPinIcon, BriefcaseIcon, CalendarIcon, PlusIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import { supabase } from '../lib/supabaseClient';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
@@ -9,6 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
     const [fields, setFields] = useState([]);
     const [users, setUsers] = useState([]);
+    const [stages, setStages] = useState([]);
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
 
@@ -16,9 +17,29 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
         if (isOpen) {
             fetchFields();
             fetchUsers();
+            fetchStages();
             setFormData({}); // Reset form
         }
     }, [isOpen]);
+
+    const fetchStages = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            const res = await axios.get(`${API_URL}/lead-stages`, {
+                headers: { Authorization: `Bearer ${session.access_token}` }
+            });
+            const data = res.data.data?.data || res.data.data || res.data || [];
+            setStages(Array.isArray(data) ? data : []);
+            // Set default stage if available
+            const defaultStage = data.find(s => s.is_default);
+            if (defaultStage) {
+                setFormData(prev => ({ ...prev, stageId: defaultStage.id }));
+            }
+        } catch (error) {
+            console.error('Error fetching stages:', error);
+        }
+    };
 
     const fetchFields = async () => {
         try {
@@ -137,6 +158,20 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
                                 </div>
                             </div>
                         ))}
+
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-1.5">
+                                <FunnelIcon className="w-4 h-4" /> Pipeline Stage
+                            </label>
+                            <select
+                                value={formData.stageId || ''}
+                                onChange={(e) => handleChange('stageId', e.target.value)}
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#08A698] focus:bg-white transition-all outline-none appearance-none"
+                            >
+                                <option value="">Select Stage</option>
+                                {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
 
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-1.5">

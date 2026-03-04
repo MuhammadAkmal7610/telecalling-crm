@@ -26,25 +26,25 @@ export class LeadsController {
     @Get()
     @ApiOperation({ summary: 'List all leads with filtering, search & pagination' })
     findAll(@Query() query: LeadQueryDto, @CurrentUser() user: any) {
-        return this.leadsService.findAll(query, user.workspaceId);
+        return this.leadsService.findAll(query, user);
     }
 
     @Get('stats')
     @ApiOperation({ summary: 'Get lead counts grouped by status' })
     getStats(@CurrentUser() user: any) {
-        return this.leadsService.getStats(user.workspaceId);
+        return this.leadsService.getStats(user);
     }
 
     @Get(':id')
     @ApiOperation({ summary: 'Get a single lead by ID' })
     findOne(@Param('id') id: string, @CurrentUser() user: any) {
-        return this.leadsService.findOne(id, user.workspaceId);
+        return this.leadsService.findOne(id, user);
     }
 
     @Patch(':id')
     @ApiOperation({ summary: 'Update a lead' })
     update(@Param('id') id: string, @Body() dto: UpdateLeadDto, @CurrentUser() user: any) {
-        return this.leadsService.update(id, dto, user.workspaceId);
+        return this.leadsService.update(id, dto, user);
     }
 
     @Patch(':id/status')
@@ -54,21 +54,21 @@ export class LeadsController {
         @Body() body: { status: LeadStatus; lostReason?: string },
         @CurrentUser() user: any
     ) {
-        return this.leadsService.updateStatus(id, body.status, user.workspaceId, body.lostReason);
+        return this.leadsService.updateStatus(id, body.status, user, body.lostReason);
     }
 
     @Patch(':id/assign')
     @Roles('manager', 'admin', 'root')
     @ApiOperation({ summary: 'Assign lead to a user' })
     assign(@Param('id') id: string, @Body() body: { assigneeId: string }, @CurrentUser() user: any) {
-        return this.leadsService.assignLead(id, body.assigneeId, user.workspaceId);
+        return this.leadsService.assignLead(id, body.assigneeId, user);
     }
 
     @Patch('bulk-assign')
     @Roles('manager', 'admin', 'root')
     @ApiOperation({ summary: 'Bulk assign leads to a user' })
     bulkAssign(@Body() body: { leadIds: string[]; assigneeId: string }, @CurrentUser() user: any) {
-        return this.leadsService.bulkAssign(body.leadIds, body.assigneeId, user.workspaceId);
+        return this.leadsService.bulkAssign(body.leadIds, body.assigneeId, user);
     }
 
     @Delete(':id')

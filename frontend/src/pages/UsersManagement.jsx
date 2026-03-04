@@ -26,6 +26,10 @@ import {
     XMarkIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../assets/Logo.png';
+import WorkspaceGuard from '../components/WorkspaceGuard';
+import ConfirmModal from '../components/ConfirmModal';
+import { toast } from 'react-hot-toast';
+import { supabase } from '../lib/supabaseClient';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
@@ -755,6 +759,101 @@ const AddUserModal = ({ isOpen, onClose, onSubmit }) => {
     );
 };
 
+// Drawer component for viewing user activity
+const UserActivityDrawer = ({ isOpen, onClose, user }) => {
+    const [activities, setActivities] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && user) {
+            fetchActivity();
+        }
+    }, [isOpen, user]);
+
+    const fetchActivity = async () => {
+        setLoading(true);
+        try {
+            const { data: { session } } = await (await import('../lib/supabaseClient')).supabase.auth.getSession();
+            const res = await fetch(`${API_URL}/users/${user.id}/activity`, {
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            if (res.ok) {
+                const result = await res.json();
+                setActivities(result.data || []);
+            }
+        } catch (error) {
+            console.error('Error fetching activity:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[70] overflow-hidden font-sans">
+            <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+            <div className="absolute inset-y-0 right-0 max-w-lg w-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold ${user.color}`}>
+                            {user.initials}
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-900">{user.name}</h2>
+                            <p className="text-xs text-gray-500">Activity History</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-all">
+                        <XMarkIcon className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center h-40 gap-3">
+                            <ArrowPathIcon className="w-6 h-6 text-[#08A698] animate-spin" />
+                            <span className="text-sm text-gray-500">Loading activity...</span>
+                        </div>
+                    ) : activities.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-40 text-gray-400 italic">
+                            No recent activity found
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {activities.map((act) => (
+                                <div key={act.id} className="relative pl-8 before:absolute before:left-[11px] before:top-2 before:bottom-[-24px] before:w-0.5 before:bg-gray-200 last:before:hidden">
+                                    <div className={`absolute left-0 top-0 w-6 h-6 rounded-full flex items-center justify-center ring-4 ring-white shadow-sm z-10
+                                        ${act.type === 'call' ? 'bg-blue-100 text-blue-600' : 'bg-teal-100 text-teal-600'}`}>
+                                        {act.type === 'call' ? <PhoneIcon className="w-3.5 h-3.5" /> : <TableCellsIcon className="w-3.5 h-3.5" />}
+                                    </div>
+                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="text-sm font-bold text-gray-900 capitalize">{act.type} logged</span>
+                                            <span className="text-[10px] text-gray-400 font-medium">{new Date(act.created_at).toLocaleString()}</span>
+                                        </div>
+                                        {act.lead && (
+                                            <div className="text-xs text-gray-500 mb-2">
+                                                Lead: <span className="font-semibold text-[#08A698]">{act.lead.name}</span>
+                                            </div>
+                                        )}
+                                        {act.notes && (
+                                            <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg italic">"{act.notes}"</p>
+                                        )}
+                                        {act.duration && (
+                                            <div className="mt-2 text-[10px] font-medium text-gray-400">{Math.floor(act.duration / 60)}m {act.duration % 60}s</div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function UsersManagement() {
     const navigate = useNavigate();
     const { can } = usePermission();
@@ -763,6 +862,10 @@ export default function UsersManagement() {
     const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
     // invitation modal for adding a single user
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+    const [isActivityDrawerOpen, setIsActivityDrawerOpen] = useState(false);
+    const [activeUser, setActiveUser] = useState(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState(null);
 
     const [selectedStatuses, setSelectedStatuses] = useState([]);
     const [selectedRoles, setSelectedRoles] = useState([]);
@@ -884,12 +987,70 @@ export default function UsersManagement() {
             'On Leave': 'bg-yellow-50 text-yellow-700 ring-yellow-600/20',
             'Invited': 'bg-blue-50 text-blue-700 ring-blue-600/20',
             'Deleted': 'bg-red-50 text-red-700 ring-red-600/20',
+            'Suspended': 'bg-orange-50 text-orange-700 ring-orange-600/20',
         };
         return (
             <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ring-1 ring-inset ${styles[status]}`}>
                 {status}
             </span>
         );
+    };
+
+    const handleUserStatusChange = async (userId, newStatus) => {
+        try {
+            const { data: { session } } = await (await import('../lib/supabaseClient')).supabase.auth.getSession();
+            const res = await fetch(`${API_URL}/users/${userId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({ status: newStatus })
+            });
+            if (res.ok) {
+                toast.success(`User status updated to ${newStatus}`);
+                fetchUsers();
+            } else {
+                const err = await res.json();
+                toast.error(err.message || 'Failed to update status');
+            }
+        } catch (error) {
+            console.error('Error updating status:', error);
+            toast.error('Failed to update status');
+        }
+    };
+
+    const handleDeleteUser = async (userId) => {
+        setUserToDelete(userId);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDeleteUser = async () => {
+        if (!userToDelete) return;
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            const res = await fetch(`${API_URL}/users/${userToDelete}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            });
+            if (res.ok) {
+                toast.success('User deleted successfully');
+                fetchUsers();
+            } else {
+                const err = await res.json();
+                toast.error(err.message || 'Failed to delete user');
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            toast.error('Failed to delete user');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setUserToDelete(null);
+        }
     };
 
     const getRoleIcon = (type) => {
@@ -912,6 +1073,11 @@ export default function UsersManagement() {
                 isOpen={isLicenseModalOpen}
                 onClose={() => setIsLicenseModalOpen(false)}
             />
+            <UserActivityDrawer
+                isOpen={isActivityDrawerOpen}
+                user={activeUser}
+                onClose={() => setIsActivityDrawerOpen(false)}
+            />
             <AddUserModal
                 isOpen={isInviteModalOpen}
                 onClose={() => setIsInviteModalOpen(false)}
@@ -922,217 +1088,276 @@ export default function UsersManagement() {
                 <Header setIsSidebarOpen={setSidebarOpen} />
 
                 <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-                    <div className="max-w-7xl mx-auto">
+                    <WorkspaceGuard>
+                        <div className="max-w-7xl mx-auto">
 
-                        {/* Header Section */}
-                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8">
-                            <div className='flex items-center gap-3'>
-                                <UserGroupIcon className="w-8 h-8 text-gray-500" strokeWidth={1.5} />
-                                <div>
-                                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                                        User Management
-                                        <button
-                                            onClick={fetchUsers}
-                                            className={`p-1.5 text-gray-400 hover:text-[#08A698] hover:bg-[#08A698]/5 rounded-full transition-colors ${loading ? 'animate-spin' : ''}`}
-                                        >
-                                            <ArrowPathIcon className="w-4 h-4" />
-                                        </button>
-                                    </h1>
-                                    <p className="text-gray-500 text-sm mt-1">Manage your team</p>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-3">
-                                {can('export_data') && (
-                                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-colors text-sm font-medium shadow-sm">
-                                        <ArrowDownTrayIcon className="w-4 h-4" />
-                                        Export
-                                    </button>
-                                )}
-
-                                {can('manage_users') && (
-                                    <div className="relative">
-                                        <button
-                                            onClick={() => setIsAddUserOpen(!isAddUserOpen)}
-                                            className={`flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-all text-sm font-medium shadow-sm ${isAddUserOpen ? 'ring-2 ring-[#08A698]/20 bg-[#08A698]/5' : ''}`}
-                                        >
-                                            <UserPlusIcon className="w-4 h-4" />
-                                            Add User
-                                            <ChevronDownIcon className={`w-3 h-3 ml-1 transition-transform duration-200 ${isAddUserOpen ? 'rotate-180' : ''}`} />
-                                        </button>
-
-                                        {/* Dropdown Menu */}
-                                        {isAddUserOpen && (
-                                            <>
-                                                <div
-                                                    className="fixed inset-0 z-10 opacity-0"
-                                                    onClick={() => setIsAddUserOpen(false)}
-                                                ></div>
-                                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-20 py-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                    <button
-                                                        onClick={() => { setIsAddUserOpen(false); setIsInviteModalOpen(true); }}
-                                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#08A698] transition-colors text-left group">
-                                                        <UserPlusIcon className="w-4 h-4 text-gray-400 group-hover:text-[#08A698]" />
-                                                        Add single user
-                                                    </button>
-                                                    <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#08A698] transition-colors text-left group">
-                                                        <TableCellsIcon className="w-4 h-4 text-gray-400 group-hover:text-[#08A698]" />
-                                                        Add from excel
-                                                    </button>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                )}
-
-                                {can('view_billing') && (
-                                    <button
-                                        onClick={() => navigate('/billing')}
-                                        className="flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-colors text-sm font-medium shadow-sm"
-                                    >
-                                        <CreditCardIcon className="w-4 h-4" />
-                                        Buy Licenses
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Filters */}
-                        <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-2 rounded-xl shadow-sm border border-gray-200 mb-6">
-                            <div className="flex-1 w-full relative">
-                                <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                <input
-                                    type="text"
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Search by Name, Email or Phone Number"
-                                    className="w-full pl-10 pr-4 py-2.5 text-sm outline-none text-gray-700 placeholder-gray-400 bg-transparent"
-                                />
-                            </div>
-                            <div className="hidden sm:block w-px h-8 bg-gray-200"></div>
-                            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto px-2">
-                                <RoleDropdown selectedRoles={selectedRoles} toggleRole={toggleRole} />
-                                <StatusDropdown selectedStatuses={selectedStatuses} toggleStatus={toggleStatus} />
-                                <LicenseDropdown />
-                            </div>
-                        </div>
-
-                        {/* Content Area */}
-                        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden z-0 relative">
-
-                            {/* Toolbar */}
-                            <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50/30">
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-2">
-                                        <button className="p-1 rounded-md text-gray-400 hover:text-gray-600 disabled:opacity-50">
-                                            <ChevronLeftIcon className="w-4 h-4" />
-                                        </button>
-                                        <span className="text-sm text-gray-600 font-medium">1 - {filteredUsers.length} of {filteredUsers.length}</span>
-                                        <button className="p-1 rounded-md text-gray-400 hover:text-gray-600">
-                                            <ChevronRightIcon className="w-4 h-4" />
-                                        </button>
+                            {/* Header Section */}
+                            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8">
+                                <div className='flex items-center gap-3'>
+                                    <UserGroupIcon className="w-8 h-8 text-gray-500" strokeWidth={1.5} />
+                                    <div>
+                                        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                                            User Management
+                                            <button
+                                                onClick={fetchUsers}
+                                                className={`p-1.5 text-gray-400 hover:text-[#08A698] hover:bg-[#08A698]/5 rounded-full transition-colors ${loading ? 'animate-spin' : ''}`}
+                                            >
+                                                <ArrowPathIcon className="w-4 h-4" />
+                                            </button>
+                                        </h1>
+                                        <p className="text-gray-500 text-sm mt-1">Manage your team</p>
                                     </div>
                                 </div>
-                                {can('view_billing') && (
-                                    <button
-                                        onClick={() => setIsLicenseModalOpen(true)}
-                                        className="px-3 py-1 bg-green-50 text-green-700 hover:bg-green-100 text-xs font-bold rounded-full border border-green-100 hover:border-green-200 flex items-center gap-1.5 transition-all cursor-pointer"
-                                    >
-                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                                        1 License Available
-                                    </button>
-                                )}
-                            </div>
 
-                            {/* Table */}
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-white">
-                                        <tr>
-                                            {can('manage_users') && (
-                                                <th className="px-6 py-4 text-left w-10">
-                                                    <input type="checkbox" className="rounded border-gray-300 text-[#08A698] focus:ring-[#08A698]" />
-                                                </th>
-                                            )}
-                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
-                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Permission Template</th>
-                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">License Expiry</th>
-                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">License Type</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {loading ? (
-                                            <tr>
-                                                <td colSpan="7" className="px-6 py-12 text-center">
-                                                    <div className="flex flex-col items-center gap-2">
-                                                        <div className="w-8 h-8 border-2 border-[#08A698] border-t-transparent rounded-full animate-spin"></div>
-                                                        <span className="text-sm text-gray-500">Loading team members...</span>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    {can('export_data') && (
+                                        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-colors text-sm font-medium shadow-sm">
+                                            <ArrowDownTrayIcon className="w-4 h-4" />
+                                            Export
+                                        </button>
+                                    )}
+
+                                    {can('manage_users') && (
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setIsAddUserOpen(!isAddUserOpen)}
+                                                className={`flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-all text-sm font-medium shadow-sm ${isAddUserOpen ? 'ring-2 ring-[#08A698]/20 bg-[#08A698]/5' : ''}`}
+                                            >
+                                                <UserPlusIcon className="w-4 h-4" />
+                                                Add User
+                                                <ChevronDownIcon className={`w-3 h-3 ml-1 transition-transform duration-200 ${isAddUserOpen ? 'rotate-180' : ''}`} />
+                                            </button>
+
+                                            {/* Dropdown Menu */}
+                                            {isAddUserOpen && (
+                                                <>
+                                                    <div
+                                                        className="fixed inset-0 z-10 opacity-0"
+                                                        onClick={() => setIsAddUserOpen(false)}
+                                                    ></div>
+                                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-20 py-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                        <button
+                                                            onClick={() => { setIsAddUserOpen(false); setIsInviteModalOpen(true); }}
+                                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#08A698] transition-colors text-left group">
+                                                            <UserPlusIcon className="w-4 h-4 text-gray-400 group-hover:text-[#08A698]" />
+                                                            Add single user
+                                                        </button>
+                                                        <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#08A698] transition-colors text-left group">
+                                                            <TableCellsIcon className="w-4 h-4 text-gray-400 group-hover:text-[#08A698]" />
+                                                            Add from excel
+                                                        </button>
                                                     </div>
-                                                </td>
-                                            </tr>
-                                        ) : filteredUsers.length === 0 ? (
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {can('view_billing') && (
+                                        <button
+                                            onClick={() => navigate('/billing')}
+                                            className="flex items-center gap-2 px-4 py-2 bg-white border border-[#08A698] text-[#08A698] rounded-lg hover:bg-[#08A698]/5 transition-colors text-sm font-medium shadow-sm"
+                                        >
+                                            <CreditCardIcon className="w-4 h-4" />
+                                            Buy Licenses
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Filters */}
+                            <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-2 rounded-xl shadow-sm border border-gray-200 mb-6">
+                                <div className="flex-1 w-full relative">
+                                    <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                    <input
+                                        type="text"
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        placeholder="Search by Name, Email or Phone Number"
+                                        className="w-full pl-10 pr-4 py-2.5 text-sm outline-none text-gray-700 placeholder-gray-400 bg-transparent"
+                                    />
+                                </div>
+                                <div className="hidden sm:block w-px h-8 bg-gray-200"></div>
+                                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto px-2">
+                                    <RoleDropdown selectedRoles={selectedRoles} toggleRole={toggleRole} />
+                                    <StatusDropdown selectedStatuses={selectedStatuses} toggleStatus={toggleStatus} />
+                                    <LicenseDropdown />
+                                </div>
+                            </div>
+
+                            {/* Content Area */}
+                            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden z-0 relative">
+
+                                {/* Toolbar */}
+                                <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50/30">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-2">
+                                            <button className="p-1 rounded-md text-gray-400 hover:text-gray-600 disabled:opacity-50">
+                                                <ChevronLeftIcon className="w-4 h-4" />
+                                            </button>
+                                            <span className="text-sm text-gray-600 font-medium">1 - {filteredUsers.length} of {filteredUsers.length}</span>
+                                            <button className="p-1 rounded-md text-gray-400 hover:text-gray-600">
+                                                <ChevronRightIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {can('view_billing') && (
+                                        <button
+                                            onClick={() => setIsLicenseModalOpen(true)}
+                                            className="px-3 py-1 bg-green-50 text-green-700 hover:bg-green-100 text-xs font-bold rounded-full border border-green-100 hover:border-green-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                                        >
+                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                                            1 License Available
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Table */}
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-white">
                                             <tr>
-                                                <td colSpan="7" className="px-6 py-12 text-center text-gray-400 italic">
-                                                    No users found
-                                                </td>
+                                                {can('manage_users') && (
+                                                    <th className="px-6 py-4 text-left w-10">
+                                                        <input type="checkbox" className="rounded border-gray-300 text-[#08A698] focus:ring-[#08A698]" />
+                                                    </th>
+                                                )}
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Permission Template</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">License Expiry</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">License Type</th>
+                                                {can('manage_users') && (
+                                                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                                                )}
                                             </tr>
-                                        ) : (
-                                            filteredUsers.map((user) => (
-                                                <tr key={user.id} className="hover:bg-gray-50/50 transition-colors group">
-                                                    {can('manage_users') && (
-                                                        <td className="px-6 py-4">
-                                                            <input type="checkbox" className="rounded border-gray-300 text-[#08A698] focus:ring-[#08A698]" />
-                                                        </td>
-                                                    )}
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ${user.color}`}>
-                                                                {user.initials}
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                                                                <div className="text-xs text-gray-500">{user.email}</div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex items-center gap-2">
-                                                            {getRoleIcon(user.roleType)}
-                                                            <span className="text-sm text-gray-700">{user.role}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        {getStatusBadge(user.status)}
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="text-sm text-gray-600">{user.permission}</span>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">
-                                                            {user.expiry}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 rounded bg-[#08A698]/10 flex items-center justify-center text-[#08A698]">
-                                                                <WhatsAppLogo className="w-3.5 h-3.5" />
-                                                            </div>
-                                                            <span className="text-sm text-gray-700">{user.license}</span>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                            {loading ? (
+                                                <tr>
+                                                    <td colSpan="7" className="px-6 py-12 text-center">
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            <div className="w-8 h-8 border-2 border-[#08A698] border-t-transparent rounded-full animate-spin"></div>
+                                                            <span className="text-sm text-gray-500">Loading team members...</span>
                                                         </div>
                                                     </td>
                                                 </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                                            ) : filteredUsers.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="7" className="px-6 py-12 text-center text-gray-400 italic">
+                                                        No users found
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                filteredUsers.map((user) => (
+                                                    <tr key={user.id} className="hover:bg-gray-50/50 transition-colors group">
+                                                        {can('manage_users') && (
+                                                            <td className="px-6 py-4">
+                                                                <input type="checkbox" className="rounded border-gray-300 text-[#08A698] focus:ring-[#08A698]" />
+                                                            </td>
+                                                        )}
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ${user.color}`}>
+                                                                    {user.initials}
+                                                                </div>
+                                                                <div>
+                                                                    <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                                                                    <div className="text-xs text-gray-500">{user.email}</div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="flex items-center gap-2">
+                                                                {getRoleIcon(user.roleType)}
+                                                                <span className="text-sm text-gray-700">{user.role}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            {getStatusBadge(user.status)}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span className="text-sm text-gray-600">{user.permission}</span>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">
+                                                                {user.expiry}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded bg-[#08A698]/10 flex items-center justify-center text-[#08A698]">
+                                                                    <WhatsAppLogo className="w-3.5 h-3.5" />
+                                                                </div>
+                                                                <span className="text-sm text-gray-700">{user.license}</span>
+                                                            </div>
+                                                        </td>
+                                                        {can('manage_users') && (
+                                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    {user.status === 'Suspended' ? (
+                                                                        <button
+                                                                            onClick={() => handleUserStatusChange(user.id, 'Working')}
+                                                                            className="p-1 px-2 border border-teal-200 text-teal-600 rounded hover:bg-teal-50 transition-colors"
+                                                                            title="Reactivate"
+                                                                        >
+                                                                            Activate
+                                                                        </button>
+                                                                    ) : user.status !== 'Deleted' ? (
+                                                                        <button
+                                                                            onClick={() => handleUserStatusChange(user.id, 'Suspended')}
+                                                                            className="p-1 px-2 border border-orange-200 text-orange-600 rounded hover:bg-orange-50 transition-colors"
+                                                                            title="Suspend"
+                                                                        >
+                                                                            Suspend
+                                                                        </button>
+                                                                    ) : null}
 
-                    </div>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setActiveUser(user);
+                                                                            setIsActivityDrawerOpen(true);
+                                                                        }}
+                                                                        className="p-1 text-gray-500 hover:bg-gray-100 rounded transition-colors"
+                                                                        title="View Activity"
+                                                                    >
+                                                                        <ArrowPathIcon className="w-5 h-5" />
+                                                                    </button>
+
+                                                                    {user.status !== 'Deleted' && (
+                                                                        <button
+                                                                            onClick={() => handleDeleteUser(user.id)}
+                                                                            className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                                                                            title="Delete User"
+                                                                        >
+                                                                            <XMarkIcon className="w-5 h-5" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+                    </WorkspaceGuard>
                 </main>
             </div>
+
+            <ConfirmModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDeleteUser}
+                title="Delete User"
+                message="Are you sure you want to delete this user? This will also disable their login and remove their access to the platform."
+                type="danger"
+                confirmText="Delete User"
+            />
         </div>
     );
 }

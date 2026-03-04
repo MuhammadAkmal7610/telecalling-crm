@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import FilterPageTemplate from '../components/FilterPageTemplate';
 import LeadDetailModal from '../components/LeadDetailModal';
 import { supabase } from '../lib/supabaseClient';
+import WorkspaceGuard from '../components/WorkspaceGuard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
@@ -59,7 +60,7 @@ export default function WhatsappLeads() {
     };
 
     return (
-        <>
+        <WorkspaceGuard>
             <FilterPageTemplate
                 title="All Incoming Whatsapp Leads"
                 data={leads}
@@ -72,6 +73,6 @@ export default function WhatsappLeads() {
                 onClose={() => setIsModalOpen(false)}
                 lead={selectedLead}
             />
-        </>
+        </WorkspaceGuard>
     );
 }

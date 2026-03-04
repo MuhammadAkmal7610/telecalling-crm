@@ -9,13 +9,26 @@ export class IntegrationsService {
 
     async findAll(organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        const { data, error } = await supabase
+
+        // Fetch integrations
+        const { data: integrations, error: intError } = await supabase
             .from(this.TABLE)
             .select('*')
             .eq('organization_id', organizationId);
 
-        if (error) throw new BadRequestException(error.message);
-        return data;
+        if (intError) throw new BadRequestException(intError.message);
+
+        // Fetch org token
+        const { data: org, error: orgError } = await supabase
+            .from('organizations')
+            .select('webhook_token')
+            .eq('id', organizationId)
+            .single();
+
+        return {
+            integrations: integrations || [],
+            webhookToken: org?.webhook_token
+        };
     }
 
     async seedDefaults(organizationId: string) {

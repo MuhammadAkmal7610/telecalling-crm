@@ -15,6 +15,7 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
  */
 const ROLE_HIERARCHY: Record<string, number> = {
     root: 100,
+    billing_admin: 90,
     admin: 80,
     manager: 60,
     marketing: 40,
@@ -42,9 +43,28 @@ export class RolesGuard implements CanActivate {
         }
 
         const userLevel = ROLE_HIERARCHY[user.role] ?? 0;
-        const hasAccess = requiredRoles.some(
-            (role) => userLevel >= (ROLE_HIERARCHY[role] ?? 0),
-        );
+        const hasAccess = requiredRoles.some((role) => {
+            // Root always gets permission
+            if (user.role === 'root') return true;
+
+            // Strict Isolation for Billing Admin
+            if (role === 'billing_admin') {
+                return user.role === 'billing_admin';
+            }
+
+            // If the route requires anything Else (admin, manager, etc.), 
+            // billing_admin should NOT have access.
+            if (user.role === 'billing_admin') {
+                return false;
+            }
+
+            // Strict Isolation for Org Admin (admin)
+            // admin should NOT have access to billing (handled above by role === 'billing_admin' check)
+
+            // Otherwise, check hierarchy for operations (manager > marketing > caller)
+            const requiredLevel = ROLE_HIERARCHY[role] ?? 0;
+            return userLevel >= requiredLevel;
+        });
 
         if (!hasAccess) {
             this.logger.warn(

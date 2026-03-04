@@ -6,6 +6,7 @@ import { Type } from 'class-transformer';
 
 export enum UserRole {
     ROOT = 'root',
+    BILLING_ADMIN = 'billing_admin',
     ADMIN = 'admin',
     MANAGER = 'manager',
     CALLER = 'caller',

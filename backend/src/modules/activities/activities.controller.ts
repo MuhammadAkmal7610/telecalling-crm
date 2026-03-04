@@ -18,25 +18,25 @@ export class ActivitiesController {
     @Post()
     @ApiOperation({ summary: 'Log an activity' })
     create(@Body() dto: CreateActivityDto, @CurrentUser() user: any) {
-        return this.activitiesService.create(dto, user.id, user.organizationId);
+        return this.activitiesService.create(dto, user.id, user.workspaceId, user.organizationId);
     }
 
     @Get()
     @ApiOperation({ summary: 'List activities with filtering & pagination' })
     findAll(@Query() query: ActivityQueryDto, @CurrentUser() user: any) {
-        return this.activitiesService.findAll(query, user.organizationId);
+        return this.activitiesService.findAll(query, user.workspaceId, user.organizationId);
     }
 
     @Get('lead/:leadId')
     @ApiOperation({ summary: 'Get timeline of activities for a specific lead' })
     findByLead(@Param('leadId') leadId: string, @CurrentUser() user: any) {
-        return this.activitiesService.findByLead(leadId, user.organizationId);
+        return this.activitiesService.findByLead(leadId, user.workspaceId, user.organizationId);
     }
 
     @Delete(':id')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Delete an activity log entry' })
     remove(@Param('id') id: string, @CurrentUser() user: any) {
-        return this.activitiesService.remove(id, user.organizationId);
+        return this.activitiesService.remove(id, user.workspaceId, user.organizationId);
     }
 }

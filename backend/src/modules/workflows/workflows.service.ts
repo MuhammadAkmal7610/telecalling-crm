@@ -7,26 +7,32 @@ export class WorkflowsService {
 
     constructor(private readonly supabaseService: SupabaseService) { }
 
-    async findAll(organizationId: string) {
+    async findAll(organizationId: string, workspaceId?: string) {
         const supabase = this.supabaseService.getAdminClient();
-        const { data, error } = await supabase
+        let query = supabase
             .from(this.TABLE)
             .select('*')
             .eq('organization_id', organizationId);
 
+        if (workspaceId) {
+            query = query.eq('workspace_id', workspaceId);
+        }
+
+        const { data, error } = await query;
         if (error) throw new BadRequestException(error.message);
         return data;
     }
 
-    async create(organizationId: string, name: string, trigger: any, action: any) {
+    async create(organizationId: string, workspaceId: string, name: string, trigger: any, action: any) {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.TABLE)
             .insert({
                 organization_id: organizationId,
+                workspace_id: workspaceId,
                 name,
-                trigger, // ---added by akmal--e.g., { type: 'lead_source', value: 'Facebook' }
-                action,  // ---added by akmal--e.g., { type: 'assign_to', value: 'user-uuid' }
+                trigger,
+                action,
                 is_active: true,
             })
             .select()
@@ -36,13 +42,14 @@ export class WorkflowsService {
         return data;
     }
 
-    async update(id: string, organizationId: string, dto: any) {
+    async update(id: string, organizationId: string, workspaceId: string, dto: any) {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.TABLE)
             .update(dto)
             .eq('id', id)
             .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .select()
             .single();
 
@@ -50,13 +57,14 @@ export class WorkflowsService {
         return data;
     }
 
-    async remove(id: string, organizationId: string) {
+    async remove(id: string, organizationId: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { error } = await supabase
             .from(this.TABLE)
             .delete()
             .eq('id', id)
-            .eq('organization_id', organizationId);
+            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId);
 
         if (error) throw new BadRequestException(error.message);
         return { message: 'Workflow deleted' };

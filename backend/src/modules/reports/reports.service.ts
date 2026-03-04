@@ -168,31 +168,215 @@ export class ReportsService {
         return Object.values(performance);
     }
 
-    async getReports(organizationId: string) {
+    async getWorkspaceLeadsBySource(workspaceId: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
-            .from('reports')
-            .select('*, creator:users!created_by(id,name)')
-            .eq('organization_id', organizationId)
-            .order('created_at', { ascending: false });
+            .from('leads')
+            .select('source')
+            .eq('workspace_id', workspaceId)
+            .eq('organization_id', organizationId);
 
         if (error) throw new BadRequestException(error.message);
-        return data;
+
+        const counts = data.reduce((acc: Record<string, number>, lead) => {
+            const source = lead.source || 'Unknown';
+            acc[source] = (acc[source] || 0) + 1;
+            return acc;
+        }, {});
+
+        return Object.entries(counts).map(([source, count]) => ({ source, count }));
     }
 
-    async createReportMetadata(organizationId: string, userId: string, data: { name: string, type: string, size?: string, url?: string }) {
+    async getWorkspaceConversionRate(workspaceId: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        const { data: report, error } = await supabase
-            .from('reports')
-            .insert({
-                ...data,
-                organization_id: organizationId,
-                created_by: userId
-            })
-            .select()
-            .single();
+        const { data, error } = await supabase
+            .from('leads')
+            .select('status')
+            .eq('workspace_id', workspaceId)
+            .eq('organization_id', organizationId);
 
         if (error) throw new BadRequestException(error.message);
-        return report;
+
+        const total = data.length;
+        const won = data.filter(l => l.status === 'Won').length;
+
+        return {
+            total,
+            won,
+            rate: total > 0 ? (won / total) * 100 : 0
+        };
+    }
+
+    async getWorkspaceSalesPerformance(workspaceId: string, organizationId: string) {
+        const supabase = this.supabaseService.getAdminClient();
+        const { data, error } = await supabase
+            .from('leads')
+            .select('status, custom_fields')
+            .eq('workspace_id', workspaceId)
+            .eq('organization_id', organizationId);
+
+        if (error) throw new BadRequestException(error.message);
+
+        const wonLeads = data.filter(l => l.status === 'Won');
+        const revenue = wonLeads.reduce((sum, lead) => {
+            // Assume there might be a 'value' or 'deal_value' in custom_fields
+            const val = parseFloat((lead.custom_fields as any)?.value || (lead.custom_fields as any)?.deal_value || 0);
+            return sum + (isNaN(val) ? 0 : val);
+        }, 0);
+
+        return {
+            wonCount: wonLeads.length,
+            revenue
+        };
+    }
+
+    async getWorkspaceAgentPerformance(workspaceId: string, organizationId: string) {
+        const supabase = this.supabaseService.getAdminClient();
+
+        // Activities per agent
+        const { data: acts, error: actError } = await supabase
+            .from('activities')
+            .select('user_id, type, users(name)')
+            .eq('workspace_id', workspaceId)
+            .eq('organization_id', organizationId);
+
+        if (actError) throw new BadRequestException(actError.message);
+
+        // Sales per agent
+        const { data: leads, error: leadError } = await supabase
+            .from('leads')
+            .select('assignee_id, status')
+            .eq('workspace_id', workspaceId)
+            .eq('organization_id', organizationId);
+
+        if (leadError) throw new BadRequestException(leadError.message);
+
+        const performance = acts.reduce((acc: Record<string, any>, act) => {
+            const userId = act.user_id;
+            if (!acc[userId]) {
+                acc[userId] = {
+                    userId,
+                    name: (act.users as any)?.name || 'Unknown',
+                    calls: 0,
+                    whatsapp: 0,
+                    emails: 0,
+                    notes: 0,
+                    sales: 0
+                };
+            }
+            if (act.type === 'call') acc[userId].calls++;
+            else if (act.type === 'whatsapp') acc[userId].whatsapp++;
+            else if (act.type === 'email') acc[userId].emails++;
+            else if (act.type === 'note') acc[userId].notes++;
+            return acc;
+        }, {});
+
+        for (const lead of leads) {
+            if (lead.status === 'Won' && lead.assignee_id && performance[lead.assignee_id]) {
+                performance[lead.assignee_id].sales++;
+            }
+        }
+
+        return Object.values(performance);
+    }
+
+    async getWorkspaceDailyFollowupReport(workspaceId: string, organizationId: string) {
+        const supabase = this.supabaseService.getAdminClient();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('status, due_date')
+            .eq('workspace_id', workspaceId)
+            .eq('organization_id', organizationId)
+            .eq('type', 'CallFollowup')
+            .gte('due_date', today.toISOString())
+            .lt('due_date', tomorrow.toISOString());
+
+        if (error) throw new BadRequestException(error.message);
+
+        return {
+            totalDueToday: data.length,
+            completedToday: data.filter(t => t.status === 'Done').length,
+            pendingToday: data.filter(t => t.status !== 'Done').length
+        };
+    }
+
+    async getOrgCombinedAnalytics(organizationId: string) {
+        const supabase = this.supabaseService.getAdminClient();
+
+        // Get all workspaces
+        const { data: workspaces, error: wsError } = await supabase
+            .from('workspaces')
+            .select('id, name')
+            .eq('organization_id', organizationId);
+
+        if (wsError) throw new BadRequestException(wsError.message);
+
+        // Aggregate stats across all workspaces
+        const analytics = await Promise.all(workspaces.map(async (ws) => {
+            const { data: leads, error: lError } = await supabase
+                .from('leads')
+                .select('status')
+                .eq('workspace_id', ws.id);
+
+            if (lError) return { workspace: ws.name, total: 0, won: 0 };
+
+            return {
+                workspace: ws.name,
+                total: leads.length,
+                won: leads.filter(l => l.status === 'Won').length
+            };
+        }));
+
+        return analytics;
+    }
+
+    async getOrgRevenueAnalytics(organizationId: string) {
+        const supabase = this.supabaseService.getAdminClient();
+        const { data, error } = await supabase
+            .from('leads')
+            .select('status, custom_fields, updated_at')
+            .eq('organization_id', organizationId)
+            .eq('status', 'Won')
+            .order('updated_at', { ascending: true });
+
+        if (error) throw new BadRequestException(error.message);
+
+        // Group by month
+        const revenueByMonth = data.reduce((acc: Record<string, number>, lead) => {
+            const date = new Date(lead.updated_at);
+            const month = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+            const val = parseFloat((lead.custom_fields as any)?.value || (lead.custom_fields as any)?.deal_value || 0);
+            acc[month] = (acc[month] || 0) + (isNaN(val) ? 0 : val);
+            return acc;
+        }, {});
+
+        return Object.entries(revenueByMonth).map(([month, revenue]) => ({ month, revenue }));
+    }
+
+    async getOrgUserActivityLogs(organizationId: string) {
+        const supabase = this.supabaseService.getAdminClient();
+        // Since there's no audit_logs table, we use activities as a proxy for user engagement
+        const { data, error } = await supabase
+            .from('activities')
+            .select('*, users(name), leads(name)')
+            .eq('organization_id', organizationId)
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+        if (error) throw new BadRequestException(error.message);
+
+        return data.map(act => ({
+            id: act.id,
+            timestamp: act.created_at,
+            user: (act.users as any)?.name || 'Unknown',
+            action: act.type,
+            details: act.title,
+            lead: (act.leads as any)?.name || 'N/A'
+        }));
     }
 }

@@ -178,4 +178,40 @@ export class UsersService {
     async getMe(userId: string, organizationId: string) {
         return this.findOne(userId, organizationId);
     }
+
+    async updateMe(userId: string, dto: { name?: string; phone?: string; initials?: string }, organizationId: string) {
+        const supabase = this.supabaseService.getAdminClient();
+        const { data, error } = await supabase
+            .from(this.TABLE)
+            .update({
+                name: dto.name,
+                phone: dto.phone,
+                initials: dto.initials,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', userId)
+            .eq('organization_id', organizationId)
+            .select()
+            .single();
+
+        if (error) throw new BadRequestException(error.message);
+        return data;
+    }
+
+    async getUserActivity(userId: string, organizationId: string) {
+        const supabase = this.supabaseService.getAdminClient();
+        const { data, error } = await supabase
+            .from('activities')
+            .select(`
+                *,
+                lead:leads(id, name)
+            `)
+            .eq('user_id', userId)
+            .eq('organization_id', organizationId)
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        if (error) throw new BadRequestException(error.message);
+        return data;
+    }
 }

@@ -43,8 +43,20 @@ export class WorkspacesService {
 
     // ─── Workspace CRUD ───────────────────────────────────────────────────────
 
-    async createWorkspace(dto: { name: string; description?: string }, organizationId: string, createdBy: string) {
+    async createWorkspace(dto: { name: string; description?: string }, user: any) {
         const supabase = this.supabaseService.getAdminClient();
+        const { id: userId, organizationId, email, name } = user;
+
+        // Defensive: Ensure user record exists in DB to satisfy FK constraints
+        if (userId && organizationId) {
+            await supabase.from('users').upsert({
+                id: userId,
+                organization_id: organizationId,
+                email: email || 'unknown@example.com',
+                name: name || 'User',
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' });
+        }
 
         const slug = dto.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
@@ -55,7 +67,7 @@ export class WorkspacesService {
                 description: dto.description || null,
                 slug: `${slug}-${Date.now()}`,
                 organization_id: organizationId,
-                created_by: createdBy,
+                created_by: userId,
                 is_default: false,
             })
             .select()
@@ -63,13 +75,27 @@ export class WorkspacesService {
         if (error) throw new BadRequestException(error.message);
 
         // Auto-add creator as admin of this workspace
-        await this.addMember(data.id, createdBy, 'admin');
+        await this.addMember(data.id, userId, 'admin');
+
+        // Initialize default lead stages for this workspace
+        await this.initializeDefaultStages(data.id, organizationId);
 
         return data;
     }
 
     async createDefaultWorkspace(organizationId: string, createdBy: string, orgName: string) {
         const supabase = this.supabaseService.getAdminClient();
+
+        // Defensive: Ensure user record exists in DB
+        // Note: For signup flow, we might not have all user metadata in 'user' object if it's passed differently
+        // but here createdBy is the ID.
+        if (createdBy && organizationId) {
+            await supabase.from('users').upsert({
+                id: createdBy,
+                organization_id: organizationId,
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' });
+        }
 
         const { data, error } = await supabase
             .from('workspaces')
@@ -86,7 +112,47 @@ export class WorkspacesService {
 
         // Auto-add creator as admin of default workspace
         await this.addMember(data.id, createdBy, 'admin');
+
+        // Initialize default lead stages for this workspace
+        await this.initializeDefaultStages(data.id, organizationId);
+
         return data;
+    }
+
+    private async initializeDefaultStages(workspaceId: string, organizationId: string) {
+        const supabase = this.supabaseService.getAdminClient();
+
+        const defaultStages = [
+            { name: 'New', type: 'fresh', color: '#3B82F6', position: 0, is_default: true },
+            { name: 'Contacted', type: 'active', color: '#F59E0B', position: 1, is_default: false },
+            { name: 'Qualified', type: 'active', color: '#10B981', position: 2, is_default: false },
+            { name: 'Proposal Sent', type: 'active', color: '#8B5CF6', position: 3, is_default: false },
+            { name: 'Won', type: 'won', color: '#059669', position: 4, is_default: false },
+            { name: 'Lost', type: 'lost', color: '#EF4444', position: 5, is_default: false },
+        ];
+
+        const stagesToInsert = defaultStages.map(s => ({
+            ...s,
+            organization_id: organizationId,
+            workspace_id: workspaceId
+        }));
+
+        await supabase.from('lead_stages').insert(stagesToInsert);
+
+        const defaultLostReasons = [
+            { name: 'Price too high', position: 0 },
+            { name: 'Not interested', position: 1 },
+            { name: 'Competitor chosen', position: 2 },
+            { name: 'No response', position: 3 },
+        ];
+
+        const reasonsToInsert = defaultLostReasons.map(r => ({
+            ...r,
+            organization_id: organizationId,
+            workspace_id: workspaceId
+        }));
+
+        await supabase.from('lost_reasons').insert(reasonsToInsert);
     }
 
     async findAllInOrg(organizationId: string) {

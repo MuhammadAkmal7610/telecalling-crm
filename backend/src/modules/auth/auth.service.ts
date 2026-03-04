@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
-import { SignupDto, LoginDto } from './dto/auth.dto';
+import { SignupDto, LoginDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -14,6 +14,23 @@ export class AuthService {
 
     async signup(signupDto: SignupDto) {
         const adminSupabase = this.supabaseService.getAdminClient();
+
+        // 0. Check if user already exists to prevent orphans
+        const { data, error: listError } = await adminSupabase.auth.admin.listUsers();
+        if (listError) {
+            this.logger.error(`Error listing users: ${listError.message}`);
+        }
+
+        const existingUser = data?.users?.find(u => (u as any).email === signupDto.email);
+        if (existingUser) {
+            throw new BadRequestException('A user with this email address has already been registered. Please log in.');
+        }
+
+        // 0b. Check if organization name exists
+        const existingOrg = await this.workspacesService.findByName(signupDto.orgName);
+        if (existingOrg) {
+            throw new BadRequestException(`An organization with the name "${signupDto.orgName}" already exists. Please choose a different name.`);
+        }
 
         // 1. Create Organization
         let org;
@@ -39,6 +56,8 @@ export class AuthService {
         });
 
         if (authError || !authData.user) {
+            // Clean up the created org if user creation fails
+            await adminSupabase.from('organizations').delete().eq('id', org.id);
             this.logger.error(`Signup error: ${authError?.message || 'User creation failed'}`);
             throw new BadRequestException(authError?.message || 'User creation failed');
         }
@@ -105,5 +124,33 @@ export class AuthService {
         const { error } = await supabase.auth.signOut();
         if (error) throw new BadRequestException(error.message);
         return { message: 'Signed out successfully' };
+    }
+
+    async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+        const supabase = this.supabaseService.getClient();
+        const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordDto.email, {
+            redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password`,
+        });
+
+        if (error) {
+            this.logger.error(`Forgot password error: ${error.message}`);
+            throw new BadRequestException(error.message);
+        }
+
+        return { message: 'Password reset link sent to your email' };
+    }
+
+    async resetPassword(resetPasswordDto: ResetPasswordDto) {
+        const supabase = this.supabaseService.getClient();
+        const { error } = await supabase.auth.updateUser({
+            password: resetPasswordDto.password,
+        });
+
+        if (error) {
+            this.logger.error(`Reset password error: ${error.message}`);
+            throw new BadRequestException(error.message);
+        }
+
+        return { message: 'Password has been reset successfully' };
     }
 }

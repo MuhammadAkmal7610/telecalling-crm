@@ -9,12 +9,17 @@ export class ActivitiesService {
 
     constructor(private readonly supabaseService: SupabaseService) { }
 
-    async create(dto: CreateActivityDto, userId: string, organizationId: string) {
+    async create(dto: CreateActivityDto, userId: string, workspaceId: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
 
         const { data, error } = await supabase
             .from(this.TABLE)
-            .insert({ ...dto, user_id: userId, organization_id: organizationId })
+            .insert({
+                ...dto,
+                user_id: userId,
+                workspace_id: workspaceId,
+                organization_id: organizationId
+            })
             .select()
             .single();
 
@@ -22,7 +27,7 @@ export class ActivitiesService {
         return data;
     }
 
-    async findAll(query: ActivityQueryDto, organizationId: string) {
+    async findAll(query: ActivityQueryDto, workspaceId: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { page = 1, limit = 20, type, leadId, userId, period } = query;
         const from = (page - 1) * limit;
@@ -31,6 +36,7 @@ export class ActivitiesService {
         let q = supabase
             .from(this.TABLE)
             .select('*, user:users(id,name), lead:leads(id,name,phone)', { count: 'exact' })
+            .eq('workspace_id', workspaceId)
             .eq('organization_id', organizationId)
             .order('created_at', { ascending: false })
             .range(from, to);
@@ -61,12 +67,13 @@ export class ActivitiesService {
         return { data, total: count, page, limit };
     }
 
-    async findByLead(leadId: string, organizationId: string) {
+    async findByLead(leadId: string, workspaceId: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.TABLE)
             .select('*, user:users(id,name)')
             .eq('lead_id', leadId)
+            .eq('workspace_id', workspaceId)
             .eq('organization_id', organizationId)
             .order('created_at', { ascending: false });
 
@@ -74,12 +81,13 @@ export class ActivitiesService {
         return data;
     }
 
-    async remove(id: string, organizationId: string) {
+    async remove(id: string, workspaceId: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { error } = await supabase
             .from(this.TABLE)
             .delete()
             .eq('id', id)
+            .eq('workspace_id', workspaceId)
             .eq('organization_id', organizationId);
         if (error) throw new BadRequestException(error.message);
         return { message: 'Activity deleted' };

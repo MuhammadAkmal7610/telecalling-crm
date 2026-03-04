@@ -1,6 +1,6 @@
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, PhoneIcon, ChatBubbleLeftRightIcon, CalendarIcon, UserCircleIcon, ClockIcon, PaperAirplaneIcon, BarsArrowDownIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PhoneIcon, ChatBubbleLeftRightIcon, CalendarIcon, UserCircleIcon, ClockIcon, PaperAirplaneIcon, BarsArrowDownIcon, EnvelopeIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { useDialer } from '../context/DialerContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -20,8 +20,13 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
     });
     const [remark, setRemark] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('');
+    const [selectedStage, setSelectedStage] = useState('');
+    const [selectedActivityType, setSelectedActivityType] = useState('call');
+    const [stages, setStages] = useState([]);
     const [activities, setActivities] = useState([]);
-    const [loadingActivities, setLoadingActivities] = useState(false);
+    const [tasks, setTasks] = useState([]);
+    const [loadingStages, setLoadingStages] = useState(false);
+    const [loadingTimeline, setLoadingTimeline] = useState(false);
     const [saving, setSaving] = useState(false);
 
     const quickRemarks = [
@@ -35,28 +40,68 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
 
     useEffect(() => {
         if (isOpen && lead?.id) {
-            fetchActivities();
+            fetchTimeline();
+            fetchStages();
             setSelectedStatus(lead.status || 'Fresh');
+            setSelectedStage(lead.stage_id || '');
         }
     }, [isOpen, lead]);
 
-    const fetchActivities = async () => {
-        setLoadingActivities(true);
+    const fetchStages = async () => {
+        setLoadingStages(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-
-            const res = await fetch(`${API_URL}/activities?leadId=${lead.id}&limit=10`, {
+            const res = await fetch(`${API_URL}/lead-stages`, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
             if (res.ok) {
                 const result = await res.json();
-                setActivities(result.data?.data || result.data || []);
+                setStages(Array.isArray(result.data) ? result.data : (Array.isArray(result) ? result : []));
             }
         } catch (error) {
-            console.error("Failed to load activities", error);
+            console.error("Failed to load stages", error);
         } finally {
-            setLoadingActivities(false);
+            setLoadingStages(false);
+        }
+    };
+
+    const fetchTimeline = async () => {
+        setLoadingTimeline(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            const token = session.access_token;
+
+            // Fetch Activities
+            const actRes = await fetch(`${API_URL}/activities?leadId=${lead.id}&limit=20`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            let activitiesData = [];
+            if (actRes.ok) {
+                const result = await actRes.json();
+                activitiesData = (result.data?.data || result.data || []).map(a => ({ ...a, timeline_type: 'activity' }));
+            }
+
+            // Fetch Tasks
+            const taskRes = await fetch(`${API_URL}/tasks?leadId=${lead.id}&limit=20`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            let tasksData = [];
+            if (taskRes.ok) {
+                const result = await taskRes.json();
+                tasksData = (result.data?.data || result.data || []).map(t => ({ ...t, timeline_type: 'task', created_at: t.created_at || t.due_date }));
+            }
+
+            // Merge and Sort
+            const merged = [...activitiesData, ...tasksData].sort((a, b) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            setActivities(merged);
+        } catch (error) {
+            console.error("Failed to load timeline", error);
+        } finally {
+            setLoadingTimeline(false);
         }
     };
 
@@ -70,6 +115,13 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
 
             // 1. Log Activity
             if (remark) {
+                const activityTitle = {
+                    'call': 'Call Logged',
+                    'whatsapp': 'WhatsApp Sent',
+                    'email': 'Email Sent',
+                    'note': 'Note Added'
+                }[selectedActivityType] || 'Activity Logged';
+
                 await fetch(`${API_URL}/activities`, {
                     method: 'POST',
                     headers: {
@@ -77,30 +129,33 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        type: 'note',
-                        title: 'Activity Logged',
+                        type: selectedActivityType,
+                        title: activityTitle,
                         description: remark,
                         leadId: lead.id
                     })
                 });
             }
 
-            // 2. Update Lead Status if changed
-            if (selectedStatus !== lead.status) {
+            // 2. Update Lead Status/Stage if changed
+            if (selectedStatus !== lead.status || selectedStage !== lead.stage_id) {
                 await fetch(`${API_URL}/leads/${lead.id}`, {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ status: selectedStatus })
+                    body: JSON.stringify({
+                        status: selectedStatus,
+                        stageId: selectedStage
+                    })
                 });
-                toast.success('Lead status updated!');
+                toast.success('Lead updated!');
             }
 
             toast.success('Activity saved!');
             setRemark('');
-            fetchActivities();
+            fetchTimeline();
             if (onUpdate) onUpdate();
         } catch (error) {
             toast.error('Failed to save activity');
@@ -183,21 +238,59 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
 
                                     {/* Activity Logging Section */}
                                     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                                        <div className="p-4 bg-gray-50/50 border-b border-gray-200 flex items-center justify-between">
-                                            <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Update Lead Progress</h4>
-                                            <div className="flex gap-1.5">
-                                                <select
-                                                    value={selectedStatus}
-                                                    onChange={(e) => setSelectedStatus(e.target.value)}
-                                                    className="text-[11px] font-bold text-gray-600 border border-gray-200 bg-white rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-teal-500/20"
-                                                >
-                                                    <option>Fresh</option>
-                                                    <option>Interested</option>
-                                                    <option>Not Interested</option>
-                                                    <option>Ringing</option>
-                                                    <option>Follow-up</option>
-                                                    <option>Won</option>
-                                                </select>
+                                        <div className="p-4 bg-gray-50/50 border-b border-gray-200 space-y-4">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest hidden sm:block">Update Pipeline</h4>
+                                                <div className="flex flex-1 gap-2">
+                                                    <div className="flex-1">
+                                                        <label className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Stage</label>
+                                                        <select
+                                                            value={selectedStage}
+                                                            onChange={(e) => setSelectedStage(e.target.value)}
+                                                            className="w-full text-[11px] font-bold text-gray-600 border border-gray-200 bg-white rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-teal-500/20"
+                                                        >
+                                                            <option value="">Select Stage</option>
+                                                            {stages.map(s => (
+                                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <label className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Status</label>
+                                                        <select
+                                                            value={selectedStatus}
+                                                            onChange={(e) => setSelectedStatus(e.target.value)}
+                                                            className="w-full text-[11px] font-bold text-gray-600 border border-gray-200 bg-white rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-teal-500/20"
+                                                        >
+                                                            <option>Fresh</option>
+                                                            <option>Interested</option>
+                                                            <option>Not Interested</option>
+                                                            <option>Ringing</option>
+                                                            <option>Follow-up</option>
+                                                            <option>Won</option>
+                                                            <option>Lost</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Specialized Activity Toggles */}
+                                            <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-xl w-fit">
+                                                {[
+                                                    { id: 'call', icon: PhoneIcon, label: 'Call' },
+                                                    { id: 'whatsapp', icon: ChatBubbleLeftRightIcon, label: 'WhatsApp' },
+                                                    { id: 'email', icon: EnvelopeIcon, label: 'Email' },
+                                                    { id: 'note', icon: UserCircleIcon, label: 'Note' },
+                                                ].map((t) => (
+                                                    <button
+                                                        key={t.id}
+                                                        onClick={() => setSelectedActivityType(t.id)}
+                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${selectedActivityType === t.id ? 'bg-white text-[#08A698] shadow-sm ring-1 ring-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                                                    >
+                                                        <t.icon className="w-4 h-4" />
+                                                        {t.label}
+                                                    </button>
+                                                ))}
                                             </div>
                                         </div>
                                         <div className="p-4 space-y-4">
@@ -286,32 +379,66 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
                                             <BarsArrowDownIcon className="w-4 h-4 text-[#08A698]" /> Activity Timeline
                                         </h4>
                                         <div className="relative pl-6 space-y-6 before:content-[''] before:absolute before:left-[11px] before:top-2 before:h-[calc(100%-16px)] before:w-0.5 before:bg-gray-100">
-                                            {loadingActivities ? (
+                                            {loadingTimeline ? (
                                                 <div className="flex items-center gap-2 text-xs text-gray-400 italic">
                                                     <div className="w-3 h-3 border-2 border-teal-500 border-t-transparent animate-spin rounded-full"></div> Loading timeline...
                                                 </div>
                                             ) : activities.length === 0 ? (
                                                 <p className="text-xs text-gray-400 italic">No historical activities yet.</p>
-                                            ) : activities.map((act, i) => (
-                                                <div key={act.id} className="relative group">
-                                                    <div className={`absolute -left-[20px] top-1.5 w-3.5 h-3.5 rounded-full ${i === 0 ? 'bg-teal-500 animate-pulse outline outline-4 outline-teal-50' : 'bg-white border-2 border-gray-300'} z-10`} />
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center justify-between">
-                                                            <p className="text-xs font-bold text-gray-800 capitalize">
-                                                                {act.type?.replace('_', ' ')}
-                                                            </p>
-                                                            <span className="text-[10px] font-medium text-gray-400 group-hover:text-[#08A698] transition-colors">{new Date(act.created_at).toLocaleDateString()}</span>
+                                            ) : activities.map((item, i) => {
+                                                const isTask = item.timeline_type === 'task';
+                                                const type = item.type?.toLowerCase();
+
+                                                let Icon = UserCircleIcon;
+                                                let iconColor = 'bg-gray-300';
+
+                                                if (isTask) {
+                                                    Icon = CheckCircleIcon;
+                                                    iconColor = item.status === 'Completed' ? 'bg-emerald-500' : 'bg-rose-400';
+                                                } else if (type === 'call') {
+                                                    Icon = PhoneIcon;
+                                                    iconColor = 'bg-emerald-500';
+                                                } else if (type === 'whatsapp') {
+                                                    Icon = ChatBubbleLeftRightIcon;
+                                                    iconColor = 'bg-[#25D366]';
+                                                } else if (type === 'email') {
+                                                    Icon = EnvelopeIcon;
+                                                    iconColor = 'bg-blue-500';
+                                                } else if (type === 'note') {
+                                                    Icon = UserCircleIcon;
+                                                    iconColor = 'bg-amber-500';
+                                                }
+
+                                                return (
+                                                    <div key={item.id} className="relative group">
+                                                        <div className={`absolute -left-[20px] top-1.5 w-4 h-4 rounded-full flex items-center justify-center text-white ${iconColor} z-10 shadow-sm transition-transform group-hover:scale-110`}>
+                                                            <Icon className="w-2.5 h-2.5" />
                                                         </div>
-                                                        <p className="text-[11px] text-gray-500 leading-normal">
-                                                            {act.description || act.details?.remark || 'Lead interaction recorded.'}
-                                                        </p>
-                                                        <div className="flex items-center gap-1.5">
-                                                            <div className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-[7px] font-black text-gray-400">SYS</div>
-                                                            <span className="text-[9px] font-bold text-gray-400 tracking-tighter uppercase">{act.user?.name || 'System Agent'}</span>
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center justify-between">
+                                                                <p className="text-xs font-bold text-gray-800 capitalize flex items-center gap-1.5">
+                                                                    {isTask ? 'Task Scheduled' : (item.title || item.type?.replace('_', ' '))}
+                                                                    {isTask && <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter ${item.status === 'Completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.status}</span>}
+                                                                </p>
+                                                                <span className="text-[10px] font-medium text-gray-400 group-hover:text-[#08A698] transition-colors">
+                                                                    {new Date(item.created_at).toLocaleDateString()} {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[11px] text-gray-500 leading-normal">
+                                                                {item.description || item.details?.remark || 'Lead interaction recorded.'}
+                                                            </p>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <div className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-[7px] font-black text-gray-400 uppercase">
+                                                                    {isTask ? (item.assignee?.name?.[0] || 'A') : (item.user?.name?.[0] || 'S')}
+                                                                </div>
+                                                                <span className="text-[9px] font-bold text-gray-400 tracking-tighter uppercase">
+                                                                    {isTask ? (item.assignee?.name || 'Assigned Agent') : (item.user?.name || 'System Agent')}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>
@@ -336,7 +463,7 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
             <TaskModal
                 isOpen={isTaskModalOpen}
                 onClose={() => setIsTaskModalOpen(false)}
-                onSuccess={fetchActivities}
+                onSuccess={fetchTimeline}
                 leadId={lead?.id}
                 leadName={lead?.name}
                 initialType="CallFollowup"
