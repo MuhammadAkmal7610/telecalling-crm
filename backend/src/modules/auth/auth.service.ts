@@ -26,6 +26,11 @@ export class AuthService {
             throw new BadRequestException('A user with this email address has already been registered. Please log in.');
         }
 
+        // Only allow signup if orgName is provided (org creation), otherwise block (no public signup)
+        if (!signupDto.orgName) {
+            throw new BadRequestException('Signup is only allowed for organization owners. Team members must use their invite link.');
+        }
+
         // 0b. Check if organization name exists
         const existingOrg = await this.workspacesService.findByName(signupDto.orgName);
         if (existingOrg) {

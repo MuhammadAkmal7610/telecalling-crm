@@ -16,6 +16,8 @@ export class UsersService {
         let userId: string = '';          // initialized; will be set before use
         let authData: any;
         let authUserWasNew = false;   // tracks if WE created the auth user (for rollback)
+        // Set redirect URL for invite email
+        const INVITE_REDIRECT_URL = process.env.INVITE_REDIRECT_URL || 'https://app.telecrm.in/signup';
 
         // ── Step 1: Check if a DB record already exists ─────────────────────────
         const { data: existingDbUser } = await supabase
@@ -59,7 +61,7 @@ export class UsersService {
                 authData = data;
                 authUserWasNew = true;
             } else {
-                // Invite via email
+                // Invite via email with redirectTo
                 const { data, error: authError } = await supabase.auth.admin.inviteUserByEmail(dto.email, {
                     data: {
                         name: dto.name,
@@ -67,6 +69,7 @@ export class UsersService {
                         invited_by: invitedBy,
                         organization_id: organizationId,
                     },
+                    redirectTo: INVITE_REDIRECT_URL,
                 });
                 if (authError) throw new BadRequestException(authError.message);
                 userId = data.user.id;

@@ -223,17 +223,17 @@ export default function Campaigns() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                         <thead>
-                                            <tr className="bg-gray-50/50 border-b border-gray-100">
-                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Name</th>
-                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Priority</th>
-                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Assignee</th>
-                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Total Leads</th>
-                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Progress</th>
-                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Created</th>
+                                            <tr className="bg-gray-50/50 border-b border-gray-200">
+                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider border-r border-gray-100">Name</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center border-r border-gray-100">Priority</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider border-r border-gray-100">Assignee</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider border-r border-gray-100">Total Leads</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center border-r border-gray-100">Progress</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider border-r border-gray-100">Created</th>
                                                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-50">
+                                        <tbody className="divide-y divide-gray-200">
                                             {loading && campaigns.length === 0 ? (
                                                 <tr>
                                                     <td colSpan="7" className="px-6 py-10 text-center">
@@ -251,7 +251,7 @@ export default function Campaigns() {
                                                 </tr>
                                             ) : (
                                                 campaigns.map((campaign) => (
-                                                    <tr key={campaign.id} className="hover:bg-teal-50/30 transition-colors group">
+                                                    <tr key={campaign.id} className="hover:bg-teal-50/30 transition-colors group divide-x divide-gray-100">
                                                         <td className="px-6 py-4">
                                                             <span className="text-sm font-semibold text-gray-700 group-hover:text-[#08A698] transition-colors">{campaign.name}</span>
                                                         </td>

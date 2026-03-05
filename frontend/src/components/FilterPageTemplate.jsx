@@ -1,30 +1,39 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import FilterPanel from './FilterPanel';
+import TableHeader from './ui/TableHeader';
+import Skeleton from './ui/Skeleton';
+import EmptyState from './ui/EmptyState';
 import {
     MagnifyingGlassIcon,
     FunnelIcon,
     ArrowPathIcon,
     PlusIcon,
     ChevronDownIcon,
-    EllipsisHorizontalIcon,
-    PencilSquareIcon,
-    CalendarIcon,
-    UserIcon,
+    PhoneIcon,
     ChatBubbleLeftRightIcon,
-    UserGroupIcon
+    EllipsisHorizontalIcon
 } from '@heroicons/react/24/outline';
-import { StarIcon } from '@heroicons/react/24/outline'; // Outline star for empty rating
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'; // Solid star for filled rating
-import { PhoneIcon } from '@heroicons/react/24/outline';
-import { useDialer } from '../context/DialerContext';
+// import { useDialer } from '../context/DialerContext';
 import BulkAssignModal from './BulkAssignModal';
 
-export default function FilterPageTemplate({ title, data = [], showEmptyState = false, onRowClick, onAddClick, fetchLeads }) {
-    const { startCallLog } = useDialer();
+// addType: 'lead' | 'account' | ...
+export default function FilterPageTemplate({ 
+    title, 
+    data = [], 
+    loading = false, 
+    onRowClick, 
+    onAddClick, 
+    fetchLeads, 
+    addType = 'lead' // default to 'lead' for backward compatibility
+}) {
+    // const { startCallLog } = useDialer();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [filterPanelOpen, setFilterPanelOpen] = useState(true);
     const [selectedIds, setSelectedIds] = useState([]);
     const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
+    const [filters, setFilters] = useState({});
 
     const toggleSelectAll = () => {
         if (selectedIds.length === data.length) {
@@ -41,167 +50,204 @@ export default function FilterPageTemplate({ title, data = [], showEmptyState = 
         );
     };
 
+    // Calculate filter counts (mock for UI)
+    const counts = data.reduce((acc, lead) => {
+        acc[lead.status] = (acc[lead.status] || 0) + 1;
+        return acc;
+    }, {});
+
+    const filteredData = data.filter(lead => {
+        if (filters.status?.length && !filters.status.includes(lead.status)) return false;
+        // Add more filter logic here
+        return true;
+    });
+
     return (
         <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans overflow-hidden">
             <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+            
+            <div className="flex flex-1 flex-col h-full min-w-0">
                 <Header setIsSidebarOpen={setSidebarOpen} />
 
-                <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-gray-50/50">
-                    <div className="max-w-7xl mx-auto">
+                <div className="flex flex-1 overflow-hidden">
+                    {/* Left Filter Panel */}
+                    <FilterPanel 
+                        isOpen={filterPanelOpen} 
+                        onClose={() => setFilterPanelOpen(false)}
+                        filters={filters}
+                        onFilterChange={(key, val) => setFilters(prev => ({ ...prev, [key]: val }))}
+                        onClearFilters={() => setFilters({})}
+                        counts={counts}
+                    />
 
-                        {/* Header Section */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                            <div className="flex items-center gap-2">
-                                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{title}</h1>
-                                <button className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-primary transition-colors"><PencilSquareIcon className="w-4 h-4" /></button>
-                                <button className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-primary transition-colors"><ArrowPathIcon className="w-4 h-4" /></button>
-                                <button
-                                    onClick={onAddClick}
-                                    className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-primary transition-colors"
-                                >
-                                    <PlusIcon className="w-4 h-4" />
-                                </button>
-                            </div>
-                            <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-                                <button className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-50"><div className="w-4 h-4 flex items-end gap-0.5"><div className="w-1 h-1.5 bg-current rounded-sm"></div><div className="w-1 h-2.5 bg-current rounded-sm"></div><div className="w-1 h-3.5 bg-current rounded-sm"></div></div></button>
-                                <button className="p-2 text-primary bg-teal-50 rounded-md shadow-sm ring-1 ring-black/5"><div className="w-4 h-4 flex flex-col gap-0.5"><div className="w-full h-0.5 bg-current rounded-full"></div><div className="w-full h-0.5 bg-current rounded-full"></div><div className="w-full h-0.5 bg-current rounded-full"></div></div></button>
-                            </div>
-                        </div>
+                    {/* Main Content */}
+                    <main className="flex-1 overflow-y-auto p-4 lg:p-6 bg-gray-50/50 flex flex-col relative">
+                        
+                        {/* Mobile Toggle for Filters */}
+                        {!filterPanelOpen && (
+                            <button 
+                                onClick={() => setFilterPanelOpen(true)}
+                                className="lg:hidden absolute bottom-4 right-4 z-20 bg-[#08A698] text-white p-3 rounded-full shadow-lg"
+                            >
+                                <FunnelIcon className="w-6 h-6" />
+                            </button>
+                        )}
 
-                        {/* Filter Bar */}
-                        <div className="bg-white p-1.5 rounded-xl border border-gray-200 mb-6 shadow-sm flex flex-col md:flex-row items-center gap-2">
-                            <div className="flex-1 flex w-full md:w-auto">
-                                <div className="relative group w-full md:max-w-md">
-                                    <div className="absolute left-0 top-0 bottom-0 flex items-center pl-3 pointer-events-none">
-                                        <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 group-focus-within:text-primary transition-colors" />
-                                    </div>
-                                    <div className="absolute left-9 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-medium flex items-center gap-1 cursor-pointer hover:text-gray-700 bg-gray-50 px-2 py-1 rounded-md border border-gray-100"> Name <ChevronDownIcon className="w-3 h-3" /> </div>
-                                    <input
-                                        type="text"
-                                        placeholder="Search lead..."
-                                        className="w-full pl-28 pr-4 py-2 bg-transparent border-none text-sm focus:ring-0 placeholder-gray-400 text-gray-700 font-medium"
+                        {/* Top Toolbar */}
+                        <div className="flex flex-col gap-4 mb-6 shrink-0">
+                            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{title}</h1>
+                            
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <div className="flex-1 relative">
+                                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search" 
+                                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4F46E5]/20 focus:border-[#4F46E5] outline-none transition-all shadow-sm" 
                                     />
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 no-scrollbar px-2">
-                                <FilterPill label="Assignee" icon={UserIcon} />
-                                <FilterPill label="Creation Date" icon={CalendarIcon} />
-                                <FilterPill label="Status" />
+                                <div className="flex items-center gap-3">
+                                    <button 
+                                        onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 font-medium text-sm hover:bg-gray-50 transition-colors shadow-sm"
+                                    >
+                                        <FunnelIcon className="w-4 h-4" />
+                                        Filter
+                                    </button>
+                                    <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 font-medium text-sm hover:bg-gray-50 transition-colors shadow-sm">
+                                        <ChevronDownIcon className="w-4 h-4" />
+                                        Short by
+                                    </button>
+                                    {onAddClick && (
+                                        <button 
+                                            onClick={onAddClick}
+                                            className="flex items-center gap-2 px-4 py-2.5 bg-[#4F46E5] text-white rounded-xl text-sm font-semibold hover:bg-[#4338ca] transition-colors shadow-md shadow-indigo-200"
+                                        >
+                                            <PlusIcon className="w-5 h-5" />
+                                            {addType === 'lead' && '+ Add Lead'}
+                                            {addType === 'account' && '+ Add Account'}
+                                            {addType !== 'lead' && addType !== 'account' && '+ Add'}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        {/* Bulk Actions (Optional / Contextual) */}
-                        <div className="flex items-center justify-end gap-2 mb-4">
-                            {selectedIds.length > 0 && (
-                                <button
-                                    onClick={() => setIsBulkAssignModalOpen(true)}
-                                    className="px-4 py-2 bg-[#08A698] text-white rounded-lg text-sm font-bold hover:bg-teal-700 flex items-center gap-2 transition-all shadow-md shadow-teal-100 animate-in fade-in slide-in-from-right-4"
-                                >
-                                    <UserGroupIcon className="w-4 h-4" /> Bulk Assign ({selectedIds.length})
-                                </button>
-                            )}
-                            <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:border-primary hover:text-primary flex items-center gap-2 transition-colors shadow-sm"><PencilSquareIcon className="w-4 h-4" /> Bulk Edit</button>
-                            <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:border-primary hover:text-primary flex items-center gap-2 transition-colors shadow-sm"><ChatBubbleLeftRightIcon className="w-4 h-4" /> Bulk WACA Message</button>
-                            <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:border-gray-300 flex items-center gap-2 transition-colors shadow-sm">More <ChevronDownIcon className="w-4 h-4" /></button>
-                        </div>
-
-                        {/* Table Content */}
-                        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                            {showEmptyState ? (
-                                <div className="flex flex-col items-center justify-center py-24 bg-gray-50/30">
-                                    <div className="w-16 h-16 bg-white border border-gray-100 shadow-sm rounded-2xl flex items-center justify-center mb-4 text-gray-300">
-                                        <MagnifyingGlassIcon className="w-8 h-8" />
-                                    </div>
-                                    <h3 className="text-gray-900 font-bold text-lg">No Results Found</h3>
-                                    <p className="text-gray-500 text-sm mt-1 max-w-xs text-center">We couldn't find any leads matching your filters. Try clearing some filters.</p>
+                        {/* Data Table */}
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex-1 overflow-hidden flex flex-col">
+                            {loading ? (
+                                <div className="p-6">
+                                    <Skeleton rows={10} />
+                                </div>
+                            ) : filteredData.length === 0 ? (
+                                <div className="flex-1 flex items-center justify-center">
+                                    <EmptyState 
+                                        icon={MagnifyingGlassIcon}
+                                        title="No leads found"
+                                        subtitle="Try adjusting your filters or search terms"
+                                        actionLabel="Clear Filters"
+                                        onAction={() => setFilters({})}
+                                    />
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex items-center gap-2 p-3 border-b border-gray-100 text-sm text-gray-500 bg-gray-50/50">
+                                    <div className="flex items-center gap-2 p-3 border-b border-gray-200 text-sm text-gray-500 bg-gray-50/50 shrink-0">
                                         <span className="bg-white border border-gray-200 rounded-md text-xs font-bold px-2 py-1 shadow-sm">1-20 of {data.length > 0 ? data.length + '024' : '0'}</span>
                                         <ChevronDownIcon className="w-4 h-4" />
                                     </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr className="bg-gray-50/50 border-b border-gray-100">
-                                                    <th className="w-12 px-6 py-4">
+                                    <div className="flex-1 overflow-auto custom-scrollbar">
+                                        <table className="w-full text-left border-collapse table-fixed">
+                                            <TableHeader columns={[
+                                                { 
+                                                    label: (
                                                         <input
                                                             type="checkbox"
-                                                            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                                            className="w-5 h-5 rounded-md border-gray-300 text-[#08A698] focus:ring-[#08A698] cursor-pointer align-middle"
                                                             checked={data.length > 0 && selectedIds.length === data.length}
                                                             onChange={toggleSelectAll}
                                                         />
-                                                    </th>
-                                                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
-                                                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                                                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Rating</th>
-                                                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Assignee</th>
-                                                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Created On</th>
-                                                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Modified On</th>
-                                                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Lead source</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-50">
-                                                {data.map((lead) => (
-                                                    <tr
+                                                    ), 
+                                                    width: 'w-14 pl-6 border-b border-gray-100',
+                                                    sortable: false
+                                                },
+                                                { label: 'Name', width: 'w-[25%] border-b border-gray-100' },
+                                                { label: 'Website', width: 'w-[20%] border-b border-gray-100' },
+                                                { label: 'Industry', width: 'w-[15%] border-b border-gray-100' },
+                                                { label: 'Country', width: 'w-[15%] border-b border-gray-100' },
+                                                { label: 'Type', width: 'w-[10%] border-b border-gray-100' },
+                                                { label: 'Action', width: 'w-16 border-b border-gray-100', align: 'center', sortable: false }
+                                            ]} />
+                                            <tbody className="bg-white">
+                                                {filteredData.map((lead, index) => (
+                                                    <tr 
                                                         key={lead.id}
-                                                        onClick={() => onRowClick && onRowClick(lead)}
-                                                        className="hover:bg-teal-50/30 transition-colors group cursor-pointer"
+                                                        className={`
+                                                            group hover:bg-gray-50/50 transition-colors cursor-pointer border-b border-gray-100
+                                                            ${selectedIds.includes(lead.id) ? 'bg-teal-50/30' : ''}
+                                                        `}
                                                     >
-                                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                                    <td className="py-4 pl-6" onClick={(e) => e.stopPropagation()}>
+                                                        <div className="flex items-center gap-4">
                                                             <input
                                                                 type="checkbox"
-                                                                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                                                className="w-5 h-5 rounded-md border-gray-300 text-[#08A698] focus:ring-[#08A698] cursor-pointer"
                                                                 checked={selectedIds.includes(lead.id)}
                                                                 onChange={(e) => toggleSelectLead(e, lead.id)}
                                                             />
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <span className="text-sm font-semibold text-gray-800 group-hover:text-primary transition-colors">{lead.name}</span>
-                                                                {lead.phone && (
-                                                                    <a
-                                                                        href={`tel:${lead.phone}`}
-                                                                        onClick={(e) => { e.stopPropagation(); startCallLog(lead.phone, lead.id, lead.name); }}
-                                                                        className="p-1 rounded-full bg-teal-50 text-teal-600 hover:bg-teal-100 transition shadow-sm"
-                                                                        title={`Call ${lead.name}`}
-                                                                    >
-                                                                        <PhoneIcon className="w-3.5 h-3.5" />
-                                                                    </a>
-                                                                )}
+                                                            <span className="text-gray-400 text-xs font-medium w-6">{(index + 1).toString().padStart(2, '0')}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-4 pr-4" onClick={() => onRowClick && onRowClick(lead)}>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-9 h-9 rounded-full bg-teal-50 border border-teal-100 flex items-center justify-center text-[#08A698] font-bold text-xs shadow-sm overflow-hidden">
+                                                                {lead.avatar ? <img src={lead.avatar} className="w-full h-full object-cover" /> : lead.name?.charAt(0)}
                                                             </div>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <StatusBadge status={lead.status} subStatus={lead.subStatus} />
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <StarIcon className="w-4 h-4 text-gray-300" />
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold uppercase ring-1 ring-white shadow-sm">{lead.assigneeInitials}</div>
-                                                                <span className="text-xs font-medium text-gray-600">{lead.assigneeName}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-xs text-gray-500 font-medium">{lead.createdOn}</td>
-                                                        <td className="px-6 py-4 text-xs text-gray-500 font-medium">{lead.modifiedOn}</td>
-                                                        <td className="px-6 py-4">
-                                                            {lead.source && <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold border border-gray-200 rounded-md">{lead.source}</span>}
-                                                            {!lead.source && <span className="text-gray-300 text-xs">--</span>}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                            <span className="font-semibold text-gray-700 truncate">{lead.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-4 pr-4 text-gray-500 text-sm truncate">{lead.website || lead.email || 'N/A'}</td>
+                                                    <td className="py-4 pr-4 text-gray-600 text-sm truncate">{lead.industry || lead.source || 'General'}</td>
+                                                    <td className="py-4 pr-4 text-gray-500 text-sm truncate">{lead.country || 'Global'}</td>
+                                                    <td className="py-4 pr-4">
+                                                        <StatusBadge status={lead.status} />
+                                                    </td>
+                                                    <td className="py-4 pr-6 text-center">
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); }}
+                                                            className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded-md transition-colors"
+                                                        >
+                                                            <EllipsisHorizontalIcon className="w-5 h-5" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                                 </>
                             )}
+                            
+                            {/* Footer / Pagination */}
+                            <div className="border-t border-gray-100 px-6 py-4 bg-white flex items-center justify-between">
+                                <span className="text-gray-500 text-sm font-medium">02 page of 21</span>
+                                <div className="flex gap-2">
+                                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50 text-gray-400 transition-colors">
+                                        <ChevronDownIcon className="w-4 h-4 rotate-90" />
+                                    </button>
+                                    <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 text-gray-600 font-medium text-xs">01</button>
+                                    <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#4F46E5] text-white font-medium text-xs shadow-md shadow-indigo-200">02</button>
+                                    <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 text-gray-600 font-medium text-xs">03</button>
+                                    <span className="w-8 h-8 flex items-center justify-center text-gray-400">...</span>
+                                    <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 text-gray-600 font-medium text-xs">21</button>
+                                    <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-50 text-gray-400 transition-colors">
+                                        <ChevronDownIcon className="w-4 h-4 -rotate-90" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </main>
+
+                    </main>
+                </div>
             </div>
 
             <BulkAssignModal
@@ -217,32 +263,23 @@ export default function FilterPageTemplate({ title, data = [], showEmptyState = 
     );
 }
 
-const FilterPill = ({ label, icon: Icon }) => (
-    <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-500 hover:border-primary hover:text-primary flex items-center gap-2 whitespace-nowrap shadow-sm transition-all group">
-        {Icon && <Icon className="w-4 h-4 text-gray-400 group-hover:text-primary transition-colors" />}
-        {label} <ChevronDownIcon className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" />
-    </button>
-);
-
-const StatusBadge = ({ status, subStatus }) => {
-    let styles = 'bg-emerald-50 text-emerald-700 border-emerald-100'; // Fresh/Default
-    if (status === 'Lost') styles = 'bg-red-50 text-red-700 border-red-100';
-    if (status === 'Dead') styles = 'bg-gray-100 text-gray-600 border-gray-200';
-    if (status.includes('Attempted')) styles = 'bg-amber-50 text-amber-700 border-amber-100';
-    if (status.includes('Support')) styles = 'bg-blue-50 text-blue-700 border-blue-100';
-    if (status.includes('Interested')) styles = 'bg-teal-50 text-teal-700 border-teal-100';
-    if (status.includes('Recapture')) styles = 'bg-orange-50 text-orange-700 border-orange-100';
+const StatusBadge = ({ status }) => {
+    const styles = {
+        'Fresh': 'bg-emerald-100 text-emerald-600',
+        'Won': 'bg-teal-100 text-teal-600',
+        'Lost': 'bg-rose-100 text-rose-600',
+        'Dead': 'bg-gray-100 text-gray-600',
+        'Interested': 'bg-blue-100 text-blue-600',
+        'Follow Up': 'bg-amber-100 text-amber-600',
+    };
+    
+    // Fallback for unknown statuses
+    const defaultStyle = 'bg-gray-100 text-gray-600';
+    const activeStyle = styles[Object.keys(styles).find(k => status?.includes(k))] || defaultStyle;
 
     return (
-        <div className="flex flex-col items-start gap-1">
-            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${styles} whitespace-nowrap shadow-sm`}>
-                {status}
-            </span>
-            {subStatus && (
-                <span className="text-[9px] text-gray-400 flex items-center gap-1 ml-0.5 font-medium">
-                    <span className="w-1 h-1 rounded-full bg-gray-300"></span> {subStatus}
-                </span>
-            )}
-        </div>
+        <span className={`px-3 py-1.5 rounded-md text-xs font-semibold ${activeStyle} whitespace-nowrap`}>
+            {status || 'Unknown'}
+        </span>
     );
 };

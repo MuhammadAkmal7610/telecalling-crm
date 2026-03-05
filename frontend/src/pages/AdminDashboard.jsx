@@ -3,7 +3,6 @@ import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import { usePermission } from '../hooks/usePermission';
-import { useWorkspace } from '../context/WorkspaceContext';
 import { supabase } from '../lib/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -23,8 +22,9 @@ import {
     ArrowTrendingUpIcon,
     CreditCardIcon,
 } from '@heroicons/react/24/outline';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+import Skeleton from '../components/ui/Skeleton';
+import EmptyState from '../components/ui/EmptyState';
+import { API_URL } from '../lib/config';
 
 const StatCard = ({ icon: Icon, label, value, sub, color = 'teal', trend }) => {
     const colorMap = {
@@ -77,7 +77,7 @@ const RoleTag = ({ role }) => {
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
-    const { isOrgAdmin, isRoot, can } = usePermission();
+    const { isOrgAdmin, isRoot } = usePermission();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [stats, setStats] = useState(null);
     const [activity, setActivity] = useState([]);
@@ -196,7 +196,7 @@ export default function AdminDashboard() {
                                             </div>
                                             <div className="p-6 space-y-3">
                                                 {loading ? (
-                                                    <div className="text-gray-400 text-sm text-center py-4">Loading...</div>
+                                                    <Skeleton rows={5} />
                                                 ) : stats?.users.byRole ? (
                                                     Object.entries(stats.users.byRole).sort((a, b) => b[1] - a[1]).map(([role, count]) => (
                                                         <div key={role} className="flex items-center justify-between">
@@ -212,7 +212,7 @@ export default function AdminDashboard() {
                                                             </div>
                                                         </div>
                                                     ))
-                                                ) : <div className="text-gray-400 text-sm text-center py-4">No data</div>}
+                                                ) : <EmptyState title="No data" subtitle="No role distribution available" />}
                                             </div>
                                         </div>
 
@@ -223,7 +223,7 @@ export default function AdminDashboard() {
                                             </div>
                                             <div className="p-6 space-y-3">
                                                 {loading ? (
-                                                    <div className="text-gray-400 text-sm text-center py-4">Loading...</div>
+                                                    <Skeleton rows={5} />
                                                 ) : stats?.leads.byStatus ? (
                                                     Object.entries(stats.leads.byStatus).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([status, count]) => (
                                                         <div key={status} className="flex items-center justify-between">
@@ -239,7 +239,7 @@ export default function AdminDashboard() {
                                                             </div>
                                                         </div>
                                                     ))
-                                                ) : <div className="text-gray-400 text-sm text-center py-4">No data</div>}
+                                                ) : <EmptyState title="No data" subtitle="No leads status found" />}
                                             </div>
                                         </div>
                                     </div>
@@ -274,7 +274,7 @@ export default function AdminDashboard() {
                             {/* ── Workspaces Tab ───────────────────────────────── */}
                             {activeTab === 'workspaces' && (
                                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50 flex items-center justify-between">
                                         <h2 className="text-sm font-bold text-gray-600 uppercase tracking-wider">
                                             All Workspaces ({stats?.workspaces?.length || 0})
                                         </h2>
@@ -286,9 +286,9 @@ export default function AdminDashboard() {
                                             Manage →
                                         </button>
                                     </div>
-                                    <div className="divide-y divide-gray-50">
+                                    <div className="divide-y divide-gray-200">
                                         {loading ? (
-                                            <div className="p-8 text-center text-gray-400">Loading...</div>
+                                            <div className="p-6"><Skeleton rows={3} /></div>
                                         ) : stats?.workspaces?.length > 0 ? (
                                             stats.workspaces.map(ws => (
                                                 <div key={ws.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
@@ -316,7 +316,7 @@ export default function AdminDashboard() {
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="p-8 text-center text-gray-400">No workspaces found</div>
+                                            <EmptyState title="No workspaces" subtitle="Create your first workspace" actionLabel="Create Workspace" onAction={() => navigate('/manage-workspaces')} />
                                         )}
                                     </div>
                                 </div>
@@ -325,12 +325,12 @@ export default function AdminDashboard() {
                             {/* ── Activity Feed Tab ────────────────────────────── */}
                             {activeTab === 'activity' && (
                                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
                                         <h2 className="text-sm font-bold text-gray-600 uppercase tracking-wider">Recent Activity (Last 15)</h2>
                                     </div>
-                                    <div className="divide-y divide-gray-50">
+                                    <div className="divide-y divide-gray-200">
                                         {loading ? (
-                                            <div className="p-8 text-center text-gray-400">Loading...</div>
+                                            <div className="p-6"><Skeleton rows={5} /></div>
                                         ) : activity.length > 0 ? (
                                             activity.map(a => (
                                                 <div key={a.id} className="flex items-start gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
@@ -357,7 +357,7 @@ export default function AdminDashboard() {
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="p-8 text-center text-gray-400">No recent activity found</div>
+                                            <EmptyState title="No recent activity" subtitle="Your organization has no recent events" />
                                         )}
                                     </div>
                                 </div>

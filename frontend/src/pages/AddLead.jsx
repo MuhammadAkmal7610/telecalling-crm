@@ -182,19 +182,13 @@ export default function AddLead() {
                                 />
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                                    <SelectField
-                                        label="Lead Source"
-                                        options={['Facebook', 'Website', 'Referral', 'Manual']}
-                                        value={formData.source}
-                                        onChange={(e) => handleInputChange(e, 'source')}
-                                    />
-                                    <InputField
-                                        label="City"
-                                        placeholder="Enter City"
-                                        icon={VariableIcon}
-                                        value={formData.custom_fields.city}
-                                        onChange={(e) => handleInputChange(e, 'city', true)}
-                                    />
+                                        <SelectField
+                                            label="Lead Source"
+                                            options={["Facebook", "Website", "WhatsApp", "Referral", "Manual", "Import", "IndiaMART", "Justdial"]}
+                                            value={formData.source}
+                                            onChange={(e) => handleInputChange(e, 'source')}
+                                        />
+                                        
                                 </div>
 
                                 <div className="pt-8 flex justify-center sticky bottom-0 bg-white/95 backdrop-blur-sm p-4 border-t border-gray-100 -mx-6 -mb-6 lg:-mx-10 lg:-mb-10 rounded-b-xl z-20">

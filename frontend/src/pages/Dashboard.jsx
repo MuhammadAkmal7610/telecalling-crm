@@ -212,25 +212,24 @@ import {
     ArrowPathIcon,
     CalendarIcon,
     Cog6ToothIcon,
-    MagnifyingGlassIcon,
-    PlusIcon,
-    FunnelIcon,
     ChevronDownIcon,
     ChevronRightIcon,
     ClockIcon,
     BarsArrowDownIcon,
     TableCellsIcon,
     ChartBarIcon,
-    MegaphoneIcon
+    MegaphoneIcon,
+    FunnelIcon
 } from '@heroicons/react/24/outline';
 import CampaignModal from '../components/CampaignModal';
 import TaskModal from '../components/TaskModal';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import { toast } from 'react-hot-toast';
+import DashboardCard from '../components/ui/Card';
+import SearchBar from '../components/ui/SearchBar';
+import TableHeader from '../components/ui/TableHeader';
+import { API_URL } from '../lib/config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
-
-// --- STYLES & HELPERS ---
 const StatusPill = ({ count, colorClasses, label }) => {
     if (count === 0 && !label) return <span className="text-gray-300 font-normal">-</span>;
     return (
@@ -239,95 +238,7 @@ const StatusPill = ({ count, colorClasses, label }) => {
         </span>
     );
 };
-
-// Premium Card Component
-const DashboardCard = ({
-    icon: Icon,
-    title,
-    manageLink,
-    onAdd,
-    onManage,
-    headerDate = "Today",
-    children,
-    className = "",
-    headerRight
-}) => (
-    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col transition-all duration-300 hover:shadow-md hover:border-teal-100 ${className}`}>
-        {/* Card Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100/80">
-            <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-teal-50 to-white rounded-lg border border-teal-50 text-[#08A698] shadow-sm">
-                    <Icon className="w-5 h-5" />
-                </div>
-                <div>
-                    <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-gray-800 leading-none">{title}</h3>
-                        {manageLink && (
-                            <span
-                                className="text-[10px] font-semibold text-[#08A698] cursor-pointer hover:underline border-l border-gray-300 pl-2 leading-none hover:text-teal-700 transition-colors"
-                                onClick={onManage}
-                            >
-                                Manage
-                            </span>
-                        )}
-                        {onAdd && (
-                            <span className="text-[10px] font-semibold text-[#08A698] cursor-pointer hover:underline border-l border-gray-300 pl-2 leading-none hover:text-teal-700 transition-colors" onClick={onAdd}>+ Add</span>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-                {headerRight || (
-                    <>
-                        <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors">
-                            <CalendarIcon className="w-3.5 h-3.5 text-gray-400" />
-                            {headerDate}
-                            <ChevronDownIcon className="w-3 h-3 text-gray-400 ml-0.5" />
-                        </button>
-                        <button className="text-gray-300 hover:text-gray-500 transition-colors p-1 hover:bg-gray-50 rounded" onClick={onManage}>
-                            <ChevronRightIcon className="w-4 h-4" />
-                        </button>
-                    </>
-                )}
-            </div>
-        </div>
-
-        {/* Card Body */}
-        <div className="flex-1 flex flex-col min-h-0 p-5 space-y-4 overflow-hidden relative">
-            {children}
-        </div>
-    </div>
-);
-
-const SearchBar = ({ placeholder = "Search..." }) => (
-    <div className="relative group">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#08A698] transition-colors" />
-        <input
-            type="text"
-            placeholder={placeholder}
-            className="w-full pl-9 pr-4 py-2 bg-gray-50/50 border border-gray-200 rounded-lg text-xs focus:ring-1 focus:ring-[#08A698] focus:border-[#08A698] outline-none transition-all placeholder:text-gray-400 hover:bg-white focus:bg-white"
-        />
-    </div>
-);
-
-const TableHeader = ({ columns }) => (
-    <thead className="sticky top-0 bg-white z-10 border-b border-gray-100">
-        <tr>
-            {columns.map((col, idx) => (
-                <th
-                    key={idx}
-                    className={`pb-3 pt-1 text-[11px] font-bold uppercase tracking-wider ${col.align === 'center' ? 'text-center' : 'text-left'} text-gray-400 ${col.width || ''}`}
-                >
-                    <div className={`flex items-center gap-1 ${col.align === 'center' ? 'justify-center' : ''} cursor-pointer hover:text-gray-600 transition-colors`}>
-                        {col.label} {col.sortable !== false && <ChevronDownIcon className="w-2.5 h-2.5 opacity-40" />}
-                    </div>
-                </th>
-            ))}
-            <th className="pb-3 pt-1 w-6"></th>
-        </tr>
-    </thead>
-);
+ 
 
 
 // --- PAGE COMPONENT ---
@@ -372,10 +283,10 @@ const Dashboard = () => {
             const campaignsResult = await campaignsRes.json();
 
             if (statsRes.ok) {
-                setStats(prev => ({
+                setStats({
                     ...(statsResult.data || statsResult || {}),
                     recentCampaigns: campaignsResult.data || campaignsResult || []
-                }));
+                });
             }
 
             if (perfRes.ok) {
@@ -464,15 +375,15 @@ const Dashboard = () => {
                                     <div className="overflow-auto flex-1 custom-scrollbar -mx-4 px-4 pt-2">
                                         <table className="w-full text-left text-xs">
                                             <TableHeader columns={[
-                                                { label: 'Assignee', width: 'w-[32%]' },
-                                                { label: 'Upcoming', align: 'center' },
-                                                { label: 'Late', align: 'center' },
-                                                { label: 'Done', align: 'center' },
-                                                { label: 'Cancel', align: 'center' },
+                                                { label: 'Assignee', width: 'w-[32%] border-r border-gray-100' },
+                                                { label: 'Upcoming', align: 'center', width: 'border-r border-gray-100' },
+                                                { label: 'Late', align: 'center', width: 'border-r border-gray-100' },
+                                                { label: 'Done', align: 'center', width: 'border-r border-gray-100' },
+                                                { label: 'Cancel', align: 'center', width: 'border-r border-gray-100' },
                                             ]} />
-                                            <tbody className="divide-y divide-gray-50">
+                                            <tbody className="divide-y divide-gray-200">
                                                 {(stats.followUpsSummary || []).map((r, i) => (
-                                                    <tr key={i} className="group hover:bg-teal-50/30 transition-colors">
+                                                    <tr key={i} className="group hover:bg-teal-50/30 transition-colors divide-x divide-gray-100">
                                                         <td className="py-3 pl-1">
                                                             <div className="flex items-center gap-3">
                                                                 <div className="w-8 h-8 rounded-lg bg-teal-50 text-[#08A698] border border-teal-100 flex items-center justify-center text-[10px] font-bold shadow-sm">{r.initials}</div>
@@ -500,15 +411,15 @@ const Dashboard = () => {
                                     <div className="overflow-auto flex-1 custom-scrollbar -mx-4 px-4 pt-2">
                                         <table className="w-full text-left text-xs">
                                             <TableHeader columns={[
-                                                { label: 'Assignee', width: 'w-[32%]' },
-                                                { label: 'Fresh', align: 'center' },
-                                                { label: 'Active', align: 'center' },
-                                                { label: 'Won', align: 'center' },
-                                                { label: 'Lost', align: 'center' },
+                                                { label: 'Assignee', width: 'w-[32%] border-r border-gray-100' },
+                                                { label: 'Fresh', align: 'center', width: 'border-r border-gray-100' },
+                                                { label: 'Active', align: 'center', width: 'border-r border-gray-100' },
+                                                { label: 'Won', align: 'center', width: 'border-r border-gray-100' },
+                                                { label: 'Lost', align: 'center', width: 'border-r border-gray-100' },
                                             ]} />
-                                            <tbody className="divide-y divide-gray-50">
+                                            <tbody className="divide-y divide-gray-200">
                                                 {(stats.leadsByStageSummary || []).map((r, i) => (
-                                                    <tr key={i} className="group hover:bg-teal-50/30 transition-colors">
+                                                    <tr key={i} className="group hover:bg-teal-50/30 transition-colors divide-x divide-gray-100">
                                                         <td className="py-3 pl-1">
                                                             <div className="flex items-center gap-3">
                                                                 <div className="w-8 h-8 rounded-lg bg-teal-50 text-[#08A698] border border-teal-100 flex items-center justify-center text-[10px] font-bold shadow-sm">{r.initials}</div>
@@ -536,15 +447,15 @@ const Dashboard = () => {
                                     <div className="overflow-auto flex-1 custom-scrollbar -mx-4 px-4 pt-2">
                                         <table className="w-full text-left text-xs">
                                             <TableHeader columns={[
-                                                { label: 'Filter Name', width: 'w-[32%]' },
-                                                { label: 'Fresh', align: 'center' },
-                                                { label: 'Active', align: 'center' },
-                                                { label: 'Won', align: 'center' },
-                                                { label: 'Lost', align: 'center' },
+                                                { label: 'Filter Name', width: 'w-[32%] border-r border-gray-100' },
+                                                { label: 'Fresh', align: 'center', width: 'border-r border-gray-100' },
+                                                { label: 'Active', align: 'center', width: 'border-r border-gray-100' },
+                                                { label: 'Won', align: 'center', width: 'border-r border-gray-100' },
+                                                { label: 'Lost', align: 'center', width: 'border-r border-gray-100' },
                                             ]} />
-                                            <tbody className="divide-y divide-gray-50">
+                                            <tbody className="divide-y divide-gray-200">
                                                 {(stats.filtersSummary || []).map((r, i) => (
-                                                    <tr key={i} className="group hover:bg-teal-50/30 transition-colors cursor-pointer" onClick={() => navigate(r.path)}>
+                                                    <tr key={i} className="group hover:bg-teal-50/30 transition-colors cursor-pointer divide-x divide-gray-100" onClick={() => navigate(r.path)}>
                                                         <td className="py-3.5 pl-1">
                                                             <div className="flex items-center gap-2.5">
                                                                 <FunnelIcon className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#08A698] transition-colors" />
@@ -571,18 +482,18 @@ const Dashboard = () => {
                                     <SearchBar placeholder="Search by name..." />
                                     <div className="overflow-auto flex-1 custom-scrollbar -mx-4 px-4 pt-2">
                                         <table className="w-full text-left text-xs">
-                                            <thead className="sticky top-0 bg-white z-10 border-b border-gray-100">
+                                            <thead className="sticky top-0 bg-white z-10 border-b border-gray-200">
                                                 <tr>
-                                                    <th className="pb-3 pt-1 pl-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Agent</th>
-                                                    <th className="pb-3 pt-1 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider">Calls</th>
-                                                    <th className="pb-3 pt-1 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider">Time</th>
-                                                    <th className="pb-3 pt-1 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider pr-2">Conn.</th>
+                                                    <th className="pb-3 pt-1 pl-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-r border-gray-100">Agent</th>
+                                                    <th className="pb-3 pt-1 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider border-r border-gray-100">Calls</th>
+                                                    <th className="pb-3 pt-1 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider border-r border-gray-100">Time</th>
+                                                    <th className="pb-3 pt-1 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider pr-2 border-r border-gray-100">Conn.</th>
                                                     <th className="w-6"></th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-gray-50">
+                                            <tbody className="divide-y divide-gray-200">
                                                 {performance.map((r, i) => (
-                                                    <tr key={i} className="group hover:bg-teal-50/30 transition-colors">
+                                                    <tr key={i} className="group hover:bg-teal-50/30 transition-colors divide-x divide-gray-100">
                                                         <td className="py-3 pl-1">
                                                             <div className="flex items-center gap-3">
                                                                 <div className="w-8 h-8 rounded-lg bg-teal-50 text-[#08A698] border border-teal-100 flex items-center justify-center text-[10px] font-bold shadow-sm">{r.name ? r.name.substring(0, 2).toUpperCase() : '??'}</div>
@@ -620,13 +531,13 @@ const Dashboard = () => {
                                         <div className="overflow-auto flex-1 custom-scrollbar -mx-4 px-4">
                                             <table className="w-full text-left text-xs">
                                                 <TableHeader columns={[
-                                                    { label: 'Campaign Name', width: 'w-[45%]' },
-                                                    { label: 'Progress', align: 'center' },
-                                                    { label: 'Priority', align: 'center' },
+                                                    { label: 'Campaign Name', width: 'w-[45%] border-r border-gray-100' },
+                                                    { label: 'Progress', align: 'center', width: 'border-r border-gray-100' },
+                                                    { label: 'Priority', align: 'center', width: 'border-r border-gray-100' },
                                                 ]} />
-                                                <tbody className="divide-y divide-gray-50">
+                                                <tbody className="divide-y divide-gray-200">
                                                     {stats.recentCampaigns.map((c, i) => (
-                                                        <tr key={i} className="group hover:bg-teal-50/30 transition-colors">
+                                                        <tr key={i} className="group hover:bg-teal-50/30 transition-colors divide-x divide-gray-100">
                                                             <td className="py-3.5">
                                                                 <div className="font-semibold text-gray-700 group-hover:text-[#08A698]">{c.name}</div>
                                                                 <div className="text-[10px] text-gray-400 mt-0.5">{c.totalLeads} Leads</div>
@@ -688,7 +599,6 @@ const Dashboard = () => {
                                     )}
                                 >
                                     <div className="flex-1 w-full flex items-end justify-between gap-3 px-2 pb-2 relative">
-                                        {/* Grid Lines */}
                                         <div className="absolute inset-0 flex flex-col justify-between px-2 pb-8 pt-4 pointer-events-none opacity-20">
                                             {[1, 2, 3, 4].map((_, i) => <div key={i} className="w-full h-px bg-gray-300 border-dashed border-b"></div>)}
                                         </div>

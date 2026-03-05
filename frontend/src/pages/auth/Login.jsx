@@ -95,12 +95,7 @@ const Login = () => {
                 </form>
 
                 <div className="mt-6 text-center text-slate-400 text-sm space-y-2">
-                    <div>
-                        Don't have an account?{' '}
-                        <Link to="/signup" className="text-teal-400 hover:text-teal-300 font-medium">
-                            Sign up
-                        </Link>
-                    </div>
+                    {/* Signup link removed: Only invited users can sign up. */}
                     <div>
                         Need help?{' '}
                         <a href="mailto:support@wewave.com" className="text-white hover:text-slate-200 font-medium transition-colors">

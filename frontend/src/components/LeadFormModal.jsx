@@ -138,6 +138,7 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {fields.filter(f => f.show_in_quick_add).sort((a, b) => a.position - b.position).map((field) => (
                             <div key={field.id} className="space-y-1.5 group">
@@ -159,6 +160,29 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
                                 </div>
                             </div>
                         ))}
+
+                        {/* Lead Source Dropdown */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-1.5">
+                                <FunnelIcon className="w-4 h-4" /> Lead Source <span className="text-red-500 font-black text-xs">*</span>
+                            </label>
+                            <select
+                                value={formData.source || ''}
+                                onChange={e => handleChange('source', e.target.value)}
+                                required
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#08A698] focus:bg-white transition-all outline-none appearance-none"
+                            >
+                                <option value="">Select Source</option>
+                                <option value="Facebook">Facebook</option>
+                                <option value="Website">Website</option>
+                                <option value="WhatsApp">WhatsApp</option>
+                                <option value="Referral">Referral</option>
+                                <option value="Manual">Manual</option>
+                                <option value="Import">Import</option>
+                                <option value="IndiaMART">IndiaMART</option>
+                                <option value="Justdial">Justdial</option>
+                            </select>
+                        </div>
 
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-1.5">

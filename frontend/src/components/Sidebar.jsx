@@ -36,7 +36,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     return (
         <>
             {/* Desktop Navigation Rail */}
-            <div className="hidden lg:flex flex-col items-center w-20 h-screen bg-white border-r border-gray-200 z-20">
+            <div className="hidden lg:flex flex-col items-center w-20 h-screen bg-white border-r border-gray-200 z-[1050]">
 
                 {/* Logo - Aligned with Header */}
                 <Link to="/" className="h-16 w-full flex items-center justify-center border-b border-gray-200 mb-4 hover:bg-gray-50 transition-colors">
@@ -78,7 +78,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                     </div>
 
                                     {/* Hover Card */}
-                                    <div className="absolute left-14 top-0 ml-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 p-2 hidden group-hover:block z-50 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="absolute left-14 top-0 ml-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 p-2 hidden group-hover:block z-[1100] animate-in fade-in zoom-in-95 duration-200">
                                         <div className="flex flex-col gap-1">
                                             {/* Arrow visual */}
                                             <div className="absolute top-4 -left-1.5 w-3 h-3 bg-white border-t border-l border-gray-100 transform -rotate-45"></div>
@@ -108,7 +108,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                     </div>
 
                                     {/* Hover Card */}
-                                    <div className="absolute left-14 top-0 ml-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 p-2 hidden group-hover:block z-50 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="absolute left-14 top-0 ml-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 p-2 hidden group-hover:block z-[1100] animate-in fade-in zoom-in-95 duration-200">
                                         <div className="flex flex-col gap-1">
                                             {/* Arrow visual */}
                                             <div className="absolute top-4 -left-1.5 w-3 h-3 bg-white border-t border-l border-gray-100 transform -rotate-45"></div>
@@ -141,7 +141,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                     </div>
 
                                     {/* Hover Card */}
-                                    <div className="absolute left-14 top-0 ml-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 p-2 hidden group-hover:block z-50 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="absolute left-14 top-0 ml-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 p-2 hidden group-hover:block z-[1100] animate-in fade-in zoom-in-95 duration-200">
                                         <div className="flex flex-col gap-1">
                                             {/* Arrow visual */}
                                             <div className="absolute top-4 -left-1.5 w-3 h-3 bg-white border-t border-l border-gray-100 transform -rotate-45"></div>
@@ -180,7 +180,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                     </div>
 
                                     {/* Hover Card */}
-                                    <div className="absolute left-14 top-0 ml-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 p-2 hidden group-hover:block z-50 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="absolute left-14 top-0 ml-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 p-2 hidden group-hover:block z-[1100] animate-in fade-in zoom-in-95 duration-200">
                                         <div className="flex flex-col gap-1">
                                             {/* Arrow visual */}
                                             <div className="absolute top-4 -left-1.5 w-3 h-3 bg-white border-t border-l border-gray-100 transform -rotate-45"></div>
@@ -255,7 +255,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                     </div>
 
                                     {/* Hover Card */}
-                                    <div className="absolute left-14 top-0 ml-2 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 p-2 hidden group-hover:block z-50 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="absolute left-14 top-0 ml-2 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 p-2 hidden group-hover:block z-[1100] animate-in fade-in zoom-in-95 duration-200">
                                         <div className="flex flex-col gap-1">
                                             {/* Arrow visual */}
                                             <div className="absolute top-4 -left-1.5 w-3 h-3 bg-white border-t border-l border-gray-100 transform -rotate-45"></div>
