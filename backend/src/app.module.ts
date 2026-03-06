@@ -29,6 +29,7 @@ import { SearchModule } from './modules/search/search.module';
 import { ScriptsModule } from './modules/scripts/scripts.module';
 import { PublicModule } from './modules/public/public.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { TelephonyModule } from './modules/telephony/telephony.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { AdminModule } from './modules/admin/admin.module';
     ScriptsModule,
     PublicModule,
     AdminModule,
+    TelephonyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

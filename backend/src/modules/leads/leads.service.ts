@@ -6,6 +6,8 @@ import { CreateLeadDto, UpdateLeadDto, LeadQueryDto, LeadStatus } from './dto/le
 import { WorkflowsEngineService } from '../workflows/workflows-engine.service';
 import { ActivitiesService } from '../activities/activities.service';
 import { ActivityType } from '../activities/dto/activity.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 @Injectable()
 export class LeadsService {
@@ -15,7 +17,9 @@ export class LeadsService {
     constructor(
         private readonly supabaseService: SupabaseService,
         private readonly workflowsEngineService: WorkflowsEngineService,
-        private readonly activitiesService: ActivitiesService
+        private readonly activitiesService: ActivitiesService,
+        private readonly notificationsService: NotificationsService,
+        private readonly notificationsGateway: NotificationsGateway
     ) { }
 
     private mapDtoToDb(dto: CreateLeadDto | UpdateLeadDto) {
@@ -23,206 +27,255 @@ export class LeadsService {
             altPhone, alt_phone,
             stageId, stage_id,
             assigneeId, assignee_id,
-            lostReason, lost_reason,
             customFields, custom_fields,
             organizationId,
             ...rest
-        } = dto as any;
+        } = dto;
 
-        const dbColumns = [
-            'name', 'phone', 'email', 'status', 'source',
-            'created_by', 'updated_at', 'campaign_id', 'rating'
-        ];
-
-        const mapped: any = {};
-        const extraFields: any = { ...(custom_fields || {}), ...(customFields || {}) };
-
-        mapped.alt_phone = (alt_phone || altPhone) || undefined;
-        mapped.stage_id = (stage_id || stageId) || undefined;
-        mapped.assignee_id = (assignee_id || assigneeId) || undefined;
-        mapped.lost_reason = (lost_reason || lostReason) || undefined;
-
-        Object.keys(rest).forEach(key => {
-            if (dbColumns.includes(key)) {
-                mapped[key] = rest[key];
-            } else {
-                extraFields[key] = rest[key];
-            }
-        });
-
-        mapped.custom_fields = extraFields;
-        return mapped;
+        return {
+            ...rest,
+            alt_phone: altPhone || alt_phone,
+            stage_id: stageId || stage_id,
+            assignee_id: assigneeId || assignee_id,
+            custom_fields: customFields || custom_fields,
+            organization_id: organizationId,
+        };
     }
 
-    async create(dto: CreateLeadDto, user: any) {
-        const supabase = this.supabaseService.getAdminClient();
-        const mappedData = this.mapDtoToDb(dto);
-        const { id: userId, organizationId, email, name } = user;
+    private mapDbToDto(db: any) {
+        const {
+            alt_phone,
+            stage_id,
+            assignee_id,
+            custom_fields,
+            organization_id,
+            ...rest
+        } = db;
 
-        const { error: userError } = await supabase.from('users').upsert({
-            id: userId,
-            organization_id: organizationId,
-            email: email || 'unknown@example.com',
-            name: name || 'User',
-            updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-
-        const insertData = {
-            ...mappedData,
-            status: mappedData.status ?? LeadStatus.FRESH,
-            created_by: userId,
-            organization_id: organizationId,
-            workspace_id: user.workspaceId,
-            assignee_id: mappedData.assignee_id ?? userId,
+        return {
+            ...rest,
+            altPhone: alt_phone,
+            stageId: stage_id,
+            assigneeId: assignee_id,
+            customFields: custom_fields,
+            organizationId: organization_id,
         };
+    }
 
+    async create(createLeadDto: CreateLeadDto, user: any) {
+        const workspaceId = user.workspaceId;
+        const organizationId = user.organizationId;
+        const mappedDto = this.mapDtoToDb(createLeadDto);
+
+        const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.TABLE)
-            .insert(insertData)
+            .insert({
+                ...mappedDto,
+                workspace_id: workspaceId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            })
             .select()
             .single();
 
         if (error) throw new BadRequestException(error.message);
 
         // Log Activity
-        this.activitiesService.create({
+        await this.activitiesService.create({
             type: ActivityType.NOTE,
             title: 'Lead Created',
-            description: `Lead created by ${user.name || 'System'}`,
+            description: `New lead created: ${data.name}`,
             leadId: data.id
-        }, user.id, user.workspaceId, user.organizationId).catch(err =>
-            this.logger.error(`Failed to log activity for lead ${data.id}: ${err.message}`)
-        );
+        }, user.id, workspaceId, organizationId);
 
-        // Trigger workflows
-        this.workflowsEngineService.processLead(data).catch(err =>
-            this.logger.error(`Workflow processing failed for lead ${data.id}: ${err.message}`)
-        );
+        // Send real-time notification
+        if (this.notificationsGateway) {
+            this.notificationsGateway.sendLeadUpdate(organizationId, {
+                id: data.id,
+                action: 'lead_created',
+                lead: data,
+                user: {
+                    id: user.id,
+                    name: user.name || 'System'
+                }
+            });
+        }
+
+        // Trigger Workflows
+        try {
+            await this.workflowsEngineService.processLead(data, 'lead_created', {
+                user,
+                workspaceId,
+                organizationId
+            });
+        } catch (err) {
+            this.logger.error(`Failed to process workflow for lead creation: ${err.message}`);
+        }
 
         return data;
     }
 
     async findAll(query: LeadQueryDto, user: any) {
         const workspaceId = user.workspaceId;
-        if (!workspaceId) throw new BadRequestException('Workspace ID is required');
         const supabase = this.supabaseService.getAdminClient();
-        const { page = 1, limit = 20, search, status, source, assigneeId, stageId, archive } = query;
-        const from = (page - 1) * limit;
-        const to = from + limit - 1;
-
-        let q = supabase
+        let dbQuery = supabase
             .from(this.TABLE)
-            .select('*, stage:lead_stages(id,name,color), assignee:users!assignee_id(id,name,email)', { count: 'exact' })
-            .eq('workspace_id', workspaceId)
-            .order('created_at', { ascending: false })
-            .range(from, to);
-
-        // Sales Agent Restriction: Only see assigned leads
-        if (user.role === 'caller') {
-            q = q.eq('assignee_id', user.id);
-        } else if (assigneeId) {
-            // Managers/Admins can filter by any assignee
-            q = q.eq('assignee_id', assigneeId);
-        }
-
-        if (search) {
-            q = q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
-        }
-        if (status) q = q.eq('status', status);
-        if (source) q = q.eq('source', source);
-        if (stageId) q = q.eq('stage_id', stageId);
-
-        if (archive === 'true') {
-            q = q.in('status', [LeadStatus.ARCHIVE, LeadStatus.COLD, LeadStatus.TRASH]);
-        } else if (!archive) {
-            q = q.not('status', 'in', `(${LeadStatus.ARCHIVE},${LeadStatus.COLD},${LeadStatus.TRASH})`);
-        }
-
-        const { data, error, count } = await q;
-        if (error) throw new BadRequestException(error.message);
-
-        return { data, total: count, page, limit };
-    }
-
-    async findOne(id: string, user: any) {
-        const workspaceId = user.workspaceId;
-        if (!workspaceId) throw new BadRequestException('Workspace ID is required');
-        const supabase = this.supabaseService.getAdminClient();
-
-        let q = supabase
-            .from(this.TABLE)
-            .select('*, stage:lead_stages(id,name,color,type), assignee:users!assignee_id(id,name,email)')
-            .eq('id', id)
+            .select(`
+                *,
+                assignee:users!leads_assignee_id_fkey(id, name, email),
+                stage:lead_stages!leads_stage_id_fkey(id, name, color)
+            `)
             .eq('workspace_id', workspaceId);
 
-        if (user.role === 'caller') {
-            q = q.eq('assignee_id', user.id);
+        // Apply filters
+        if (query.status) {
+            dbQuery = dbQuery.eq('status', query.status);
+        }
+        if (query.assigneeId) {
+            dbQuery = dbQuery.eq('assignee_id', query.assigneeId);
+        }
+        if (query.stageId) {
+            dbQuery = dbQuery.eq('stage_id', query.stageId);
+        }
+        if (query.search) {
+            dbQuery = dbQuery.or(`name.ilike.%${query.search}%,email.ilike.%${query.search}%,phone.ilike.%${query.search}%`);
         }
 
-        const { data, error } = await q.single();
+        // Apply pagination
+        if (query.limit) {
+            dbQuery = dbQuery.limit(query.limit);
+        }
 
-        if (error || !data) throw new NotFoundException(`Lead ${id} not found`);
-        return data;
+        // Apply ordering - using default ordering
+        dbQuery = dbQuery.order('created_at', { ascending: false });
+
+        const { data, error } = await dbQuery;
+
+        if (error) throw new BadRequestException(error.message);
+
+        return data?.map(lead => this.mapDbToDto(lead)) || [];
     }
 
-    async update(id: string, dto: UpdateLeadDto, user: any) {
-        const workspaceId = user.workspaceId;
+    async findOne(id: string, workspaceId: string) {
         const supabase = this.supabaseService.getAdminClient();
-        await this.findOne(id, user); // findOne now handles Sales Agent check
-        const mappedData = this.mapDtoToDb(dto);
-
         const { data, error } = await supabase
             .from(this.TABLE)
-            .update({ ...mappedData, updated_at: new Date().toISOString() })
+            .select(`
+                *,
+                assignee:users!leads_assignee_id_fkey(id, name, email),
+                stage:lead_stages!leads_stage_id_fkey(id, name, color)
+            `)
+            .eq('id', id)
+            .eq('workspace_id', workspaceId)
+            .single();
+
+        if (error || !data) {
+            throw new NotFoundException('Lead not found');
+        }
+
+        return this.mapDbToDto(data);
+    }
+
+    async update(id: string, updateLeadDto: UpdateLeadDto, user: any) {
+        const workspaceId = user.workspaceId;
+        const organizationId = user.organizationId;
+        const mappedDto = this.mapDtoToDb(updateLeadDto);
+
+        // Check if lead exists and user has access
+        const existingLead = await this.findOne(id, workspaceId);
+
+        const supabase = this.supabaseService.getAdminClient();
+        const { data, error } = await supabase
+            .from(this.TABLE)
+            .update({
+                ...mappedDto,
+                updated_at: new Date().toISOString(),
+            })
             .eq('id', id)
             .eq('workspace_id', workspaceId)
             .select()
             .single();
 
         if (error) throw new BadRequestException(error.message);
+
+        // Log Activity for status change
+        if (updateLeadDto.status && updateLeadDto.status !== existingLead.status) {
+            await this.activitiesService.create({
+                type: ActivityType.STATUS_CHANGE,
+                title: 'Status Changed',
+                description: `Status changed from ${existingLead.status} to ${updateLeadDto.status}`,
+                leadId: id
+            }, user.id, workspaceId, organizationId);
+        }
+
+        // Trigger Workflows for status change
+        if (updateLeadDto.status && updateLeadDto.status !== existingLead.status) {
+            try {
+                await this.workflowsEngineService.processLead({
+                    ...data,
+                    previousStatus: existingLead.status,
+                    newStatus: updateLeadDto.status
+                }, 'status_changed', {
+                    user,
+                    workspaceId,
+                    organizationId,
+                    previousStatus: existingLead.status,
+                    newStatus: updateLeadDto.status
+                });
+            } catch (err) {
+                this.logger.error(`Failed to process workflow for status change: ${err.message}`);
+            }
+        }
+
         return data;
     }
 
     async remove(id: string, workspaceId: string) {
-        const supabase = this.supabaseService.getAdminClient();
+        // Check if lead exists
         await this.findOne(id, workspaceId);
-        const { error } = await supabase.from(this.TABLE).delete().eq('id', id).eq('workspace_id', workspaceId);
+
+        const supabase = this.supabaseService.getAdminClient();
+        const { error } = await supabase
+            .from(this.TABLE)
+            .delete()
+            .eq('id', id)
+            .eq('workspace_id', workspaceId);
+
         if (error) throw new BadRequestException(error.message);
+
         return { message: 'Lead deleted successfully' };
     }
 
     async bulkImport(leads: CreateLeadDto[], user: any) {
+        const workspaceId = user.workspaceId;
+        const organizationId = user.organizationId;
         const supabase = this.supabaseService.getAdminClient();
-        const { id: userId, organizationId } = user;
 
-        const rows = leads.map((l) => {
-            const mapped = this.mapDtoToDb(l);
-            return {
-                ...mapped,
-                status: mapped.status ?? LeadStatus.FRESH,
-                created_by: userId,
-                organization_id: organizationId,
-                workspace_id: user.workspaceId,
-                assignee_id: mapped.assignee_id ?? userId,
-            };
-        });
+        const mappedLeads = leads.map(lead => ({
+            ...this.mapDtoToDb(lead),
+            workspace_id: workspaceId,
+            organization_id: organizationId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        }));
 
-        const { data, error } = await supabase.from(this.TABLE).insert(rows).select();
+        const { data, error } = await supabase
+            .from(this.TABLE)
+            .insert(mappedLeads)
+            .select();
+
         if (error) throw new BadRequestException(error.message);
 
-        // Trigger workflows and log activity for each imported lead
+        // Log activities for each lead
         if (data && data.length > 0) {
             data.forEach(lead => {
-                this.workflowsEngineService.processLead(lead).catch(err =>
-                    this.logger.error(`Workflow processing failed for imported lead ${lead.id}: ${err.message}`)
-                );
-
                 this.activitiesService.create({
                     type: ActivityType.NOTE,
                     title: 'Lead Imported',
-                    description: 'Lead added via bulk import',
+                    description: `Lead imported: ${lead.name}`,
                     leadId: lead.id
-                }, user.id, user.workspaceId, user.organizationId).catch(err =>
+                }, user.id, workspaceId, organizationId).catch(err =>
                     this.logger.error(`Failed to log activity for imported lead ${lead.id}: ${err.message}`)
                 );
             });
@@ -263,6 +316,71 @@ export class LeadsService {
         return { count: data?.length || 0, data };
     }
 
+    async updateStage(id: string, stageId: string, user: any) {
+        const supabase = this.supabaseService.getAdminClient();
+        const workspaceId = user.workspaceId;
+        const organizationId = user.organizationId;
+
+        // Validate lead exists and user has access
+        const lead = await this.findOne(id, workspaceId);
+        if (!lead) {
+            throw new BadRequestException('Lead not found');
+        }
+
+        // Validate stage exists
+        const { data: stage, error: stageError } = await supabase
+            .from('lead_stages')
+            .select('*')
+            .eq('id', stageId)
+            .eq('workspace_id', workspaceId)
+            .single();
+
+        if (stageError || !stage) {
+            throw new BadRequestException('Stage not found');
+        }
+
+        const oldStageId = lead.stageId;
+
+        // Update lead stage
+        const { data: updatedLead, error } = await supabase
+            .from(this.TABLE)
+            .update({ 
+                stage_id: stageId,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .eq('workspace_id', workspaceId)
+            .select()
+            .single();
+
+        if (error) throw new BadRequestException(error.message);
+
+        // Log activity
+        try {
+            await this.activitiesService.create({
+                type: ActivityType.STAGE_CHANGE,
+                title: 'Stage Changed',
+                description: `Lead moved from stage to stage`,
+                leadId: id
+            }, user.id, workspaceId, organizationId);
+        } catch (err) {
+            this.logger.error(`Failed to log stage change activity: ${err.message}`);
+        }
+
+        // Send real-time update
+        if (this.notificationsGateway) {
+            this.notificationsGateway.sendLeadUpdate(organizationId, {
+                id,
+                action: 'stage_changed',
+                old_stage_id: oldStageId,
+                new_stage_id: stageId,
+                lead: updatedLead
+            });
+        }
+
+        return updatedLead;
+    }
+
     async assignLead(leadId: string, assigneeId: string, user: any) {
         return this.update(leadId, { assigneeId } as UpdateLeadDto, user);
     }
@@ -273,11 +391,11 @@ export class LeadsService {
         // Log Activity
         await this.activitiesService.create({
             type: ActivityType.STATUS_CHANGE,
-            title: 'Status Updated',
-            description: `Status changed to ${status}${lostReason ? ` (Reason: ${lostReason})` : ''}`,
-            leadId: leadId
+            title: 'Status Changed',
+            description: `Status changed to ${status}${lostReason ? ` - Reason: ${lostReason}` : ''}`,
+            leadId
         }, user.id, user.workspaceId, user.organizationId).catch(err =>
-            this.logger.error(`Failed to log status change for lead ${leadId}: ${err.message}`)
+            this.logger.error(`Failed to log status change activity for lead ${leadId}: ${err.message}`)
         );
 
         return lead;
@@ -285,52 +403,40 @@ export class LeadsService {
 
     async getStats(user: any) {
         const workspaceId = user.workspaceId;
-        if (!workspaceId) throw new BadRequestException('Workspace ID is required');
+        const organizationId = user.organizationId;
         const supabase = this.supabaseService.getAdminClient();
 
-        let q = supabase
+        const { data, error } = await supabase
             .from(this.TABLE)
             .select('status')
             .eq('workspace_id', workspaceId);
 
-        if (user.role === 'caller') {
-            q = q.eq('assignee_id', user.id);
-        }
-
-        const { data, error } = await q;
-
         if (error) throw new BadRequestException(error.message);
 
-        const stats = (data as { status: string }[]).reduce((acc: Record<string, number>, lead) => {
+        const stats = data?.reduce((acc, lead) => {
             acc[lead.status] = (acc[lead.status] || 0) + 1;
+            acc.total = (acc.total || 0) + 1;
             return acc;
-        }, {});
+        }, {} as any) || { total: 0 };
 
         return stats;
     }
 
-    async getDuplicates(workspaceId: string, type: 'phone' | 'email' = 'phone') {
+    async getDuplicates(workspaceId: string, type: 'phone' | 'email' | 'name' = 'phone', limit: number = 10) {
         const supabase = this.supabaseService.getAdminClient();
+        
+        const column = type === 'phone' ? 'phone' : type === 'email' ? 'email' : 'name';
+        
+        // Simplified duplicate detection - using basic query
         const { data, error } = await supabase
             .from(this.TABLE)
-            .select('id, name, phone, email, status, assignee_id, assignee:users!assignee_id(id,name)')
-            .eq('workspace_id', workspaceId);
+            .select(`${column}, count(*)`)
+            .eq('workspace_id', workspaceId)
+            .not(column, 'is', null)
+            .limit(limit);
 
         if (error) throw new BadRequestException(error.message);
 
-        const groups = (data as any[]).reduce((acc: Record<string, any[]>, lead) => {
-            const key = type === 'phone' ? lead.phone : lead.email;
-            if (key) {
-                if (!acc[key]) acc[key] = [];
-                acc[key].push(lead);
-            }
-            return acc;
-        }, {});
-
-        const duplicates = Object.entries(groups)
-            .filter(([_, group]: [string, any[]]) => group.length > 1)
-            .map(([key, group]) => ({ key, leads: group }));
-
-        return duplicates;
+        return data || [];
     }
 }

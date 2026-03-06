@@ -1,298 +1,614 @@
 import React, { useState, useEffect } from 'react';
-import SelectEventModal from './SelectEventModal';
-import SelectActionModal from './SelectActionModal';
-import { supabase } from '../lib/supabaseClient';
-import { toast } from 'react-hot-toast';
-import { ArrowPathIcon, SparklesIcon, UserCircleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PlusIcon, TrashIcon, PlayIcon, PauseIcon } from '@heroicons/react/24/outline';
+import { useApi } from '../hooks/useApi';
+import { useWorkspace } from '../context/WorkspaceContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
-
-export default function WorkflowWizard({ isOpen, onClose, onSuccess }) {
-    const [step, setStep] = useState(1);
+const WorkflowWizard = ({ isOpen, onClose, onSuccess, workflow = null }) => {
+    const { currentWorkspace } = useWorkspace();
+    const { apiFetch } = useApi();
+    
+    const [currentStep, setCurrentStep] = useState(1);
+    const [isTestMode, setIsTestMode] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    
+    // Workflow data
     const [workflowData, setWorkflowData] = useState({
-        name: '',
-        trigger: null,
-        action: null,
-        selectedUsers: []
+        name: workflow?.name || '',
+        description: workflow?.description || '',
+        is_active: workflow?.is_active !== false,
+        is_test_mode: false,
+        trigger: {
+            type: workflow?.trigger?.type || 'lead_created',
+            config: workflow?.trigger?.config || {}
+        },
+        conditions: workflow?.conditions || [],
+        actions: workflow?.actions || []
     });
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [fetchingUsers, setFetchingUsers] = useState(false);
 
-    useEffect(() => {
-        if (isOpen && step === 3 && workflowData.action === 'assign-lead') {
-            fetchUsers();
+    const steps = [
+        { id: 1, title: 'Basic Info', description: 'Name and description' },
+        { id: 2, title: 'Trigger', description: 'When to execute this workflow' },
+        { id: 3, title: 'Conditions', description: 'Optional conditions to filter execution' },
+        { id: 4, title: 'Actions', description: 'What to do when triggered' },
+        { id: 5, title: 'Test & Save', description: 'Test and save your workflow' }
+    ];
+
+    const triggerTypes = [
+        { value: 'lead_created', label: 'Lead Created', description: 'When a new lead is created' },
+        { value: 'status_changed', label: 'Status Changed', description: 'When lead status changes' },
+        { value: 'field_updated', label: 'Field Updated', description: 'When a specific field is updated' },
+        { value: 'time_based', label: 'Time Based', description: 'At specific times or intervals' },
+        { value: 'webhook_received', label: 'Webhook Received', description: 'When external webhook is called' }
+    ];
+
+    const actionTypes = [
+        { value: 'assign_to', label: 'Assign to User', icon: '👤' },
+        { value: 'update_field', label: 'Update Field', icon: '✏️' },
+        { value: 'send_email', label: 'Send Email', icon: '📧' },
+        { value: 'send_sms', label: 'Send SMS', icon: '💬' },
+        { value: 'create_task', label: 'Create Task', icon: '📋' },
+        { value: 'webhook_call', label: 'Call Webhook', icon: '🔗' },
+        { value: 'add_tag', label: 'Add Tag', icon: '🏷️' },
+        { value: 'remove_tag', label: 'Remove Tag', icon: '🚫' }
+    ];
+
+    const operators = [
+        { value: 'equals', label: 'Equals' },
+        { value: 'not_equals', label: 'Not Equals' },
+        { value: 'contains', label: 'Contains' },
+        { value: 'not_contains', label: 'Not Contains' },
+        { value: 'greater_than', label: 'Greater Than' },
+        { value: 'less_than', label: 'Less Than' },
+        { value: 'in', label: 'In List' },
+        { value: 'not_in', label: 'Not In List' }
+    ];
+
+    const handleNext = () => {
+        if (currentStep < steps.length) {
+            setCurrentStep(currentStep + 1);
         }
-    }, [isOpen, step, workflowData.action]);
+    };
 
-    const fetchUsers = async () => {
-        setFetchingUsers(true);
+    const handlePrevious = () => {
+        if (currentStep > 1) {
+            setCurrentStep(currentStep - 1);
+        }
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            const res = await fetch(`${API_URL}/users`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            const url = workflow ? `/workflows/${workflow.id}` : '/workflows';
+            const method = workflow ? 'PATCH' : 'POST';
+            
+            const response = await apiFetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(workflowData)
             });
-            const result = await res.json();
-            const data = result.data?.data || result.data || result || [];
-            // Filter only callers/managers/admins for assignment
-            setUsers(data.filter(u => ['caller', 'manager', 'admin'].includes(u.role)));
-        } catch (error) {
-            console.error('Error fetching users:', error);
-            toast.error('Failed to load users');
-        } finally {
-            setFetchingUsers(false);
-        }
-    };
 
-    const handleNextEvent = (eventId) => {
-        setWorkflowData(prev => ({ ...prev, trigger: eventId }));
-        setStep(2);
-    };
-
-    const handleNextAction = (actionId) => {
-        setWorkflowData(prev => ({ ...prev, action: actionId }));
-        if (actionId === 'assign-lead') {
-            setStep(3); // Configuration step
-        } else {
-            setStep(4); // Naming step
-        }
-    };
-
-    const toggleUser = (userId) => {
-        setWorkflowData(prev => {
-            const selected = prev.selectedUsers.includes(userId)
-                ? prev.selectedUsers.filter(id => id !== userId)
-                : [...prev.selectedUsers, userId];
-            return { ...prev, selectedUsers: selected };
-        });
-    };
-
-    const handleSave = async (e) => {
-        e.preventDefault();
-        if (!workflowData.name) {
-            toast.error('Please enter a name for the workflow');
-            return;
-        }
-
-        if (workflowData.action === 'assign-lead' && workflowData.selectedUsers.length === 0) {
-            toast.error('Please select at least one user for assignment');
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const triggerMap = {
-                'facebook': { type: 'lead_source', value: 'Facebook', text: 'On Facebook Lead' },
-                'website': { type: 'lead_source', value: 'Website', text: 'On Website Lead' },
-                'manual': { type: 'lead_source', value: 'Manual', text: 'On Manual Lead' },
-                'whatsapp': { type: 'lead_source', value: 'Whatsapp', text: 'On Whatsapp Lead' },
-                'indiamart': { type: 'lead_source', value: 'IndiaMART', text: 'On IndiaMART Lead' },
-                'justdial': { type: 'lead_source', value: 'Justdial', text: 'On Justdial Lead' },
-                'status-change': { type: 'status_change', value: '*', text: 'On Status Change' }
-            };
-
-            let actionValue = workflowData.selectedUsers;
-            let actionText = 'Assign Lead';
-
-            if (workflowData.action === 'assign-lead') {
-                if (workflowData.selectedUsers.length > 1) {
-                    actionText = `Round Robin (${workflowData.selectedUsers.length} users)`;
-                } else {
-                    const user = users.find(u => u.id === workflowData.selectedUsers[0]);
-                    actionText = `Assign to ${user?.name || 'User'}`;
-                    actionValue = workflowData.selectedUsers[0]; // Send as string for single
-                }
+            if (response.ok) {
+                onSuccess();
+                onClose();
+            } else {
+                throw new Error('Failed to save workflow');
             }
+        } catch (error) {
+            console.error('Error saving workflow:', error);
+            alert('Error saving workflow: ' + error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
-            const actionMap = {
-                'assign-lead': { type: 'assign_to', value: actionValue, text: actionText },
-                'send-whatsapp': { type: 'send_whatsapp', value: 'default', text: 'Send Whatsapp' }
-            };
-
-            const trigger = triggerMap[workflowData.trigger] || { type: 'generic', value: workflowData.trigger, text: workflowData.trigger };
-            const action = actionMap[workflowData.action] || { type: 'generic', value: workflowData.action, text: workflowData.action };
-
-            const res = await fetch(`${API_URL}/workflows`, {
+    const handleTest = async () => {
+        setIsTestMode(true);
+        try {
+            const response = await apiFetch('/workflows/test', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify({
-                    name: workflowData.name,
-                    trigger,
-                    action
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(workflowData)
             });
 
-            if (!res.ok) throw new Error('Failed to create workflow');
-
-            toast.success('Workflow created successfully');
-            onSuccess();
-            onClose();
-            setTimeout(() => {
-                setStep(1);
-                setWorkflowData({ name: '', trigger: null, action: null, selectedUsers: [] });
-            }, 300);
+            if (response.ok) {
+                const result = await response.json();
+                alert('Test successful! ' + JSON.stringify(result, null, 2));
+            } else {
+                throw new Error('Test failed');
+            }
         } catch (error) {
-            console.error('Error creating workflow:', error);
-            toast.error(error.message);
+            console.error('Error testing workflow:', error);
+            alert('Test failed: ' + error.message);
         } finally {
-            setLoading(false);
+            setIsTestMode(false);
+        }
+    };
+
+    const addCondition = () => {
+        setWorkflowData(prev => ({
+            ...prev,
+            conditions: [...prev.conditions, {
+                field: '',
+                operator: 'equals',
+                value: '',
+                logical_operator: 'AND'
+            }]
+        }));
+    };
+
+    const removeCondition = (index) => {
+        setWorkflowData(prev => ({
+            ...prev,
+            conditions: prev.conditions.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateCondition = (index, field, value) => {
+        setWorkflowData(prev => ({
+            ...prev,
+            conditions: prev.conditions.map((cond, i) => 
+                i === index ? { ...cond, [field]: value } : cond
+            )
+        }));
+    };
+
+    const addAction = () => {
+        setWorkflowData(prev => ({
+            ...prev,
+            actions: [...prev.actions, {
+                type: 'assign_to',
+                config: {},
+                delay_minutes: 0
+            }]
+        }));
+    };
+
+    const removeAction = (index) => {
+        setWorkflowData(prev => ({
+            ...prev,
+            actions: prev.actions.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateAction = (index, field, value) => {
+        setWorkflowData(prev => ({
+            ...prev,
+            actions: prev.actions.map((action, i) => 
+                i === index ? { ...action, [field]: value } : action
+            )
+        }));
+    };
+
+    const renderStepContent = () => {
+        switch (currentStep) {
+            case 1:
+                return (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Workflow Name</label>
+                            <input
+                                type="text"
+                                value={workflowData.name}
+                                onChange={(e) => setWorkflowData(prev => ({ ...prev, name: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                placeholder="Enter workflow name"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                            <textarea
+                                value={workflowData.description}
+                                onChange={(e) => setWorkflowData(prev => ({ ...prev, description: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                rows={3}
+                                placeholder="Describe what this workflow does"
+                            />
+                        </div>
+                        <div className="flex items-center">
+                            <input
+                                type="checkbox"
+                                checked={workflowData.is_active}
+                                onChange={(e) => setWorkflowData(prev => ({ ...prev, is_active: e.target.checked }))}
+                                className="mr-2"
+                            />
+                            <label className="text-sm text-gray-700">Active</label>
+                        </div>
+                    </div>
+                );
+
+            case 2:
+                return (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Trigger Type</label>
+                            <select
+                                value={workflowData.trigger.type}
+                                onChange={(e) => setWorkflowData(prev => ({
+                                    ...prev,
+                                    trigger: { ...prev.trigger, type: e.target.value }
+                                }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            >
+                                {triggerTypes.map(trigger => (
+                                    <option key={trigger.value} value={trigger.value}>
+                                        {trigger.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-xs text-gray-500 mt-1">
+                                {triggerTypes.find(t => t.value === workflowData.trigger.type)?.description}
+                            </p>
+                        </div>
+                    </div>
+                );
+
+            case 3:
+                return (
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-medium text-gray-900">Conditions</h3>
+                            <button
+                                onClick={addCondition}
+                                className="bg-teal-600 text-white px-3 py-1 rounded-md text-sm hover:bg-teal-700"
+                            >
+                                Add Condition
+                            </button>
+                        </div>
+                        
+                        {workflowData.conditions.map((condition, index) => (
+                            <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                                <div className="grid grid-cols-4 gap-3">
+                                    <select
+                                        value={condition.field}
+                                        onChange={(e) => updateCondition(index, 'field', e.target.value)}
+                                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                    >
+                                        <option value="">Select Field</option>
+                                        <option value="status">Status</option>
+                                        <option value="source">Source</option>
+                                        <option value="assignee_id">Assignee</option>
+                                        <option value="score">Score</option>
+                                    </select>
+                                    
+                                    <select
+                                        value={condition.operator}
+                                        onChange={(e) => updateCondition(index, 'operator', e.target.value)}
+                                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                    >
+                                        {operators.map(op => (
+                                            <option key={op.value} value={op.value}>
+                                                {op.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    
+                                    <input
+                                        type="text"
+                                        value={condition.value}
+                                        onChange={(e) => updateCondition(index, 'value', e.target.value)}
+                                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                        placeholder="Value"
+                                    />
+                                    
+                                    <button
+                                        onClick={() => removeCondition(index)}
+                                        className="text-red-600 hover:text-red-800"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        
+                        {workflowData.conditions.length === 0 && (
+                            <p className="text-gray-500 text-center py-4">
+                                No conditions - workflow will execute for all triggers
+                            </p>
+                        )}
+                    </div>
+                );
+
+            case 4:
+                return (
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-medium text-gray-900">Actions</h3>
+                            <button
+                                onClick={addAction}
+                                className="bg-teal-600 text-white px-3 py-1 rounded-md text-sm hover:bg-teal-700"
+                            >
+                                Add Action
+                            </button>
+                        </div>
+                        
+                        {workflowData.actions.map((action, index) => (
+                            <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                                <div className="flex items-center justify-between mb-3">
+                                    <select
+                                        value={action.type}
+                                        onChange={(e) => updateAction(index, 'type', e.target.value)}
+                                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                    >
+                                        {actionTypes.map(act => (
+                                            <option key={act.value} value={act.value}>
+                                                {act.icon} {act.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    
+                                    <button
+                                        onClick={() => removeAction(index)}
+                                        className="text-red-600 hover:text-red-800"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">Delay (minutes)</label>
+                                        <input
+                                            type="number"
+                                            value={action.delay_minutes || 0}
+                                            onChange={(e) => updateAction(index, 'delay_minutes', parseInt(e.target.value))}
+                                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                            min="0"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Action-specific configuration */}
+                                {action.type === 'assign_to' && (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Assignment Type</label>
+                                            <select
+                                                value={action.config?.assignee_type || 'fixed'}
+                                                onChange={(e) => updateAction(index, 'config', {
+                                                    ...action.config,
+                                                    assignee_type: e.target.value
+                                                })}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                            >
+                                                <option value="fixed">Fixed User</option>
+                                                <option value="round_robin">Round Robin</option>
+                                                <option value="field">From Field</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Value</label>
+                                            <input
+                                                type="text"
+                                                value={action.config?.assignee_value || ''}
+                                                onChange={(e) => updateAction(index, 'config', {
+                                                    ...action.config,
+                                                    assignee_value: e.target.value
+                                                })}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                placeholder="User ID or list"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {action.type === 'update_field' && (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Field</label>
+                                            <input
+                                                type="text"
+                                                value={action.config?.field || ''}
+                                                onChange={(e) => updateAction(index, 'config', {
+                                                    ...action.config,
+                                                    field: e.target.value
+                                                })}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                placeholder="Field name"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Value</label>
+                                            <input
+                                                type="text"
+                                                value={action.config?.value || ''}
+                                                onChange={(e) => updateAction(index, 'config', {
+                                                    ...action.config,
+                                                    value: e.target.value
+                                                })}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                placeholder="New value"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {(action.type === 'send_email' || action.type === 'send_sms') && (
+                                    <div className="space-y-2">
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Recipient</label>
+                                            <input
+                                                type="text"
+                                                value={action.config?.to || ''}
+                                                onChange={(e) => updateAction(index, 'config', {
+                                                    ...action.config,
+                                                    to: e.target.value
+                                                })}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                placeholder="{{lead.email}}"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Subject</label>
+                                            <input
+                                                type="text"
+                                                value={action.config?.subject || ''}
+                                                onChange={(e) => updateAction(index, 'config', {
+                                                    ...action.config,
+                                                    subject: e.target.value
+                                                })}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                placeholder="Email subject"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Message</label>
+                                            <textarea
+                                                value={action.config?.body || ''}
+                                                onChange={(e) => updateAction(index, 'config', {
+                                                    ...action.config,
+                                                    body: e.target.value
+                                                })}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                rows={3}
+                                                placeholder="Message content with variables like {{lead.name}}"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                        
+                        {workflowData.actions.length === 0 && (
+                            <p className="text-gray-500 text-center py-4">
+                                No actions configured - add actions to execute when triggered
+                            </p>
+                        )}
+                    </div>
+                );
+
+            case 5:
+                return (
+                    <div className="space-y-4">
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <h3 className="text-lg font-medium text-yellow-800 mb-2">Test & Save</h3>
+                            <p className="text-yellow-700 mb-4">
+                                Review your workflow configuration before saving. You can test it to ensure it works as expected.
+                            </p>
+                            
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleTest}
+                                    disabled={isTestMode}
+                                    className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 disabled:opacity-50"
+                                >
+                                    {isTestMode ? (
+                                        <span className="flex items-center">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-r-2 border-t-2 border-l-2 border-yellow-600"></div>
+                                            Testing...
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center">
+                                            <PlayIcon className="w-4 h-4 mr-2" />
+                                            Test Workflow
+                                        </span>
+                                    )}
+                                </button>
+                                
+                                <button
+                                    onClick={handleSave}
+                                    disabled={isSaving}
+                                    className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 disabled:opacity-50"
+                                >
+                                    {isSaving ? (
+                                        <span className="flex items-center">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-r-2 border-t-2 border-l-2 border-white"></div>
+                                            Saving...
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center">
+                                            <PlusIcon className="w-4 h-4 mr-2" />
+                                            {workflow ? 'Update Workflow' : 'Create Workflow'}
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+                            
+                            <div className="mt-4 text-sm text-yellow-700">
+                                <strong>Workflow Summary:</strong>
+                                <ul className="mt-2 space-y-1">
+                                    <li>• Trigger: {triggerTypes.find(t => t.value === workflowData.trigger.type)?.label}</li>
+                                    <li>• Conditions: {workflowData.conditions.length} configured</li>
+                                    <li>• Actions: {workflowData.actions.length} configured</li>
+                                    <li>• Status: {workflowData.is_active ? 'Active' : 'Inactive'}</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                );
+
+            default:
+                return null;
         }
     };
 
     if (!isOpen) return null;
 
-    if (step === 1) {
-        return <SelectEventModal isOpen={isOpen} onClose={onClose} onNext={handleNextEvent} />;
-    }
-
-    if (step === 2) {
-        return <SelectActionModal isOpen={isOpen} onClose={onClose} onBack={() => setStep(1)} onNext={handleNextAction} />;
-    }
-
-    if (step === 3 && workflowData.action === 'assign-lead') {
-        return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
-                <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col p-8 animate-in fade-in zoom-in duration-300 overflow-hidden relative max-h-[90vh]">
-                    <div className="relative flex flex-col h-full">
-                        <div className="w-12 h-12 bg-teal-100 rounded-2xl flex items-center justify-center mb-6">
-                            <UserCircleIcon className="w-6 h-6 text-[#08A698]" />
-                        </div>
-                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Configure Assignment</h2>
-                        <p className="text-[15px] text-gray-500 mt-2 mb-6">Select users for assignment. Selecting multiple enables <b>Round Robin</b>.</p>
-
-                        <div className="flex-1 overflow-y-auto space-y-2 mb-6 pr-2 custom-scrollbar">
-                            {fetchingUsers ? (
-                                <div className="flex items-center justify-center py-10">
-                                    <ArrowPathIcon className="w-6 h-6 animate-spin text-teal-500" />
-                                </div>
-                            ) : users.length === 0 ? (
-                                <p className="text-center py-10 text-gray-400 italic">No eligible users found</p>
-                            ) : (
-                                users.map(user => (
-                                    <div
-                                        key={user.id}
-                                        onClick={() => toggleUser(user.id)}
-                                        className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${workflowData.selectedUsers.includes(user.id)
-                                            ? 'border-[#08A698] bg-teal-50 shadow-sm'
-                                            : 'border-gray-100 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500 capitalize">
-                                                {user.name?.charAt(0) || 'U'}
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-gray-900">{user.name}</p>
-                                                <p className="text-xs text-gray-500 capitalize">{user.role}</p>
-                                            </div>
-                                        </div>
-                                        {workflowData.selectedUsers.includes(user.id) && (
-                                            <CheckCircleIcon className="w-6 h-6 text-[#08A698]" />
-                                        )}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-
-                        <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                            <button
-                                type="button"
-                                onClick={() => setStep(2)}
-                                className="flex-1 px-6 py-3.5 bg-white border border-gray-200 text-gray-600 rounded-2xl font-bold hover:bg-gray-50 transition-all text-sm transform active:scale-95"
-                            >
-                                Back
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setStep(4)}
-                                disabled={workflowData.selectedUsers.length === 0}
-                                className="flex-[2] px-6 py-3.5 bg-[#08A698] hover:bg-teal-700 text-white rounded-2xl font-black text-sm shadow-xl shadow-teal-100 hover:shadow-2xl transition-all disabled:opacity-50 transform active:scale-95 flex items-center justify-center gap-2"
-                            >
-                                Continue
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
-            <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col p-8 animate-in fade-in zoom-in duration-300 overflow-hidden relative">
-                {/* Decorative background element */}
-                <div className="absolute -top-24 -right-24 w-48 h-48 bg-teal-50 rounded-full blur-3xl opacity-50" />
-                <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-50 rounded-full blur-3xl opacity-50" />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                        {workflow ? 'Edit Workflow' : 'Create Workflow'}
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-gray-600"
+                    >
+                        <XMarkIcon className="w-6 h-6" />
+                    </button>
+                </div>
 
-                <div className="relative">
-                    <div className="w-12 h-12 bg-teal-100 rounded-2xl flex items-center justify-center mb-6">
-                        <SparklesIcon className="w-6 h-6 text-[#08A698]" />
+                {/* Progress Steps */}
+                <div className="flex items-center px-6 py-4 bg-gray-50 border-b border-gray-200">
+                    {steps.map((step, index) => (
+                        <div key={step.id} className="flex items-center">
+                            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                                currentStep > step.id 
+                                    ? 'bg-teal-600 text-white' 
+                                    : currentStep === step.id 
+                                        ? 'bg-teal-600 text-white' 
+                                        : 'bg-gray-300 text-gray-600'
+                            }`}>
+                                {step.id}
+                            </div>
+                            <div className={`flex-1 h-1 mx-2 ${
+                                currentStep > step.id ? 'bg-teal-600' : 'bg-gray-300'
+                            }`}></div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    {renderStepContent()}
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+                    <button
+                        onClick={handlePrevious}
+                        disabled={currentStep === 1}
+                        className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 disabled:opacity-50"
+                    >
+                        Previous
+                    </button>
+                    
+                    <div className="text-sm text-gray-500">
+                        Step {currentStep} of {steps.length}
                     </div>
-
-                    <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Name your workflow</h2>
-                    <p className="text-[15px] text-gray-500 mt-2 mb-8">Almost there! Finally, give your automation a descriptive name to keep things organized.</p>
-
-                    <form onSubmit={handleSave} className="space-y-6">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Workflow Name</label>
-                            <input
-                                type="text"
-                                required
-                                className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#08A698]/5 focus:border-[#08A698] outline-none transition-all text-gray-800 placeholder-gray-400 shadow-sm"
-                                placeholder="e.g. Facebook Lead Auto-responder"
-                                value={workflowData.name}
-                                onChange={(e) => setWorkflowData(prev => ({ ...prev, name: e.target.value }))}
-                                autoFocus
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 p-5 bg-gray-50/50 rounded-2xl border border-gray-100 shadow-inner">
-                            <div>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Trigger</p>
-                                <p className="text-sm font-semibold text-gray-700 flex items-center gap-2 capitalize">
-                                    <div className="w-2 h-2 rounded-full bg-teal-400" />
-                                    {workflowData.trigger?.replace(/-/g, ' ')}
-                                </p>
-                            </div>
-                            <div className="border-l border-gray-200 pl-4">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Action</p>
-                                <p className="text-sm font-semibold text-gray-700 flex items-center gap-2 capitalize">
-                                    <div className="w-2 h-2 rounded-full bg-purple-400" />
-                                    {workflowData.action?.replace(/-/g, ' ')}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 pt-4">
-                            <button
-                                type="button"
-                                onClick={() => setStep(workflowData.action === 'assign-lead' ? 3 : 2)}
-                                className="flex-1 px-6 py-3.5 bg-white border border-gray-200 text-gray-600 rounded-2xl font-bold hover:bg-gray-50 transition-all text-sm transform active:scale-95"
-                            >
-                                Back
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="flex-[2] px-6 py-3.5 bg-[#08A698] hover:bg-teal-700 text-white rounded-2xl font-black text-sm shadow-xl shadow-teal-100 hover:shadow-2xl transition-all disabled:opacity-50 transform active:scale-95 flex items-center justify-center gap-2"
-                            >
-                                {loading ? (
-                                    <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <>Create Workflow</>
-                                )}
-                            </button>
-                        </div>
-                    </form>
+                    
+                    <button
+                        onClick={handleNext}
+                        disabled={currentStep === steps.length}
+                        className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50"
+                    >
+                        {currentStep === steps.length ? 'Finish' : 'Next'}
+                    </button>
                 </div>
             </div>
         </div>
     );
-}
+};
+
+export default WorkflowWizard;

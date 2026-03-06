@@ -23,10 +23,10 @@ export class WorkflowsController {
     @Roles('admin', 'root', 'manager')
     @ApiOperation({ summary: 'Create a new workflow automation' })
     create(
-        @Body() body: { name: string; trigger: any; action: any },
+        @Body() workflowData: any,
         @CurrentUser() user: any
     ) {
-        return this.workflowsService.create(user.organizationId, user.workspaceId, body.name, body.trigger, body.action);
+        return this.workflowsService.create(workflowData, user.organizationId, user.workspaceId);
     }
 
     @Patch(':id')
@@ -34,6 +34,12 @@ export class WorkflowsController {
     @ApiOperation({ summary: 'Update a workflow' })
     update(@Param('id') id: string, @Body() dto: any, @CurrentUser() user: any) {
         return this.workflowsService.update(id, user.organizationId, user.workspaceId, dto);
+    }
+
+    @Post('test')
+    @ApiOperation({ summary: 'Test workflow execution' })
+    async test(@Body() workflowData: any) {
+        return this.workflowsService.testWorkflow(workflowData);
     }
 
     @Delete(':id')

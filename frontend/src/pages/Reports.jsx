@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import AdvancedReporting from '../components/AdvancedReporting';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import { usePermission } from '../hooks/usePermission';
 import {
     TrophyIcon, PhoneIcon, ArrowDownTrayIcon, DocumentDuplicateIcon,
     ChartPieIcon, PresentationChartBarIcon, UserGroupIcon,
     ArrowTrendingUpIcon, ClipboardDocumentCheckIcon, ClockIcon,
-    LockClosedIcon
+    LockClosedIcon, ChartBarIcon
 } from '@heroicons/react/24/outline';
 
 export default function Reports() {
@@ -16,6 +17,7 @@ export default function Reports() {
     const { can, isAdmin, isRoot } = usePermission();
 
     const workspaceReports = [
+        { name: 'Advanced Analytics', icon: ChartBarIcon, path: '/reports', description: 'Comprehensive analytics with custom reports and insights.', badge: 'New' },
         { name: 'Leaderboard', icon: TrophyIcon, path: '/leaderboard', description: 'See top performing agents and compare sales metrics.' },
         { name: 'Call Report', icon: PhoneIcon, path: '/call-report', description: 'Detailed logs and analytics of all calls made.' },
         { name: 'Conversion Rate', icon: ArrowTrendingUpIcon, path: '/reports', description: 'Total leads vs Won leads analysis and rates.', badge: 'New' },

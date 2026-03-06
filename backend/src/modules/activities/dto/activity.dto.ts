@@ -9,6 +9,7 @@ export enum ActivityType {
     MEETING = 'meeting',
     NOTE = 'note',
     STATUS_CHANGE = 'status_change',
+    STAGE_CHANGE = 'stage_change',
     TASK = 'task',
 }
 

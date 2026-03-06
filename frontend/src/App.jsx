@@ -3,9 +3,11 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import { HealthCheckProvider } from './context/HealthCheckContext';
+import { SocketProvider } from './contexts/SocketContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { DialerProvider } from './context/DialerContext';
 import CallLoggerWidget from './components/CallLoggerWidget';
+import NotificationPermission from './components/NotificationPermission';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import ForgotPassword from './pages/auth/ForgotPassword';
@@ -80,10 +82,13 @@ function App() {
 
               <Route element={<ProtectedRoute />}>
                 <Route element={
-                  <DialerProvider>
-                    <Outlet />
-                    <CallLoggerWidget />
-                  </DialerProvider>
+                  <SocketProvider>
+                    <DialerProvider>
+                      <Outlet />
+                      <CallLoggerWidget />
+                      <NotificationPermission />
+                    </DialerProvider>
+                  </SocketProvider>
                 }>
                   <Route path="/" element={<Home />} />
                   <Route path="/home" element={<Home />} />

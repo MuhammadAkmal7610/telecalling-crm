@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import { useSocket } from '../contexts/SocketContext';
 import {
     ArrowPathIcon,
     Cog6ToothIcon,
@@ -15,9 +16,13 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Notifications = () => {
-    const [notifications, setNotifications] = useState([]);
     const [activeTab, setActiveTab] = useState('All');
     const [showUnread, setShowUnread] = useState(true);
+    const [serverNotifications, setServerNotifications] = useState([]);
+    const { isConnected, notifications: realTimeNotifications, markNotificationRead } = useSocket();
+    
+    // Combine server and real-time notifications
+    const allNotifications = [...realTimeNotifications, ...serverNotifications];
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
     useEffect(() => {
@@ -30,7 +35,7 @@ const Notifications = () => {
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    setNotifications(data);
+                    setServerNotifications(data);
                 }
             } catch (error) {
                 console.error("Failed to fetch notifications");
@@ -41,12 +46,19 @@ const Notifications = () => {
 
     const handleMarkAsRead = async (id) => {
         try {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            await fetch(`${API_URL}/notifications/${id}/read`, {
-                method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
+            // Use real-time socket method if available
+            if (isConnected) {
+                markNotificationRead(id);
+            } else {
+                // Fallback to HTTP API
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                await fetch(`${API_URL}/notifications/${id}/read`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            }
+            // Update local state
+            setServerNotifications(serverNotifications.map(n => n.id === id ? { ...n, read: true } : n));
         } catch (error) {
             console.error("Failed to mark as read");
         }
@@ -59,14 +71,14 @@ const Notifications = () => {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+            setServerNotifications(serverNotifications.map(n => ({ ...n, read: true })));
         } catch (error) {
             console.error("Failed to mark all as read");
         }
     };
 
-    const filteredNotifications = notifications.filter(n => {
-        if (showUnread && n.isRead) return false;
+    const filteredNotifications = allNotifications.filter(n => {
+        if (showUnread && (n.read || n.isRead)) return false;
         return true; // Simplified tab filtering
     });
 
@@ -91,6 +103,9 @@ const Notifications = () => {
                         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <h1 className="text-xl font-bold text-gray-800">Notifications</h1>
+                                {isConnected && (
+                                    <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">Live</span>
+                                )}
                                 <button onClick={handleMarkAllAsRead} className="text-[#08A698] hover:text-[#068f82] transition-colors p-1 rounded-full hover:bg-teal-50 ml-2">
                                     <span className="text-xs font-bold uppercase tracking-wider">Mark All Read</span>
                                 </button>
@@ -135,29 +150,32 @@ const Notifications = () => {
                         {/* Content Area - List or Empty State */}
                         {filteredNotifications.length > 0 ? (
                             <div className="flex-1 overflow-y-auto bg-gray-50/30">
-                                {filteredNotifications.map(notif => (
+                                {filteredNotifications.map(notif => {
+                                    const isUnread = !(notif.read || notif.isRead);
+                                    return (
                                     <div
                                         key={notif.id}
-                                        onClick={() => !notif.isRead && handleMarkAsRead(notif.id)}
-                                        className={`px-6 py-4 border-b border-gray-100 flex items-start gap-4 cursor-pointer hover:bg-white transition-colors ${!notif.isRead ? 'bg-white' : ''}`}
+                                        onClick={() => isUnread && handleMarkAsRead(notif.id)}
+                                        className={`px-6 py-4 border-b border-gray-100 flex items-start gap-4 cursor-pointer hover:bg-white transition-colors ${isUnread ? 'bg-white' : ''}`}
                                     >
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${!notif.isRead ? 'bg-[#08A698]/10 text-[#08A698]' : 'bg-gray-100 text-gray-500'}`}>
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isUnread ? 'bg-[#08A698]/10 text-[#08A698]' : 'bg-gray-100 text-gray-500'}`}>
                                             <BellIcon className="w-5 h-5" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex items-center justify-between mb-1">
-                                                <h4 className={`text-sm font-semibold ${!notif.isRead ? 'text-gray-900' : 'text-gray-700'}`}>{notif.title}</h4>
-                                                <span className="text-xs text-gray-400 font-medium">{new Date(notif.createdAt).toLocaleString()}</span>
+                                                <h4 className={`text-sm font-semibold ${isUnread ? 'text-gray-900' : 'text-gray-700'}`}>{notif.title}</h4>
+                                                <span className="text-xs text-gray-400 font-medium">{new Date(notif.createdAt || notif.created_at).toLocaleString()}</span>
                                             </div>
-                                            <p className={`text-sm ${!notif.isRead ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>{notif.message}</p>
+                                            <p className={`text-sm ${isUnread ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>{notif.message}</p>
                                         </div>
-                                        {!notif.isRead && (
+                                        {isUnread && (
                                             <div className="shrink-0 self-center">
                                                 <div className="w-2 h-2 rounded-full bg-[#08A698]"></div>
                                             </div>
                                         )}
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gray-50/30">

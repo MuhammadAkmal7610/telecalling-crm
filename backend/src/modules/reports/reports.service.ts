@@ -10,27 +10,42 @@ export class ReportsService {
     async getDashboardStats(organizationId: string, userId: string) {
         const supabase = this.supabaseService.getAdminClient();
 
-        // ---1. Get total leads
+        // Get user's current workspace
+        const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('workspace_id')
+            .eq('id', userId)
+            .single();
+
+        if (userError) throw new BadRequestException(userError.message);
+
+        const workspaceId = userData?.workspace_id;
+        if (!workspaceId) throw new BadRequestException('User workspace not found');
+
+        // ---1. Get total leads for current workspace
         const { data: leadData, error: leadError } = await supabase
             .from('leads')
             .select('status, created_at, assignee_id, created_by, source, assignee:users!assignee_id(name)')
-            .eq('organization_id', organizationId);
+            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId);
 
         if (leadError) throw new BadRequestException(leadError.message);
 
-        // ---2. Get activities (calls)
+        // ---2. Get activities (calls) for current workspace
         const { data: activityData, error: activityError } = await supabase
             .from('activities')
             .select('type, created_at')
-            .eq('organization_id', organizationId);
+            .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId);
 
         if (activityError) throw new BadRequestException(activityError.message);
 
-        // ---3. Get Call Followups
+        // ---3. Get Call Followups for current workspace
         const { data: taskData, error: taskError } = await supabase
             .from('tasks')
             .select('assignee_id, type, status, due_date, assignee:users!assignee_id(name)')
             .eq('organization_id', organizationId)
+            .eq('workspace_id', workspaceId)
             .eq('type', 'CallFollowup');
 
         if (taskError) throw new BadRequestException(taskError.message);

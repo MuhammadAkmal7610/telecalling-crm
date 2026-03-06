@@ -73,6 +73,12 @@ export class LeadsController {
         return this.leadsService.assignLead(id, body.assigneeId, user);
     }
 
+    @Patch(':id/stage')
+    @ApiOperation({ summary: 'Update lead stage' })
+    updateStage(@Param('id') id: string, @Body() body: { stage_id: string }, @CurrentUser() user: any) {
+        return this.leadsService.updateStage(id, body.stage_id, user);
+    }
+
     @Patch('bulk-assign')
     @Roles('manager', 'admin', 'root')
     @ApiOperation({ summary: 'Bulk assign leads to a user' })
