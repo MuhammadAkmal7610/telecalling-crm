@@ -48,6 +48,8 @@ import Campaigns from './pages/Campaigns';
 import AllLeads from './pages/AllLeads';
 import MyLeads from './pages/MyLeads';
 import AssignedLeads from './pages/AssignedLeads';
+import WhatsAppIntegration from './pages/WhatsAppIntegration';
+import UserInvitations from './pages/UserInvitations';
 import DailyReport from './pages/DailyReport';
 import WhatsappLeads from './pages/WhatsappLeads';
 import MyLists from './pages/MyLists';
@@ -96,6 +98,8 @@ function App() {
                   <Route path="/search" element={<Search />} />
                   <Route path="/add-leads" element={<AddLead />} /> {/* Direct link for sidebar parent item fallback */}
                   <Route path="/activities" element={<Activities />} />
+                  <Route path="/whatsapp-integration" element={<WhatsAppIntegration />} />
+                  <Route path="/user-invitations" element={<UserInvitations />} />
                   {/* Placeholder Routes redirected to Under Construction */}
                   <Route path="/under-construction" element={<UnderConstruction />} />
                   <Route path="/website-leads" element={<WebsiteLeads />} />

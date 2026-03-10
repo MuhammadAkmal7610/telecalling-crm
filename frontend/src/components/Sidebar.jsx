@@ -10,7 +10,7 @@ import {
     TrophyIcon, ArrowDownTrayIcon, DocumentDuplicateIcon,
     UserGroupIcon, IdentificationIcon, ClipboardDocumentCheckIcon, ChatBubbleLeftRightIcon,
     GlobeAltIcon, CursorArrowRaysIcon, ArchiveBoxIcon, Squares2X2Icon, ViewColumnsIcon, DocumentTextIcon,
-    ShieldCheckIcon, BuildingOfficeIcon, CreditCardIcon, ArrowTrendingUpIcon
+    ShieldCheckIcon, BuildingOfficeIcon, CreditCardIcon, ArrowTrendingUpIcon, ChatBubbleLeftRightIcon as WhatsAppIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../assets/Logo.png';
 
@@ -21,6 +21,8 @@ const navigation = [
     { name: 'Search', icon: MagnifyingGlassIcon, path: '/search' }, // Assuming search path, logic was missing before
     { name: 'Add Leads', icon: UserPlusIcon, path: '/add-leads' },
     { name: 'Activities', icon: ListBulletIcon, path: '/activities' },
+    { name: 'WhatsApp', icon: WhatsAppIcon, path: '/whatsapp-integration' },
+    { name: 'Invitations', icon: UserGroupIcon, path: '/user-invitations' },
     { name: 'Campaigns', icon: MegaphoneIcon, path: '/campaigns' },
     { name: 'Filters', icon: FunnelIcon, path: '/filters' },
     { name: 'My Lists', icon: QueueListIcon, path: '/my-lists' },
