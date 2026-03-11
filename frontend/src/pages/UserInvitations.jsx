@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  Mail, 
-  Link, 
-  Copy, 
-  Plus, 
-  Search, 
+import {
+  Users,
+  Mail,
+  Link,
+  Copy,
+  Plus,
+  Search,
   Filter,
   MoreVertical,
   UserPlus,
@@ -20,9 +20,7 @@ import {
   Trash2,
   Edit,
   Calendar,
-  Shield,
-  BuildingOffice,
-  UserGroup
+  Shield
 } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -33,13 +31,13 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 export default function UserInvitations() {
   const { apiFetch } = useApi();
   const { currentWorkspace } = useWorkspace();
-  
+
   const [activeTab, setActiveTab] = useState('invitations');
   const [searchQuery, setSearchQuery] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  
+
   // Mock data - in real app, fetch from API
   const [invitations, setInvitations] = useState([
     {
@@ -283,7 +281,7 @@ export default function UserInvitations() {
       expired: 'bg-red-100 text-red-800',
       cancelled: 'bg-gray-100 text-gray-800'
     };
-    
+
     const icons = {
       pending: <Clock className="w-4 h-4" />,
       accepted: <CheckCircle className="w-4 h-4" />,
@@ -520,7 +518,7 @@ export default function UserInvitations() {
     <div className="p-6">
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-6">Invitation Settings</h2>
-        
+
         <div className="space-y-6">
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Default Permissions</h3>
@@ -645,11 +643,10 @@ export default function UserInvitations() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 mb-1 rounded-lg transition-colors ${
-                    activeTab === tab.id
+                  className={`w-full flex items-center justify-between px-4 py-3 mb-1 rounded-lg transition-colors ${activeTab === tab.id
                       ? 'bg-blue-50 text-blue-600'
                       : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <Icon className="w-5 h-5" />
@@ -679,7 +676,7 @@ export default function UserInvitations() {
                   Manage team invitations and access control
                 </p>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
                   <RefreshCw className="w-4 h-4" />
@@ -705,35 +702,35 @@ export default function UserInvitations() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Send Invitation</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                 <input
                   type="email"
                   value={inviteForm.email}
-                  onChange={(e) => setInviteForm({...inviteForm, email: e.target.value})}
+                  onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="john@example.com"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
                 <input
                   type="text"
                   value={inviteForm.name}
-                  onChange={(e) => setInviteForm({...inviteForm, name: e.target.value})}
+                  onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="John Doe"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
                 <select
                   value={inviteForm.role}
-                  onChange={(e) => setInviteForm({...inviteForm, role: e.target.value})}
+                  onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {roles.map((role) => (
@@ -743,12 +740,12 @@ export default function UserInvitations() {
                   ))}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
                 <textarea
                   value={inviteForm.message}
-                  onChange={(e) => setInviteForm({...inviteForm, message: e.target.value})}
+                  onChange={(e) => setInviteForm({ ...inviteForm, message: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows={3}
                   placeholder="Welcome to our team! We're excited to have you on board."
@@ -779,24 +776,24 @@ export default function UserInvitations() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Create Invite Link</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Link Name *</label>
                 <input
                   type="text"
                   value={linkForm.name}
-                  onChange={(e) => setLinkForm({...linkForm, name: e.target.value})}
+                  onChange={(e) => setLinkForm({ ...linkForm, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Sales Team Invitation"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
                 <select
                   value={linkForm.role}
-                  onChange={(e) => setLinkForm({...linkForm, role: e.target.value})}
+                  onChange={(e) => setLinkForm({ ...linkForm, role: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {roles.map((role) => (
@@ -806,24 +803,24 @@ export default function UserInvitations() {
                   ))}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Max Uses</label>
                 <input
                   type="number"
                   value={linkForm.maxUses}
-                  onChange={(e) => setLinkForm({...linkForm, maxUses: parseInt(e.target.value)})}
+                  onChange={(e) => setLinkForm({ ...linkForm, maxUses: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="10"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Expires At</label>
                 <input
                   type="date"
                   value={linkForm.expiresAt}
-                  onChange={(e) => setLinkForm({...linkForm, expiresAt: e.target.value})}
+                  onChange={(e) => setLinkForm({ ...linkForm, expiresAt: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

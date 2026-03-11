@@ -4,6 +4,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { ActivitiesService } from '../activities/activities.service';
 import { ActivityType } from '../activities/dto/activity.dto';
+import { LeadsService } from '../leads/leads.service';
+import { LeadStatus } from '../leads/dto/lead.dto';
 
 export interface CreateCallDto {
     lead_id: string;
@@ -37,11 +39,12 @@ export class TelephonyService {
         private readonly notificationsService: NotificationsService,
         private readonly notificationsGateway: NotificationsGateway,
         private readonly activitiesService: ActivitiesService,
-    ) {}
+        private readonly leadsService: LeadsService,
+    ) { }
 
     async initiateCall(createCallDto: CreateCallDto, user: any) {
         const supabase = this.supabaseService.getAdminClient();
-        
+
         // Create call record
         const { data: call, error } = await supabase
             .from(this.CALLS_TABLE)
@@ -111,6 +114,11 @@ export class TelephonyService {
                 description: `Call completed - Duration: ${this.formatDuration(existingCall.duration || 0)}`,
                 leadId: existingCall.lead_id,
             }, userId, existingCall.workspace_id, existingCall.organization_id);
+
+            // Update Lead Status based on Call Outcome
+            if (updateCallDto.call_status) {
+                await this.handleLeadStatusUpdate(existingCall.lead_id, updateCallDto.call_status, userId, existingCall.workspace_id, existingCall.organization_id);
+            }
         }
 
         // Send real-time update
@@ -178,11 +186,11 @@ export class TelephonyService {
 
     async getCallSummary(workspaceId: string, timeRange: string = 'today') {
         const supabase = this.supabaseService.getAdminClient();
-        
+
         // Calculate date range
         const now = new Date();
         let dateFrom: Date;
-        
+
         switch (timeRange) {
             case 'today':
                 dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -235,9 +243,9 @@ export class TelephonyService {
         const previousConnectedCalls = previousCalls.filter(c => c.status === 'connected').length;
 
         // Calculate percentage changes
-        const callsChange = previousTotalCalls > 0 ? 
+        const callsChange = previousTotalCalls > 0 ?
             Math.round(((totalCalls - previousTotalCalls) / previousTotalCalls) * 100) : 0;
-        const connectedChange = previousConnectedCalls > 0 ? 
+        const connectedChange = previousConnectedCalls > 0 ?
             Math.round(((connectedCalls - previousConnectedCalls) / previousConnectedCalls) * 100) : 0;
 
         return {
@@ -254,11 +262,11 @@ export class TelephonyService {
 
     async getCallAnalytics(workspaceId: string, timeRange: string = 'week') {
         const supabase = this.supabaseService.getAdminClient();
-        
+
         // Get call volume by day
         const now = new Date();
         let daysBack = 7;
-        
+
         switch (timeRange) {
             case 'day': daysBack = 1; break;
             case 'week': daysBack = 7; break;
@@ -266,7 +274,7 @@ export class TelephonyService {
         }
 
         const dateFrom = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
-        
+
         const { data, error } = await supabase
             .from(this.CALLS_TABLE)
             .select('created_at, status')
@@ -278,7 +286,7 @@ export class TelephonyService {
 
         // Group calls by day
         const callVolume = this.groupCallsByDay(data || [], daysBack);
-        
+
         return {
             callVolume,
             timeRange,
@@ -335,8 +343,8 @@ export class TelephonyService {
         for (let i = daysBack - 1; i >= 0; i--) {
             const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
             const dateStr = date.toISOString().split('T')[0];
-            
-            const dayCalls = calls.filter(call => 
+
+            const dayCalls = calls.filter(call =>
                 call.created_at.split('T')[0] === dateStr
             );
 
@@ -351,11 +359,40 @@ export class TelephonyService {
         return callVolume;
     }
 
+    private async handleLeadStatusUpdate(leadId: string, callStatus: string, userId: string, workspaceId: string, organizationId: string) {
+        let newStatus: LeadStatus = null;
+        const normalizedStatus = callStatus.toUpperCase();
+
+        if (normalizedStatus === 'CONNECTED') {
+            newStatus = LeadStatus.ACTIVE;
+        } else if (normalizedStatus === 'INTERESTED') {
+            newStatus = LeadStatus.INTERESTED;
+        } else if (normalizedStatus === 'NOT INTERESTED') {
+            newStatus = LeadStatus.COLD;
+        } else if (normalizedStatus === 'WRONG NUMBER') {
+            newStatus = LeadStatus.TRASH;
+        } else if (['NO ANSWER', 'NUMBER BUSY', 'SWITCHED OFF'].includes(normalizedStatus)) {
+            // Keep current but maybe log as an attempt (handled by activity log)
+        }
+
+        if (newStatus) {
+            try {
+                await this.leadsService.updateStatus(leadId, newStatus, {
+                    id: userId,
+                    workspaceId,
+                    organizationId
+                });
+            } catch (err) {
+                this.logger.error(`Failed to automatically update lead status for ${leadId}: ${err.message}`);
+            }
+        }
+    }
+
     private formatDuration(seconds: number): string {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         const secs = seconds % 60;
-        
+
         if (hours > 0) {
             return `${hours}h ${minutes}m ${secs}s`;
         } else if (minutes > 0) {

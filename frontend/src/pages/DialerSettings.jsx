@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
-import { PhoneIcon, ClockIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { PhoneIcon, ClockIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 export default function DialerSettings() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [progressiveEnabled, setProgressiveEnabled] = useState(localStorage.getItem('progressive_dialer') === 'true');
+    const [wrapupTime, setWrapupTime] = useState(localStorage.getItem('wrapup_time') || '30');
+    const [autoRecord, setAutoRecord] = useState(localStorage.getItem('auto_record') === 'true');
+
+    const handleSave = () => {
+        localStorage.setItem('progressive_dialer', progressiveEnabled);
+        localStorage.setItem('wrapup_time', wrapupTime);
+        localStorage.setItem('auto_record', autoRecord);
+        toast.success('Dialer settings saved locally!');
+    };
 
     return (
         <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans">
@@ -38,7 +46,12 @@ export default function DialerSettings() {
                                             <p className="text-gray-500 text-xs mt-1">Automatically dial the next lead when a call ends.</p>
                                         </div>
                                         <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" className="sr-only peer" defaultChecked />
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={progressiveEnabled}
+                                                onChange={() => setProgressiveEnabled(!progressiveEnabled)}
+                                            />
                                             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#08A698]"></div>
                                         </label>
                                     </div>
@@ -48,11 +61,15 @@ export default function DialerSettings() {
                                             <h3 className="font-medium text-gray-900 text-sm">Post-Call Wrap-up Time</h3>
                                             <p className="text-gray-500 text-xs mt-1">Time allowed for agents to take notes before the next call.</p>
                                         </div>
-                                        <select className="border border-gray-300 rounded-lg text-sm px-3 py-1.5 bg-white text-gray-700 outline-none focus:border-[#08A698]">
-                                            <option>15 Seconds</option>
-                                            <option selected>30 Seconds</option>
-                                            <option>60 Seconds</option>
-                                            <option>Manual Wrap-up</option>
+                                        <select
+                                            value={wrapupTime}
+                                            onChange={(e) => setWrapupTime(e.target.value)}
+                                            className="border border-gray-300 rounded-lg text-sm px-3 py-1.5 bg-white text-gray-700 outline-none focus:border-[#08A698]"
+                                        >
+                                            <option value="15">15 Seconds</option>
+                                            <option value="30">30 Seconds</option>
+                                            <option value="60">60 Seconds</option>
+                                            <option value="0">Manual Wrap-up</option>
                                         </select>
                                     </div>
                                 </div>
@@ -74,7 +91,12 @@ export default function DialerSettings() {
                                             <p className="text-gray-500 text-xs mt-1">Save recordings securely in the cloud.</p>
                                         </div>
                                         <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" className="sr-only peer" defaultChecked />
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={autoRecord}
+                                                onChange={() => setAutoRecord(!autoRecord)}
+                                            />
                                             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#08A698]"></div>
                                         </label>
                                     </div>
@@ -82,7 +104,10 @@ export default function DialerSettings() {
                             </div>
 
                             <div className="flex justify-end pt-4">
-                                <button className="bg-[#08A698] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-teal-700 transition shadow-sm">
+                                <button
+                                    onClick={handleSave}
+                                    className="bg-[#08A698] text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-teal-700 transition shadow-sm"
+                                >
                                     Save Dialer Settings
                                 </button>
                             </div>

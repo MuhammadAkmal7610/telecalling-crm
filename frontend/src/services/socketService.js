@@ -8,8 +8,9 @@ class SocketService {
   connect(token) {
     return new Promise((resolve, reject) => {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
-      this.socket = io(API_URL, {
+      const SOCKET_URL = API_URL.replace('/api/v1', '');
+
+      this.socket = io(SOCKET_URL, {
         auth: { token },
         transports: ['websocket', 'polling'],
         timeout: 10000,
@@ -26,16 +27,15 @@ class SocketService {
 
       this.socket.on('disconnect', (reason) => {
         console.log('Disconnected from WebSocket server:', reason);
-        if (reason === 'io server disconnect') {
-          // Server disconnected, reconnect manually
-          this.socket?.connect();
-        }
+        // Do not immediately reconnect on 'io server disconnect' to prevent 
+        // infinite loops when authentication fails. Socket.io naturally handles 
+        // network-related reconnects.
       });
 
       this.socket.on('connect_error', (error) => {
         console.error('WebSocket connection error:', error);
         this.reconnectAttempts++;
-        
+
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
           console.error('Max reconnection attempts reached');
           reject(error);
@@ -74,13 +74,13 @@ class SocketService {
   handleNotification(notification) {
     // Store notification in local state or trigger UI update
     this.updateNotificationList(notification);
-    
+
     // Show browser notification if permitted
     this.showBrowserNotification(notification);
-    
+
     // Emit custom event for components to listen to
-    window.dispatchEvent(new CustomEvent('new_notification', { 
-      detail: notification 
+    window.dispatchEvent(new CustomEvent('new_notification', {
+      detail: notification
     }));
   }
 
@@ -96,16 +96,16 @@ class SocketService {
         timestamp: new Date().toISOString(),
         data: data
       };
-      
+
       this.updateNotificationList(notification);
       this.showBrowserNotification(notification);
-      
+
       // Emit custom event for components to listen to
-      window.dispatchEvent(new CustomEvent('new_notification', { 
-        detail: notification 
+      window.dispatchEvent(new CustomEvent('new_notification', {
+        detail: notification
       }));
     }
-    
+
     // Create notification for lead stage changes
     if (data.action === 'stage_changed') {
       const notification = {
@@ -117,39 +117,39 @@ class SocketService {
         timestamp: new Date().toISOString(),
         data: data
       };
-      
+
       this.updateNotificationList(notification);
       this.showBrowserNotification(notification);
-      
+
       // Emit custom event for components to listen to
-      window.dispatchEvent(new CustomEvent('new_notification', { 
-        detail: notification 
+      window.dispatchEvent(new CustomEvent('new_notification', {
+        detail: notification
       }));
     }
-    
+
     // Emit custom event for components to listen to
-    window.dispatchEvent(new CustomEvent('lead_update', { 
-      detail: data 
+    window.dispatchEvent(new CustomEvent('lead_update', {
+      detail: data
     }));
   }
 
   handleCallUpdate(data) {
-    window.dispatchEvent(new CustomEvent('call_update', { 
-      detail: data 
+    window.dispatchEvent(new CustomEvent('call_update', {
+      detail: data
     }));
   }
 
   handleTaskUpdate(data) {
     // Store task update in local state or trigger UI update
-    window.dispatchEvent(new CustomEvent('task_update', { 
-      detail: data 
+    window.dispatchEvent(new CustomEvent('task_update', {
+      detail: data
     }));
   }
 
   handleTaskActionComplete(data) {
     // Handle task action completion
-    window.dispatchEvent(new CustomEvent('task_action_complete', { 
-      detail: data 
+    window.dispatchEvent(new CustomEvent('task_action_complete', {
+      detail: data
     }));
   }
 

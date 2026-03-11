@@ -6,9 +6,30 @@ import toast from 'react-hot-toast';
 export default function CallLoggerWidget() {
     const { isWidgetOpen, callData, endCall, closeWidget } = useDialer();
     const [callNotes, setCallNotes] = useState('');
-    const [callOutcome, setCallOutcome] = useState('Connected');
+    const [callOutcome, setCallOutcome] = useState('CONNECTED');
     const [durationStr, setDurationStr] = useState('00:00');
+    const [durationSecs, setDurationSecs] = useState(0);
+    const [feedbackStatuses, setFeedbackStatuses] = useState([]);
 
+    useEffect(() => {
+        if (isWidgetOpen) {
+            fetchFeedbackStatuses();
+        }
+    }, [isWidgetOpen]);
+
+    const fetchFeedbackStatuses = async () => {
+        try {
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+            const res = await fetch(`${API_URL}/calls/feedback-statuses`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (res.ok) setFeedbackStatuses(data);
+        } catch (error) {
+            console.error('Error fetching statuses', error);
+        }
+    };
     // Timer Effect
     useEffect(() => {
         let interval;
@@ -16,10 +37,12 @@ export default function CallLoggerWidget() {
             interval = setInterval(() => {
                 const now = new Date();
                 const diffMs = now - callData.startTime;
+                const totalSecs = Math.floor(diffMs / 1000);
 
-                const mins = Math.floor(diffMs / 60000);
-                const secs = Math.floor((diffMs % 60000) / 1000);
+                const mins = Math.floor(totalSecs / 60);
+                const secs = totalSecs % 60;
 
+                setDurationSecs(totalSecs);
                 setDurationStr(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
             }, 1000);
         } else if (callData.status === 'idle') {
@@ -31,43 +54,41 @@ export default function CallLoggerWidget() {
     if (!isWidgetOpen) return null;
 
     const handleSaveLog = async () => {
+        if (!callData.callId) {
+            toast.error('No call record found to update.');
+            closeWidget();
+            return;
+        }
+
         try {
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
-            // Simulate call saving
-            const res = await fetch(`${API_URL}/activities`, {
-                method: 'POST',
+            const res = await fetch(`${API_URL}/telephony/calls/${callData.callId}`, {
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    leadId: callData.leadId,
-                    type: 'call',
-                    details: {
-                        note: callNotes,
-                        outcome: callOutcome,
-                        duration: durationStr,
-                        phoneNumber: callData.phoneNumber
-                    }
+                    status: 'ended',
+                    duration: durationSecs,
+                    notes: callNotes,
+                    call_status: callOutcome
                 })
             });
 
             if (res.ok) {
                 toast.success('Call logged successfully!');
                 setCallNotes('');
-                setCallOutcome('Connected');
+                setCallOutcome('CONNECTED');
                 closeWidget();
             } else {
                 toast.error('Failed to log call.');
             }
         } catch (error) {
             console.error('Error logging call', error);
-            // Fallback for demo if API fails
-            toast.success('Call logged (Simulation)');
-            setCallNotes('');
-            closeWidget();
+            toast.error('Network error during logging');
         }
     };
 
@@ -135,11 +156,19 @@ export default function CallLoggerWidget() {
                                 onChange={(e) => setCallOutcome(e.target.value)}
                                 className="w-full text-sm border border-gray-300 rounded-lg p-2 outline-none focus:border-[#08A698] cursor-pointer"
                             >
-                                <option>Connected</option>
-                                <option>No Answer</option>
-                                <option>Busy</option>
-                                <option>Wrong Number</option>
-                                <option>Voicemail</option>
+                                {feedbackStatuses.length > 0 ? (
+                                    feedbackStatuses.map(s => (
+                                        <option key={s.id} value={s.label}>{s.label}</option>
+                                    ))
+                                ) : (
+                                    <>
+                                        <option value="CONNECTED">Connected</option>
+                                        <option value="NO ANSWER">No Answer</option>
+                                        <option value="BUSY">Busy</option>
+                                        <option value="WRONG NUMBER">Wrong Number</option>
+                                        <option value="INTERESTED">Interested</option>
+                                    </>
+                                )}
                             </select>
                         </div>
                         <div>

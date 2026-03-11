@@ -6,15 +6,17 @@ export function DialerProvider({ children }) {
     const [isWidgetOpen, setIsWidgetOpen] = useState(false);
     const [callData, setCallData] = useState({
         leadId: null,
+        callId: null, // New: track backend call record ID
         leadName: '',
         phoneNumber: '',
         status: 'idle', // 'idle' | 'calling' | 'connected' | 'wrapup'
         startTime: null,
     });
 
-    const startCallLog = (phoneNumber, leadId, leadName) => {
+    const startCallLog = (phoneNumber, leadId, leadName, callId = null) => {
         setCallData({
             leadId,
+            callId,
             leadName,
             phoneNumber,
             status: 'calling',
@@ -22,11 +24,14 @@ export function DialerProvider({ children }) {
         });
         setIsWidgetOpen(true);
 
-        // Simulate a move to 'connected' after a brief delay 
-        // (Since it's a native tel: call, we don't know exact connect state, so we guess)
+        // Transition to connected after a realistic delay
         setTimeout(() => {
-            setCallData(prev => prev.status === 'calling' ? { ...prev, status: 'connected' } : prev);
-        }, 5000);
+            setCallData(prev =>
+                (prev.leadId === leadId && prev.status === 'calling')
+                    ? { ...prev, status: 'connected' }
+                    : prev
+            );
+        }, 3000);
     };
 
     const endCall = () => {
