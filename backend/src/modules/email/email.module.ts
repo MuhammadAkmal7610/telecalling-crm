@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { EmailService } from './email.service';
 import { EmailController } from './email.controller';
+import { EmailTrackingController } from './email-tracking.controller';
+import { EmailService } from './email.service';
 
 @Module({
   imports: [SupabaseModule, NotificationsModule],
-  controllers: [EmailController],
+  controllers: [EmailController, EmailTrackingController],
   providers: [EmailService],
   exports: [EmailService],
 })

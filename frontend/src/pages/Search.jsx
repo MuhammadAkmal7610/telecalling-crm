@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useApi } from '../hooks/useApi';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import WorkspaceGuard from '../components/WorkspaceGuard';
@@ -17,13 +18,34 @@ const Search = () => {
     const [activeFilter, setActiveFilter] = useState('All');
     const [searchValue, setSearchValue] = useState('');
 
-    const filters = [
-        { name: 'All', icon: SparklesIcon, label: 'All' },
-        { name: 'Mobile', icon: DevicePhoneMobileIcon, label: 'Mobile' },
-        { name: 'Text', icon: ChatBubbleLeftRightIcon, label: 'Text' },
-        { name: 'Call', icon: PhoneIcon, label: 'Call' },
-        { name: 'Email', icon: EnvelopeIcon, label: 'Email' },
-    ];
+    const { apiFetch } = useApi();
+    const [results, setResults] = useState({ leads: [], users: [], tasks: [], campaigns: [] });
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (searchValue.length >= 2) {
+                handleSearch();
+            } else {
+                setResults({ leads: [], users: [], tasks: [], campaigns: [] });
+            }
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchValue]);
+
+    const handleSearch = async () => {
+        setLoading(true);
+        try {
+            const res = await apiFetch(`/search/global?query=${searchValue}`);
+            const data = await res.json();
+            setResults(data.data || data || { leads: [], users: [], tasks: [], campaigns: [] });
+        } catch (error) {
+            console.error('Search error:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased overflow-hidden">
@@ -95,15 +117,53 @@ const Search = () => {
                             </div>
 
                             {/* Results / Empty State */}
-                            <div className="text-center py-12">
-                                {searchValue ? (
-                                    <div className="flex flex-col items-center justify-center space-y-3 opacity-60 animate-pulse">
+                            <div className="space-y-4">
+                                {loading ? (
+                                    <div className="flex flex-col items-center justify-center py-12 space-y-3 opacity-60 animate-pulse">
                                         <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
                                         <div className="h-4 w-48 bg-gray-200 rounded"></div>
                                         <div className="h-3 w-32 bg-gray-200 rounded"></div>
                                     </div>
+                                ) : searchValue ? (
+                                    <div className="space-y-6">
+                                        {results.leads?.length > 0 && (
+                                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                                                <h3 className="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wider">Leads</h3>
+                                                <div className="divide-y divide-gray-100">
+                                                    {results.leads.map(lead => (
+                                                        <div key={lead.id} className="py-3 flex justify-between items-center hover:bg-gray-50 cursor-pointer px-2 rounded-lg">
+                                                            <div>
+                                                                <div className="text-sm font-semibold text-gray-900">{lead.name}</div>
+                                                                <div className="text-xs text-gray-500">{lead.phone || lead.email}</div>
+                                                            </div>
+                                                            <span className="text-xs font-medium text-[#08A698] bg-teal-50 px-2 py-0.5 rounded-full">{lead.status}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {results.tasks?.length > 0 && (
+                                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                                                <h3 className="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wider">Tasks</h3>
+                                                <div className="divide-y divide-gray-100">
+                                                    {results.tasks.map(task => (
+                                                        <div key={task.id} className="py-3 flex justify-between items-center hover:bg-gray-50 cursor-pointer px-2 rounded-lg">
+                                                            <div>
+                                                                <div className="text-sm font-semibold text-gray-900">{task.title}</div>
+                                                                <div className="text-xs text-gray-500">Due: {new Date(task.due_date).toLocaleDateString()}</div>
+                                                            </div>
+                                                            <span className="text-xs font-medium text-gray-400">{task.status}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {(!results.leads?.length && !results.tasks?.length && !results.users?.length && !results.campaigns?.length) && (
+                                            <div className="text-center py-12 text-gray-400 italic">No results found for "{searchValue}"</div>
+                                        )}
+                                    </div>
                                 ) : (
-                                    <div className="space-y-4">
+                                    <div className="text-center py-12 space-y-4">
                                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-300">
                                             <MagnifyingGlassIcon className="w-8 h-8" />
                                         </div>

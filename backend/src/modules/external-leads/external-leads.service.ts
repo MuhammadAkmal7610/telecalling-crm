@@ -86,6 +86,31 @@ export class ExternalLeadsService {
         return this.processExternalLead(leadDto, organizationId);
     }
 
+    async handleFacebook(data: any, organizationId: string) {
+        this.logger.log(`Handling Facebook Lead Ads for org: ${organizationId}`);
+        
+        // Facebook Lead Ads usually sends field_data array
+        const fieldData = data.field_data || [];
+        const mappedData: any = {};
+        fieldData.forEach((field: any) => {
+            mappedData[field.name] = field.values?.[0];
+        });
+
+        const leadDto: CreateLeadDto = {
+            name: mappedData.full_name || mappedData.first_name || 'Facebook Lead',
+            phone: mappedData.phone_number || mappedData.phone,
+            email: mappedData.email,
+            source: LeadSource.FACEBOOK,
+            customFields: {
+                ...mappedData,
+                fb_lead_id: data.id,
+                fb_form_id: data.form_id
+            }
+        };
+
+        return this.processExternalLead(leadDto, organizationId);
+    }
+
     async handleGenericWebhook(source: string, data: any, organizationId: string) {
         this.logger.log(`Handling Generic Webhook (${source}) for org: ${organizationId}`);
         const leadDto: CreateLeadDto = {

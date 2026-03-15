@@ -64,98 +64,103 @@ import Automations from './pages/Automations';
 import CallScripts from './pages/CallScripts';
 import DialerSettings from './pages/DialerSettings';
 import PublicLeadForm from './pages/PublicLeadForm';
+import WhatsApp from './pages/WhatsApp';
 import { Outlet } from 'react-router-dom';
 
 
+import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
   return (
-    <AuthProvider>
-      <WorkspaceProvider>
-        <HealthCheckProvider>
-          <Toaster position="top-center" reverseOrder={false} />
-          <Router>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/f/:orgName" element={<PublicLeadForm />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <WorkspaceProvider>
+          <HealthCheckProvider>
+            <Toaster position="top-center" reverseOrder={false} />
+            <Router>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/f/:orgName" element={<PublicLeadForm />} />
 
-              <Route element={<ProtectedRoute />}>
-                <Route element={
-                  <SocketProvider>
-                    <DialerProvider>
-                      <Outlet />
-                      <CallLoggerWidget />
-                      <NotificationPermission />
-                    </DialerProvider>
-                  </SocketProvider>
-                }>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/home" element={<Home />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/search" element={<Search />} />
-                  <Route path="/add-leads" element={<AddLead />} /> {/* Direct link for sidebar parent item fallback */}
-                  <Route path="/activities" element={<Activities />} />
-                  <Route path="/whatsapp-integration" element={<WhatsAppIntegration />} />
-                  <Route path="/user-invitations" element={<UserInvitations />} />
-                  {/* Placeholder Routes redirected to Under Construction */}
-                  <Route path="/under-construction" element={<UnderConstruction />} />
-                  <Route path="/website-leads" element={<WebsiteLeads />} />
-                  <Route path="/facebook-leads" element={<FacebookLeads />} />
-                  <Route path="/old-leads" element={<OldLeads />} />
-                  <Route path="/campaigns" element={<Campaigns />} />
-                  <Route path="/all-leads" element={<AllLeads />} />
-                  <Route path="/leads" element={<Navigate to="/all-leads" replace />} />
-                  <Route path="/my-leads" element={<MyLeads />} />
-                  <Route path="/assigned-leads" element={<AssignedLeads />} />
-                  <Route path="/daily-report" element={<DailyReport />} />
-                  <Route path="/whatsapp-leads" element={<WhatsappLeads />} />
-                  <Route path="/filters" element={<Filters />} />
-                  <Route path="/my-lists" element={<MyLists />} />
-                  <Route path="/leaderboard" element={<Leaderboard />} />
-                  <Route path="/call-report" element={<CallReport />} />
-                  <Route path="/report-download" element={<ReportDownload />} />
-                  <Route path="/all-duplicates" element={<AllDuplicates />} />
-                  <Route path="/reports" element={<Reports />} />
+                <Route element={<ProtectedRoute />}>
+                  <Route element={
+                    <SocketProvider>
+                      <DialerProvider>
+                        <Outlet />
+                        <CallLoggerWidget />
+                        <NotificationPermission />
+                      </DialerProvider>
+                    </SocketProvider>
+                  }>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/home" element={<Home />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/search" element={<Search />} />
+                    <Route path="/add-leads" element={<AddLead />} /> {/* Direct link for sidebar parent item fallback */}
+                     <Route path="/activities" element={<Activities />} />
+                     <Route path="/whatsapp" element={<WhatsApp />} />
+                     <Route path="/whatsapp-integration" element={<WhatsAppIntegration />} />
+                    <Route path="/user-invitations" element={<UserInvitations />} />
+                    {/* Placeholder Routes redirected to Under Construction */}
+                    <Route path="/under-construction" element={<UnderConstruction />} />
+                    <Route path="/website-leads" element={<WebsiteLeads />} />
+                    <Route path="/facebook-leads" element={<FacebookLeads />} />
+                    <Route path="/old-leads" element={<OldLeads />} />
+                    <Route path="/campaigns" element={<Campaigns />} />
+                    <Route path="/all-leads" element={<AllLeads />} />
+                    <Route path="/leads" element={<Navigate to="/all-leads" replace />} />
+                    <Route path="/my-leads" element={<MyLeads />} />
+                    <Route path="/assigned-leads" element={<AssignedLeads />} />
+                    <Route path="/daily-report" element={<DailyReport />} />
+                    <Route path="/whatsapp-leads" element={<WhatsappLeads />} />
+                    <Route path="/filters" element={<Filters />} />
+                    <Route path="/my-lists" element={<MyLists />} />
+                    <Route path="/leaderboard" element={<Leaderboard />} />
+                    <Route path="/call-report" element={<CallReport />} />
+                    <Route path="/report-download" element={<ReportDownload />} />
+                    <Route path="/all-duplicates" element={<AllDuplicates />} />
+                    <Route path="/reports" element={<Reports />} />
 
-                  <Route path="/automations" element={<Automations />} /> {/* Hub page */}
+                    <Route path="/automations" element={<Automations />} /> {/* Hub page */}
 
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/templates" element={<MessageTemplates />} />
-                  <Route path="/teammember-blocklist" element={<TeamMemberBlocklist />} />
-                  <Route path="/my-preferences" element={<UserPreferences />} />
-                  <Route path="/notifications" element={<Notifications />} />
-                  <Route path="/all-tasks" element={<AllTasks />} />
-                  <Route path="/transaction-history" element={<TransactionHistory />} />
-                  <Route path="/billing" element={<Billing />} />
-                  <Route path="/permission-templates" element={<PermissionTemplates />} />
-                  <Route path="/users" element={<UsersManagement />} />
-                  <Route path="/enterprise-preferences" element={<EnterprisePreferences />} />
-                  <Route path="/call-feedback" element={<CallFeedback />} />
-                  <Route path="/lead-fields" element={<LeadFields />} />
-                  <Route path="/manage-workspaces" element={<ManageWorkspaces />} />
-                  <Route path="/admin" element={<AdminDashboard />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/templates" element={<MessageTemplates />} />
+                    <Route path="/teammember-blocklist" element={<TeamMemberBlocklist />} />
+                    <Route path="/my-preferences" element={<UserPreferences />} />
+                    <Route path="/notifications" element={<Notifications />} />
+                    <Route path="/all-tasks" element={<AllTasks />} />
+                    <Route path="/transaction-history" element={<TransactionHistory />} />
+                    <Route path="/billing" element={<Billing />} />
+                    <Route path="/permission-templates" element={<PermissionTemplates />} />
+                    <Route path="/users" element={<UsersManagement />} />
+                    <Route path="/enterprise-preferences" element={<EnterprisePreferences />} />
+                    <Route path="/call-feedback" element={<CallFeedback />} />
+                    <Route path="/lead-fields" element={<LeadFields />} />
+                    <Route path="/manage-workspaces" element={<ManageWorkspaces />} />
+                    <Route path="/admin" element={<AdminDashboard />} />
 
-                  <Route path="/lead-stage-configure" element={<LeadStage />} />
-                  <Route path="/integrations" element={<Integrations />} />
-                  <Route path="/api-templates" element={<ApiTemplates />} />
-                  <Route path="/salesforms" element={<Salesforms />} />
-                  <Route path="/schedules" element={<Schedules />} />
-                  <Route path="/workflows" element={<Workflows />} />
-                  <Route path="/pipeline" element={<Pipeline />} />
-                  <Route path="/add-lead" element={<AddLead />} />
-                  <Route path="/import-leads" element={<ImportLeads />} />
-                  <Route path="/call-scripts" element={<CallScripts />} />
-                  <Route path="/dialer-settings" element={<DialerSettings />} />
+                    <Route path="/lead-stage-configure" element={<LeadStage />} />
+                    <Route path="/integrations" element={<Integrations />} />
+                    <Route path="/api-templates" element={<ApiTemplates />} />
+                    <Route path="/salesforms" element={<Salesforms />} />
+                    <Route path="/schedules" element={<Schedules />} />
+                    <Route path="/workflows" element={<Workflows />} />
+                    <Route path="/pipeline" element={<Pipeline />} />
+                    <Route path="/add-lead" element={<AddLead />} />
+                    <Route path="/import-leads" element={<ImportLeads />} />
+                    <Route path="/call-scripts" element={<CallScripts />} />
+                    <Route path="/dialer-settings" element={<DialerSettings />} />
+                  </Route>
                 </Route>
-              </Route>
-            </Routes>
-          </Router>
-        </HealthCheckProvider>
-      </WorkspaceProvider>
-    </AuthProvider >
+              </Routes>
+            </Router>
+          </HealthCheckProvider>
+        </WorkspaceProvider>
+      </AuthProvider >
+    </ThemeProvider>
   );
 }
 

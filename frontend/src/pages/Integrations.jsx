@@ -35,12 +35,16 @@ export default function Integrations() {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-            const res = await fetch(`${API_URL}/integrations`, {
+            
+            // Get current workspace from context if possible, or from local storage/session
+            const workspaceId = localStorage.getItem('currentWorkspaceId');
+            
+            const res = await fetch(`${API_URL}/integrations` + (workspaceId ? `?workspaceId=${workspaceId}` : ''), {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
             const result = await res.json();
             const data = result.data || result;
-            setIntegrations(data.integrations || []);
+            setIntegrations(Array.isArray(data) ? data : (data.integrations || []));
             setWebhookToken(data.webhookToken || '');
         } catch (error) {
             console.error('Error fetching integrations:', error);
@@ -49,8 +53,21 @@ export default function Integrations() {
         }
     };
 
-    const handleActivate = (item) => {
-        if (['im', 'jd'].includes(item.id)) {
+    const handleActivate = async (item) => {
+        if (item.id === 'gmail' || item.id === 'outlook') {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const res = await fetch(`${API_URL}/integrations/auth/${item.id}`, {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+                const result = await res.json();
+                if (result.url) {
+                    window.location.href = result.url;
+                }
+            } catch (error) {
+                toast.error('Failed to initiate authentication');
+            }
+        } else if (['im', 'jd', 'fb'].includes(item.id)) {
             setSelectedIntegration(item);
         } else {
             toast.success(`Activation for ${item.name} is coming soon!`);
@@ -62,6 +79,7 @@ export default function Integrations() {
         const tokenQuery = webhookToken ? `&token=${webhookToken}` : '';
         if (id === 'im') return `${baseUrl}/api/v1/external-leads/indiamart?orgId=${userOrgId}${tokenQuery}`;
         if (id === 'jd') return `${baseUrl}/api/v1/external-leads/justdial?orgId=${userOrgId}${tokenQuery}`;
+        if (id === 'fb') return `${baseUrl}/api/v1/external-leads/facebook?orgId=${userOrgId}${tokenQuery}`;
         return `${baseUrl}/api/v1/external-leads/webhook/${userOrgId}/${id}?token=${webhookToken}`;
     };
 
@@ -74,13 +92,13 @@ export default function Integrations() {
 
     const activeIntegrations = integrations.filter(i => i.status?.toLowerCase() === 'active');
     const availableIntegrations = [
+        { id: 'gmail', name: 'Gmail / G-Suite', description: 'Connect your Gmail account for 2-way email sync.', logo: 'https://cdn-icons-png.flaticon.com/512/732/732200.png' },
+        { id: 'outlook', name: 'Outlook / Office 365', description: 'Sync your Outlook emails and calendar with CRM.', logo: 'https://cdn-icons-png.flaticon.com/512/732/732220.png' },
         { id: 'im', name: 'IndiaMART', description: 'Automatically capture leads from IndiaMART in real-time.', logo: 'https://logo.clearbit.com/indiamart.com' },
         { id: 'jd', name: 'Justdial', description: 'Sync your Justdial inquiries directly into the CRM.', logo: 'https://logo.clearbit.com/justdial.com' },
         { id: 'fb', name: 'Facebook Ads', description: 'Connect Facebook Lead Ads to capture high-intent leads.', logo: 'https://logo.clearbit.com/facebook.com' },
         { id: 'ga', name: 'Google Ads', description: 'Import leads from Google Search and Display ads.', logo: 'https://logo.clearbit.com/google.com' },
-        { id: '99', name: '99acres', description: 'Capture 99acres property leads automatically.', logo: 'https://logo.clearbit.com/99acres.com' },
         { id: 'zp', name: 'Zapier', description: 'Connect over 5,000+ apps using Zapier automation.', logo: 'https://logo.clearbit.com/zapier.com' },
-        { id: 'cd', name: 'CallerDesk', description: 'Cloud telephony integration for call tracking.', logo: 'https://logo.clearbit.com/callerdesk.io' },
     ];
 
     return (

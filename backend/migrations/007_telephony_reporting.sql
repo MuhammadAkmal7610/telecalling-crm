@@ -79,34 +79,60 @@ CREATE INDEX IF NOT EXISTS idx_call_analytics_period ON call_analytics(period_ty
 -- Add RLS (Row Level Security) policies for calls
 ALTER TABLE calls ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view calls in their workspace" ON calls
-    FOR SELECT USING (
-        workspace_id IN (
-            SELECT id FROM workspaces WHERE 
-            id = current_setting('app.current_workspace_id')::UUID
-        )
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'calls' AND policyname = 'Users can view calls in their workspace'
+    ) THEN
+        CREATE POLICY "Users can view calls in their workspace" ON calls
+            FOR SELECT USING (
+                workspace_id IN (
+                    SELECT id FROM workspaces WHERE 
+                    id = current_setting('app.current_workspace_id')::UUID
+                )
+            );
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'calls' AND policyname = 'Users can insert calls in their workspace'
+    ) THEN
+        CREATE POLICY "Users can insert calls in their workspace" ON calls
+            FOR INSERT WITH CHECK (
+                workspace_id = current_setting('app.current_workspace_id')::UUID
+            );
+    END IF;
 
-CREATE POLICY "Users can insert calls in their workspace" ON calls
-    FOR INSERT WITH CHECK (
-        workspace_id = current_setting('app.current_workspace_id')::UUID
-    );
-
-CREATE POLICY "Users can update calls in their workspace" ON calls
-    FOR UPDATE USING (
-        workspace_id = current_setting('app.current_workspace_id')::UUID
-    );
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'calls' AND policyname = 'Users can update calls in their workspace'
+    ) THEN
+        CREATE POLICY "Users can update calls in their workspace" ON calls
+            FOR UPDATE USING (
+                workspace_id = current_setting('app.current_workspace_id')::UUID
+            );
+    END IF;
+END $$;
 
 -- Add RLS for call_analytics
 ALTER TABLE call_analytics ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view analytics in their workspace" ON call_analytics
-    FOR SELECT USING (
-        workspace_id IN (
-            SELECT id FROM workspaces WHERE 
-            id = current_setting('app.current_workspace_id')::UUID
-        )
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'call_analytics' AND policyname = 'Users can view analytics in their workspace'
+    ) THEN
+        CREATE POLICY "Users can view analytics in their workspace" ON call_analytics
+            FOR SELECT USING (
+                workspace_id IN (
+                    SELECT id FROM workspaces WHERE 
+                    id = current_setting('app.current_workspace_id')::UUID
+                )
+            );
+    END IF;
+END $$;
 
 -- Create trigger to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -118,9 +144,11 @@ END;
 $$ language 'plpgsql';
 
 -- Add triggers for updated_at
+DROP TRIGGER IF EXISTS update_calls_updated_at ON calls;
 CREATE TRIGGER update_calls_updated_at BEFORE UPDATE ON calls
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_call_analytics_updated_at ON call_analytics;
 CREATE TRIGGER update_call_analytics_updated_at BEFORE UPDATE ON call_analytics
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

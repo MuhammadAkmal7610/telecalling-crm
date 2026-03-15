@@ -1,6 +1,9 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import * as nodemailer from 'nodemailer';
+import { google } from 'googleapis';
+import { Client as MSGraphClient } from '@microsoft/microsoft-graph-client';
 
 export interface EmailTemplate {
   id: string;
@@ -108,11 +111,31 @@ export class EmailService {
   private readonly LOGS_TABLE = 'email_logs';
   private readonly AUTOMATION_TABLE = 'email_automation';
   private readonly AUTOMATION_LOGS_TABLE = 'email_automation_logs';
+  private readonly DRIP_CAMPAIGNS_TABLE = 'drip_campaigns';
+  private readonly DRIP_ENROLLMENTS_TABLE = 'drip_enrollments';
+  private dripInterval: NodeJS.Timeout;
 
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  onModuleInit() {
+    this.logger.log('EmailService initialized. Starting drip campaign processing loop.');
+    // Process drip campaigns every hour
+    this.dripInterval = setInterval(() => {
+      this.processDripCampaigns();
+    }, 60 * 60 * 1000);
+    
+    // Also run once immediately on startup
+    this.processDripCampaigns();
+  }
+
+  onModuleDestroy() {
+    if (this.dripInterval) {
+      clearInterval(this.dripInterval);
+    }
+  }
 
   // ==================== EMAIL TEMPLATES ====================
 
@@ -406,18 +429,47 @@ export class EmailService {
     htmlContent?: string;
     trackingId?: string;
   }) {
-    // This would integrate with your email provider (SendGrid, AWS SES, etc.)
-    // For now, return a mock response
-    
     const config = await this.getEmailConfig();
     
-    if (config.provider === 'sendgrid') {
+    // Support for SMTP/Nodemailer as default/backup
+    if (config.provider === 'smtp' || config.provider === 'gmail' || config.provider === 'outlook') {
+      return this.sendViaNodemailer(emailData, config);
+    } else if (config.provider === 'sendgrid') {
       return this.sendViaSendGrid(emailData, config);
     } else if (config.provider === 'aws_ses') {
       return this.sendViaSES(emailData, config);
     }
     
-    throw new BadRequestException('Email provider not configured');
+    throw new BadRequestException('Email provider not configured or unsupported');
+  }
+
+  private async sendViaNodemailer(emailData: any, config: any) {
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.port === 465,
+      auth: {
+        user: config.user,
+        pass: config.pass,
+      },
+    });
+
+    const info = await transporter.sendMail({
+      from: `"${emailData.senderName || 'CRM'}" <${emailData.from}>`,
+      to: emailData.to,
+      subject: emailData.subject,
+      text: emailData.content,
+      html: emailData.htmlContent,
+      replyTo: emailData.replyTo,
+      headers: {
+        'X-Tracking-ID': emailData.trackingId || '',
+      },
+    });
+
+    return {
+      messageId: info.messageId,
+      status: 'sent',
+    };
   }
 
   private async sendViaSendGrid(emailData: any, config: any) {
@@ -829,6 +881,206 @@ export class EmailService {
     }
 
     return data.config;
+  }
+
+  // ==================== DRIP CAMPAIGNS ====================
+  async createDripCampaign(campaignData: any, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    try {
+      const { data, error } = await supabase
+        .from(this.DRIP_CAMPAIGNS_TABLE)
+        .insert({
+          ...campaignData,
+          workspace_id: user.workspace_id,
+          organization_id: user.organization_id,
+          created_by: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      this.logger.error('Error creating drip campaign:', error);
+      throw new BadRequestException('Failed to create drip campaign');
+    }
+  }
+
+  async getDripCampaigns(user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    const { data, error } = await supabase
+      .from(this.DRIP_CAMPAIGNS_TABLE)
+      .select('*')
+      .eq('workspace_id', user.workspace_id)
+      .order('created_at', { ascending: false });
+
+    if (error) return [];
+    return data || [];
+  }
+
+  async updateDripCampaign(id: string, campaignData: any, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    try {
+      const { data, error } = await supabase
+        .from(this.DRIP_CAMPAIGNS_TABLE)
+        .update({
+          ...campaignData,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('workspace_id', user.workspace_id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      this.logger.error('Error updating drip campaign:', error);
+      throw new BadRequestException('Failed to update drip campaign');
+    }
+  }
+
+  async deleteDripCampaign(id: string, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    const { error } = await supabase
+      .from(this.DRIP_CAMPAIGNS_TABLE)
+      .delete()
+      .eq('id', id)
+      .eq('workspace_id', user.workspace_id);
+
+    if (error) throw error;
+    return { success: true };
+  }
+
+  // ==================== DRIP CAMPAIGNS ENROLLMENT ====================
+
+  async enrollInDripCampaign(campaignId: string, leadId: string, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    try {
+      const { data: campaign, error: cError } = await supabase
+        .from(this.DRIP_CAMPAIGNS_TABLE)
+        .select('*')
+        .eq('id', campaignId)
+        .single();
+
+      if (cError || !campaign) throw new BadRequestException('Drip campaign not found');
+
+      // Add enrollment
+      const { error } = await supabase
+        .from(this.DRIP_ENROLLMENTS_TABLE)
+        .upsert({
+            drip_campaign_id: campaignId,
+            lead_id: leadId,
+            current_step: 0,
+            status: 'active',
+            next_run_at: new Date().toISOString(), // Run first step immediately
+            enrolled_at: new Date().toISOString(),
+        }, { onConflict: 'drip_campaign_id, lead_id' });
+
+      if (error) throw error;
+
+      this.logger.log(`Lead ${leadId} enrolled in drip campaign: ${campaign.name}`);
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Error enrolling in drip campaign:', error);
+      throw new BadRequestException('Failed to enroll lead in drip campaign');
+    }
+  }
+
+  async processDripCampaigns() {
+    const supabase = this.supabaseService.getAdminClient();
+    const now = new Date().toISOString();
+
+    try {
+      // Get pending enrollments
+      const { data: enrollments, error } = await supabase
+        .from(this.DRIP_ENROLLMENTS_TABLE)
+        .select(`
+          *,
+          campaign:drip_campaigns(*),
+          lead:leads(*)
+        `)
+        .eq('status', 'active')
+        .lte('next_run_at', now);
+
+      if (error || !enrollments) return;
+
+      for (const enrollment of enrollments) {
+        await this.executeDripStep(enrollment);
+      }
+    } catch (error) {
+      this.logger.error('Error processing drip campaigns:', error);
+    }
+  }
+
+  private async executeDripStep(enrollment: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    const steps = enrollment.campaign.steps || [];
+    const stepIndex = enrollment.current_step;
+
+    if (stepIndex >= steps.length) {
+      // Completion
+      await supabase
+        .from(this.DRIP_ENROLLMENTS_TABLE)
+        .update({ status: 'completed' })
+        .eq('id', enrollment.id);
+      return;
+    }
+
+    const currentStep = steps[stepIndex];
+    
+    try {
+      // Get template
+      const { data: template } = await supabase
+        .from(this.TEMPLATES_TABLE)
+        .select('*')
+        .eq('id', currentStep.template_id)
+        .single();
+
+      if (template) {
+        // Send email
+        await this.sendEmailToRecipient({
+          id: enrollment.campaign.id,
+          name: enrollment.campaign.name,
+          template_id: template.id,
+          template: template,
+          sender_email: enrollment.campaign.sender_email || 'noreply@crm.com',
+          sender_name: enrollment.campaign.sender_name || 'CRM Automation',
+        }, enrollment.lead, { 
+          workspace_id: enrollment.campaign.workspace_id, 
+          organization_id: enrollment.campaign.organization_id 
+        });
+      }
+
+      // Schedule next step
+      const nextStepIndex = stepIndex + 1;
+      let nextRunAt = null;
+
+      if (nextStepIndex < steps.length) {
+        const nextStep = steps[nextStepIndex];
+        const delayHours = nextStep.delay_hours || 24;
+        const date = new Date();
+        date.setHours(date.getHours() + delayHours);
+        nextRunAt = date.toISOString();
+      }
+
+      await supabase
+        .from(this.DRIP_ENROLLMENTS_TABLE)
+        .update({
+          current_step: nextStepIndex,
+          status: nextStepIndex >= steps.length ? 'completed' : 'active',
+          next_run_at: nextRunAt,
+          last_run_at: new Date().toISOString(),
+        })
+        .eq('id', enrollment.id);
+
+    } catch (error) {
+      this.logger.error(`Error executing drip step for enrollment ${enrollment.id}:`, error);
+    }
   }
 
   private getDateFrom(timeRange: string): Date {

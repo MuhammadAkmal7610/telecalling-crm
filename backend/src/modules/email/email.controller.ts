@@ -87,6 +87,40 @@ export class EmailController {
     return this.emailService.triggerAutomation(id, triggerData, req.user);
   }
 
+  // ==================== DRIP CAMPAIGNS ====================
+
+  @Post('drip-campaigns')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Create drip campaign' })
+  async createDripCampaign(@Body() campaignData: any, @Req() req: any) {
+    return this.emailService.createDripCampaign(campaignData, req.user);
+  }
+
+  @Get('drip-campaigns')
+  @ApiOperation({ summary: 'Get drip campaigns' })
+  async getDripCampaigns(@Req() req: any) {
+    return this.emailService.getDripCampaigns(req.user);
+  }
+
+  @Put('drip-campaigns/:id')
+  @ApiOperation({ summary: 'Update drip campaign' })
+  async updateDripCampaign(@Param('id') id: string, @Body() campaignData: any, @Req() req: any) {
+    return this.emailService.updateDripCampaign(id, campaignData, req.user);
+  }
+
+  @Delete('drip-campaigns/:id')
+  @ApiOperation({ summary: 'Delete drip campaign' })
+  async deleteDripCampaign(@Param('id') id: string, @Req() req: any) {
+    return this.emailService.deleteDripCampaign(id, req.user);
+  }
+
+  @Post('drip-campaigns/:id/enroll')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Enroll lead in drip campaign' })
+  async enrollInDripCampaign(@Param('id') id: string, @Body('leadId') leadId: string, @Req() req: any) {
+    return this.emailService.enrollInDripCampaign(id, leadId, req.user);
+  }
+
   // ==================== ANALYTICS ====================
 
   @Get('analytics')

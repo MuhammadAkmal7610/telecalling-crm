@@ -360,7 +360,7 @@ export class TelephonyService {
     }
 
     private async handleLeadStatusUpdate(leadId: string, callStatus: string, userId: string, workspaceId: string, organizationId: string) {
-        let newStatus: LeadStatus = null;
+        let newStatus: LeadStatus | null = null;
         const normalizedStatus = callStatus.toUpperCase();
 
         if (normalizedStatus === 'CONNECTED') {

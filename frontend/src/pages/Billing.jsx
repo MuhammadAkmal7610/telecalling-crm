@@ -285,6 +285,32 @@ export default function Billing() {
         }
     };
 
+    const handleUpgrade = async (planName) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            const res = await fetch(`${API_URL}/billing/upgrade`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ plan: planName })
+            });
+
+            if (res.ok) {
+                fetchBillingData();
+                alert(`Successfully upgraded to ${planName} plan!`);
+            } else {
+                const err = await res.json();
+                alert(`Upgrade failed: ${err.message}`);
+            }
+        } catch (error) {
+            console.error('Upgrade error:', error);
+        }
+    };
+
     return (
         <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased">
             <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />

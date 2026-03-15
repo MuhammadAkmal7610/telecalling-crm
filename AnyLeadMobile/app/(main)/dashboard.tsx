@@ -85,8 +85,14 @@ export default function DashboardScreen() {
             style={styles.quickAction}
           />
           <Button
-            title="Create Campaign"
-            onPress={() => router.push('/campaigns/create' as any)}
+            title="Campaign"
+            onPress={() => router.push('/campaigns' as any)}
+            variant="secondary"
+            style={styles.quickAction}
+          />
+          <Button
+            title="Email"
+            onPress={() => router.push('/email' as any)}
             variant="secondary"
             style={styles.quickAction}
           />

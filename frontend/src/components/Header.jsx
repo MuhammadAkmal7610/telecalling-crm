@@ -10,13 +10,26 @@ import {
     DocumentTextIcon, UserCircleIcon, ChatBubbleLeftEllipsisIcon, NoSymbolIcon, PowerIcon, CogIcon, ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../assets/Logo.png';
+import GlobalSearch from './GlobalSearch';
 
 export default function Header({ setIsSidebarOpen }) {
     const { user, signOut } = useAuth();
     const { workspaces, currentWorkspace, switchWorkspace } = useWorkspace();
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                setIsSearchOpen(true);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     useEffect(() => {
         const fetchNotifications = async () => {
@@ -94,15 +107,19 @@ export default function Header({ setIsSidebarOpen }) {
 
             {/* Center Section: Search Bar (Reduced Width & Centered) */}
             <div className="flex-1 flex justify-center px-4">
-                <div className="hidden md:flex items-center w-64 bg-gray-100/80 rounded-full px-4 py-2 transition-all duration-300 focus-within:bg-white focus-within:shadow-md focus-within:ring-2 focus-within:ring-teal-500/20 border border-transparent focus-within:border-teal-100">
+                <div 
+                    onClick={() => setIsSearchOpen(true)}
+                    className="hidden md:flex items-center w-64 bg-gray-100/80 rounded-full px-4 py-2 cursor-pointer transition-all duration-300 hover:bg-gray-200/80 border border-transparent"
+                >
                     <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 mr-2.5" />
-                    <input
-                        type="text"
-                        placeholder="Search..."
-                        className="bg-transparent border-none outline-none text-gray-700 text-sm w-full placeholder-gray-400 font-medium"
-                    />
+                    <span className="text-gray-400 text-sm font-medium flex-1">Search...</span>
+                    <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-gray-300 bg-white text-[10px] font-medium text-gray-400 shadow-sm">
+                        Ctrl K
+                    </kbd>
                 </div>
             </div>
+
+            <GlobalSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
 
             <div className="flex items-center gap-4">
                 {/* Workspace Switcher & Settings Dropdown */}

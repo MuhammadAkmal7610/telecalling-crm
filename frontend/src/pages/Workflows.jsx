@@ -4,80 +4,14 @@ import { supabase } from '../lib/supabaseClient';
 import { useEffect, useState } from 'react';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import { ArrowPathIcon, PlusIcon, MagnifyingGlassIcon, TrashIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
-import { ChatBubbleLeftRightIcon, UserIcon, PhoneIcon } from '@heroicons/react/24/solid'; // Icons for event pills
+import { ChatBubbleLeftRightIcon, UserIcon, PhoneIcon } from '@heroicons/react/24/solid';
+import { toast } from 'react-hot-toast';
 import WorkflowWizard from '../components/WorkflowWizard';
+import VisualWorkflowBuilder from '../components/Workflows/VisualWorkflowBuilder';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
-// Mock Data
-const workflows = [
-    {
-        id: 1,
-        name: 'FCAPI',
-        events: [{ text: 'Lead Status Change +1', color: 'bg-teal-100 text-teal-700' }],
-        status: true,
-        statusUpdatedOn: '9h ago',
-        statusUpdatedBy: 'EH',
-    },
-    {
-        id: 2,
-        name: 'On template replied signalgrouprecovery',
-        events: [{ text: 'Replied', icon: ChatBubbleLeftRightIcon, color: 'bg-green-100 text-green-700' }],
-        status: true,
-        statusUpdatedOn: '9h ago',
-        statusUpdatedBy: 'EH',
-    },
-    {
-        id: 3,
-        name: 'On WhatsApp received',
-        draft: true,
-        events: [{ text: 'Replied', icon: ChatBubbleLeftRightIcon, color: 'bg-green-100 text-green-700' }],
-        status: true,
-        statusUpdatedOn: '3d ago',
-        statusUpdatedBy: 'EH',
-    },
-    {
-        id: 4,
-        name: 'On WhatsApp lead',
-        events: [{ text: 'Lead Creation', icon: UserIcon, color: 'bg-green-100 text-green-700' }],
-        status: true,
-        statusUpdatedOn: '7d ago',
-        statusUpdatedBy: 'EH',
-    },
-    {
-        id: 5,
-        name: 'Facebook leads',
-        draft: true,
-        events: [{ text: 'Facebook action', color: 'bg-teal-100 text-teal-700' }],
-        status: true,
-        statusUpdatedOn: '4M ago',
-        statusUpdatedBy: 'EH',
-    },
-    {
-        id: 6,
-        name: 'Manual leads',
-        events: [{ text: 'Lead Creation', icon: UserIcon, color: 'bg-teal-100 text-teal-700' }],
-        status: true,
-        statusUpdatedOn: '5M ago',
-        statusUpdatedBy: 'EH',
-    },
-    {
-        id: 7,
-        name: 'website leads',
-        events: [{ text: 'Lead Creation', icon: UserIcon, color: 'bg-teal-100 text-teal-700' }],
-        status: true,
-        statusUpdatedOn: '5M ago',
-        statusUpdatedBy: 'EH',
-    },
-    {
-        id: 8,
-        name: 'Outgoing call WF',
-        events: [{ text: 'On Outgoing Call Ended', icon: PhoneIcon, color: 'bg-teal-100 text-teal-700' }],
-        status: true,
-        statusUpdatedOn: '5M ago',
-        statusUpdatedBy: 'EH',
-    },
-];
+// Workflows will be fetched from API
 
 export default function Workflows() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -85,6 +19,8 @@ export default function Workflows() {
     const [workflows, setWorkflows] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isWizardOpen, setIsWizardOpen] = useState(false);
+    const [viewMode, setViewMode] = useState('list'); // 'list' or 'canvas'
+    const [selectedWorkflow, setSelectedWorkflow] = useState(null);
 
     useEffect(() => {
         fetchWorkflows();
@@ -125,7 +61,7 @@ export default function Workflows() {
                 ]
             }));
 
-            setWorkflows(mappedWorkflows);
+            setWorkflows(mappedWorkflows || []);
         } catch (error) {
             console.error('Error fetching workflows:', error);
         } finally {
@@ -166,12 +102,28 @@ export default function Workflows() {
                                     <h1 className="text-2xl font-semibold text-gray-800">Workflows</h1>
                                     <ArrowPathIcon className="w-5 h-5 text-gray-500 cursor-pointer hover:rotate-180 transition-transform duration-500" />
                                 </div>
-                                <button
-                                    onClick={handleCreateWorkflow}
-                                    className="bg-[#08A698] hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors"
-                                >
-                                    Create Workflow <PlusIcon className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex bg-gray-200 p-1 rounded-lg">
+                                        <button 
+                                            onClick={() => setViewMode('list')}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            List View
+                                        </button>
+                                        <button 
+                                            onClick={() => setViewMode('canvas')}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${viewMode === 'canvas' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            Canvas Mode
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={handleCreateWorkflow}
+                                        className="bg-[#08A698] hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors"
+                                    >
+                                        Create Workflow <PlusIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                             <p className="text-sm text-gray-500 mb-6">
                                 To execute complex automations with ease <span className="text-[#08A698] underline cursor-pointer decoration-dotted">Learn More</span>
@@ -221,95 +173,122 @@ export default function Workflows() {
                                 {workflows.length} matching flowcharts found
                             </div>
 
-                            {/* Table */}
-                            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm text-left">
-                                        <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
-                                            <tr>
-                                                <th className="px-6 py-3 min-w-[200px]">Name</th>
-                                                <th className="px-6 py-3">Events</th>
-                                                <th className="px-6 py-3">Status</th>
-                                                <th className="px-6 py-3 bg-gray-100/50 border-x border-gray-200/50 cursor-pointer hover:bg-gray-100 transition-colors">
-                                                    Status updated on <span className="text-[10px] ml-1">▼</span>
-                                                </th>
-                                                <th className="px-6 py-3">Status updated by</th>
-                                                <th className="px-6 py-3 text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-200">
-                                            {loading ? (
+                            {/* Conditional Rendering based on viewMode */}
+                            {viewMode === 'canvas' ? (
+                                <div className="h-[calc(100vh-300px)] border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                                    <VisualWorkflowBuilder 
+                                        workflow={selectedWorkflow}
+                                        onClose={() => setViewMode('list')}
+                                        onSave={async (data) => {
+                                            try {
+                                                const { data: { session } } = await supabase.auth.getSession();
+                                                const res = await fetch(`${API_URL}/workflows/${selectedWorkflow.id}`, {
+                                                    method: 'PATCH',
+                                                    headers: {
+                                                        'Content-Type': 'application/json',
+                                                        'Authorization': `Bearer ${session.access_token}`
+                                                    },
+                                                    body: JSON.stringify({ canvas_data: data })
+                                                });
+                                                if (res.ok) {
+                                                    toast.success('Workflow canvas saved!');
+                                                    fetchWorkflows();
+                                                }
+                                            } catch (error) {
+                                                console.error('Error saving workflow canvas:', error);
+                                            }
+                                            setViewMode('list');
+                                        }}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            {/* ... existing table content ... */}
+                                            <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
                                                 <tr>
-                                                    <td colSpan="6" className="px-6 py-10 text-center">
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            <ArrowPathIcon className="w-5 h-5 text-[#08A698] animate-spin" />
-                                                            <span className="text-gray-500">Loading workflows...</span>
-                                                        </div>
-                                                    </td>
+                                                    <th className="px-6 py-3 min-w-[200px]">Name</th>
+                                                    <th className="px-6 py-3">Events</th>
+                                                    <th className="px-6 py-3">Status</th>
+                                                    <th className="px-6 py-3 bg-gray-100/50 border-x border-gray-200/50 cursor-pointer hover:bg-gray-100 transition-colors">
+                                                        Status updated on <span className="text-[10px] ml-1">▼</span>
+                                                    </th>
+                                                    <th className="px-6 py-3">Status updated by</th>
+                                                    <th className="px-6 py-3 text-right">Actions</th>
                                                 </tr>
-                                            ) : workflows.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan="6" className="px-6 py-10 text-center text-gray-400 italic">
-                                                        No workflows found
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                workflows.map((workflow) => (
-                                                    <tr key={workflow.id} className="hover:bg-gray-50/50 transition-colors">
-                                                        <td className="px-6 py-4 font-medium text-gray-900">
-                                                            <div>{workflow.name}</div>
-                                                            {workflow.draft && (
-                                                                <div className="text-xs text-[#08A698] font-medium mt-0.5 border-b border-dashed border-[#08A698] w-fit cursor-pointer">View Draft</div>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {workflow.events.map((event, idx) => (
-                                                                    <span key={idx} className={`px-2 py-1 rounded-full text-xs font-medium border border-transparent flex w-fit items-center gap-1.5 ${event.color}`}>
-                                                                        {event.icon && <event.icon className="w-3 h-3" />}
-                                                                        {event.text}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            {/* Custom Toggle Switch */}
-                                                            <div className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#08A698] focus:ring-offset-2 ${workflow.status ? 'bg-[#08A698]' : 'bg-gray-200'}`}>
-                                                                <span className="sr-only">Use setting</span>
-                                                                <span
-                                                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${workflow.status ? 'translate-x-5' : 'translate-x-0'}`}
-                                                                >
-                                                                    {workflow.status && (
-                                                                        <span className="absolute inset-0 flex h-full w-full items-center justify-center transition-opacity duration-200 ease-in">
-                                                                            <span className="text-[8px] font-bold text-[#08A698]">ON</span>
-                                                                        </span>
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-gray-500">{workflow.statusUpdatedOn}</td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-xs font-bold ring-2 ring-white">
-                                                                {workflow.statusUpdatedBy}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-right">
-                                                            <div className="flex items-center justify-end gap-2">
-                                                                <button className="p-1.5 text-gray-400 hover:text-[#08A698] hover:bg-teal-50 rounded-md transition-colors border border-gray-200">
-                                                                    <DocumentDuplicateIcon className="w-4 h-4" />
-                                                                </button>
-                                                                <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors border border-gray-200">
-                                                                    <TrashIcon className="w-4 h-4" />
-                                                                </button>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200">
+                                                {loading ? (
+                                                    <tr>
+                                                        <td colSpan="6" className="px-6 py-10 text-center">
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <ArrowPathIcon className="w-5 h-5 text-[#08A698] animate-spin" />
+                                                                <span className="text-gray-500">Loading workflows...</span>
                                                             </div>
                                                         </td>
                                                     </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
+                                                ) : workflows.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="6" className="px-6 py-10 text-center text-gray-400 italic">
+                                                            No workflows found
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    workflows.map((workflow) => (
+                                                        <tr key={workflow.id} onClick={() => setSelectedWorkflow(workflow)} className="hover:bg-gray-50/50 transition-colors cursor-pointer">
+                                                            <td className="px-6 py-4 font-medium text-gray-900">
+                                                                <div>{workflow.name}</div>
+                                                                {workflow.draft && (
+                                                                    <div className="text-xs text-[#08A698] font-medium mt-0.5 border-b border-dashed border-[#08A698] w-fit cursor-pointer">View Draft</div>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {workflow.events.map((event, idx) => (
+                                                                        <span key={idx} className={`px-2 py-1 rounded-full text-xs font-medium border border-transparent flex w-fit items-center gap-1.5 ${event.color}`}>
+                                                                            {event.icon && <event.icon className="w-3 h-3" />}
+                                                                            {event.text}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#08A698] focus:ring-offset-2 ${workflow.status ? 'bg-[#08A698]' : 'bg-gray-200'}`}>
+                                                                    <span className="sr-only">Use setting</span>
+                                                                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${workflow.status ? 'translate-x-5' : 'translate-x-0'}`}>
+                                                                        {workflow.status && (
+                                                                            <span className="absolute inset-0 flex h-full w-full items-center justify-center transition-opacity duration-200 ease-in">
+                                                                                <span className="text-[8px] font-bold text-[#08A698]">ON</span>
+                                                                            </span>
+                                                                        )}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-gray-500">{workflow.statusUpdatedOn}</td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-xs font-bold ring-2 ring-white">
+                                                                    {workflow.statusUpdatedBy}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    <button className="p-1.5 text-gray-400 hover:text-[#08A698] hover:bg-teal-50 rounded-md transition-colors border border-gray-200">
+                                                                        <DocumentDuplicateIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                    <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors border border-gray-200">
+                                                                        <TrashIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                         </div>
                     </WorkspaceGuard>

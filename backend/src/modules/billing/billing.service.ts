@@ -28,11 +28,23 @@ export class BillingService {
 
     async updateSubscription(organizationId: string, plan: string) {
         const supabase = this.supabaseService.getAdminClient();
+        
+        // Define limits per plan
+        const planLimits: Record<string, any> = {
+            free: { leads: 100, users: 2 },
+            plus: { leads: 1000, users: 10 },
+            pro: { leads: 5000, users: 50 },
+            enterprise: { leads: 100000, users: 1000 },
+        };
+
+        const limits = planLimits[plan.toLowerCase()] || planLimits.free;
+
         const { data, error } = await supabase
             .from(this.TABLE)
             .upsert({
                 organization_id: organizationId,
                 plan,
+                limits,
                 updated_at: new Date().toISOString()
             })
             .select()

@@ -87,6 +87,16 @@ export default function MainLayout() {
                 }}
             />
             <Drawer.Screen
+                name="email"
+                options={{
+                    drawerLabel: 'Email Campaigns',
+                    title: 'Email Marketing',
+                    drawerIcon: ({ color, size }) => (
+                        <Ionicons name="mail-outline" size={size} color={color} />
+                    ),
+                }}
+            />
+            <Drawer.Screen
                 name="dialer"
                 options={{
                     drawerLabel: 'Dialer',

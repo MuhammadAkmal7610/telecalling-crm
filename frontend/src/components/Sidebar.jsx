@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { usePermission } from '../hooks/usePermission';
+import { useTheme } from '../context/ThemeContext';
 
 import {
     HomeIcon, MagnifyingGlassIcon, UserPlusIcon, ListBulletIcon,
@@ -12,7 +13,7 @@ import {
     UserGroupIcon, IdentificationIcon, ClipboardDocumentCheckIcon, ChatBubbleLeftRightIcon,
     GlobeAltIcon, CursorArrowRaysIcon, ArchiveBoxIcon, Squares2X2Icon, ViewColumnsIcon, DocumentTextIcon,
     ShieldCheckIcon, BuildingOfficeIcon, CreditCardIcon, ArrowTrendingUpIcon, ChatBubbleLeftRightIcon as WhatsAppIcon,
-    EnvelopeIcon
+    EnvelopeIcon, SunIcon, MoonIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../assets/Logo.png';
 
@@ -22,7 +23,7 @@ const navigation = [
     { name: 'Search', icon: MagnifyingGlassIcon, path: '/search' },
     { name: 'Add Leads', icon: UserPlusIcon, path: '/add-leads' },
     { name: 'Activities', icon: ListBulletIcon, path: '/activities' },
-    { name: 'WhatsApp', icon: WhatsAppIcon, path: '/whatsapp-integration' },
+    { name: 'WhatsApp', icon: WhatsAppIcon, path: '/whatsapp' },
     { name: 'Email', icon: EnvelopeIcon, path: '/email-campaigns' },
     { name: 'Invitations', icon: UserGroupIcon, path: '/user-invitations' },
     { name: 'Analytics', icon: ChartBarIcon, path: '/advanced-analytics' },
@@ -89,6 +90,7 @@ function HoverMenu({ children, menuContent }) {
 export default function Sidebar({ isOpen, setIsOpen }) {
     const location = useLocation();
     const { can } = usePermission();
+    const { isDarkMode, toggleTheme } = useTheme();
 
     return (
         <>
@@ -301,6 +303,21 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                         </nav>
                     </div>
                 )}
+
+                {/* Theme Toggle */}
+                <div className="mt-auto w-full pb-6 px-4">
+                    <button
+                        onClick={toggleTheme}
+                        className="flex items-center justify-center w-full py-2 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group"
+                        title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                    >
+                        {isDarkMode ? (
+                            <SunIcon className="w-5 h-5 text-yellow-500 group-hover:scale-110 transition-transform" />
+                        ) : (
+                            <MoonIcon className="w-5 h-5 text-gray-500 group-hover:scale-110 transition-transform" />
+                        )}
+                    </button>
+                </div>
             </div>
 
             {/* Mobile Sidebar (Drawer) */}

@@ -30,6 +30,7 @@ import { ScriptsModule } from './modules/scripts/scripts.module';
 import { PublicModule } from './modules/public/public.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { TelephonyModule } from './modules/telephony/telephony.module';
+import { QueuesModule } from './modules/queues/queues.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { TelephonyModule } from './modules/telephony/telephony.module';
     PublicModule,
     AdminModule,
     TelephonyModule,
+    QueuesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

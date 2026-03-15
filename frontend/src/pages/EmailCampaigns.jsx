@@ -31,6 +31,8 @@ import {
   ArrowLeft,
   MoreVertical,
 } from 'lucide-react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { useApi } from '../hooks/useApi';
 import { useWorkspace } from '../context/WorkspaceContext';
 
@@ -112,7 +114,7 @@ export default function EmailCampaigns() {
 
   const fetchAutomations = async () => {
     try {
-      const res = await apiFetch('/email/automation');
+      const res = await apiFetch('/email/drip-campaigns');
       const data = await res.json();
       setAutomations(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -441,27 +443,37 @@ export default function EmailCampaigns() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Text Content
+                Template Content (Visual Editor)
               </label>
-              <textarea
-                value={templateData.content}
-                onChange={(e) => setTemplateData({...templateData, content: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={8}
-                placeholder="Dear {{name}},&#10;&#10;Welcome to our platform!&#10;&#10;Best regards,&#10;The Team"
-              />
+              <div className="bg-white">
+                <ReactQuill 
+                  theme="snow"
+                  value={templateData.html_content}
+                  onChange={(content) => setTemplateData({...templateData, html_content: content, content: content.replace(/<[^>]*>/g, '')})}
+                  className="h-64 mb-12"
+                  modules={{
+                    toolbar: [
+                      [{ 'header': [1, 2, false] }],
+                      ['bold', 'italic', 'underline','strike', 'blockquote'],
+                      [{'list': 'ordered'}, {'list': 'bullet'}, {'indent': '-1'}, {'indent': '+1'}],
+                      ['link', 'image'],
+                      ['clean']
+                    ],
+                  }}
+                />
+              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                HTML Content (Optional)
+                Plain Text Version
               </label>
               <textarea
-                value={templateData.html_content}
-                onChange={(e) => setTemplateData({...templateData, html_content: e.target.value})}
+                value={templateData.content}
+                onChange={(e) => setTemplateData({...templateData, content: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                rows={8}
-                placeholder="<h1>Dear {{name}}</h1><p>Welcome to our platform!</p>"
+                rows={4}
+                placeholder="Plain text version for email clients that don't support HTML"
               />
             </div>
 
@@ -792,6 +804,8 @@ export default function EmailCampaigns() {
   };
 
   const renderAutomation = () => {
+    const campaignsArray = Array.isArray(automations) ? automations : [];
+    
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -800,24 +814,191 @@ export default function EmailCampaigns() {
             <p className="text-gray-600">Set up automated email sequences and triggers</p>
           </div>
           <button
-            onClick={() => setShowAutomationModal(true)}
+            onClick={() => {
+              setSelectedCampaign(null);
+              setShowAutomationModal(true);
+            }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Create Automation
+            Create Drip Campaign
           </button>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-          <Zap className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Email Automation</h3>
-          <p className="text-gray-600 mb-4">Create powerful automation workflows for your email campaigns</p>
-          <button
-            onClick={() => setShowAutomationModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Create Automation
-          </button>
+        {loading ? (
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading automations...</p>
+          </div>
+        ) : campaignsArray.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <Zap className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Automation Found</h3>
+            <p className="text-gray-600 mb-4">Create powerful automation workflows for your email campaigns</p>
+            <button
+              onClick={() => setShowAutomationModal(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Create Drip Campaign
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {campaignsArray.map((campaign) => (
+              <div key={campaign.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">{campaign.name}</h3>
+                    <p className="text-sm text-gray-500">{campaign.steps?.length || 0} steps</p>
+                  </div>
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${campaign.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                    {campaign.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between mt-6">
+                  <div className="flex items-center space-x-2">
+                    <button onClick={() => { setSelectedCampaign(campaign); setShowAutomationModal(true); }} className="p-1 text-gray-400 hover:text-gray-600">
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button className="p-1 text-gray-400 hover:text-red-600">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <button className="text-blue-600 text-sm font-medium hover:underline">View Stats</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const AutomationModal = () => {
+    const [automationData, setAutomationData] = useState(selectedCampaign || {
+      name: '',
+      description: '',
+      sender_name: '',
+      sender_email: '',
+      steps: [{ template_id: '', delay_hours: 0 }]
+    });
+
+    const addStep = () => {
+      setAutomationData({
+        ...automationData,
+        steps: [...automationData.steps, { template_id: '', delay_hours: 24 }]
+      });
+    };
+
+    const removeStep = (index) => {
+      const newSteps = [...automationData.steps];
+      newSteps.splice(index, 1);
+      setAutomationData({ ...automationData, steps: newSteps });
+    };
+
+    const updateStep = (index, field, value) => {
+      const newSteps = [...automationData.steps];
+      newSteps[index] = { ...newSteps[index], [field]: value };
+      setAutomationData({ ...automationData, steps: newSteps });
+    };
+
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      try {
+        const url = automationData.id ? `/email/drip-campaigns/${automationData.id}` : '/email/drip-campaigns';
+        const method = automationData.id ? 'PUT' : 'POST';
+        
+        const res = await apiFetch(url, {
+          method,
+          body: JSON.stringify(automationData),
+        });
+        
+        if (res.ok) {
+          setShowAutomationModal(false);
+          fetchAutomations();
+          alert('Automation saved successfully!');
+        }
+      } catch (error) {
+        alert('Failed to save automation');
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {automationData.id ? 'Edit Drip Campaign' : 'Create Drip Campaign'}
+              </h3>
+              <button onClick={() => setShowAutomationModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <input type="text" required value={automationData.name} onChange={(e) => setAutomationData({...automationData, name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <input type="text" value={automationData.description} onChange={(e) => setAutomationData({...automationData, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Sender Name</label>
+                <input type="text" required value={automationData.sender_name} onChange={(e) => setAutomationData({...automationData, sender_name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Sender Email</label>
+                <input type="email" required value={automationData.sender_email} onChange={(e) => setAutomationData({...automationData, sender_email: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-gray-900">Sequence Steps</h4>
+                <button type="button" onClick={addStep} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                  <Plus className="w-4 h-4" /> Add Step
+                </button>
+              </div>
+
+              {automationData.steps.map((step, index) => (
+                <div key={index} className="flex items-end gap-4 p-4 bg-gray-50 rounded-lg relative">
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Email Template</label>
+                    <select value={step.template_id} onChange={(e) => updateStep(index, 'template_id', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                      <option value="">Select Template</option>
+                      {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="w-32">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Delay (hours)</label>
+                    <input type="number" value={step.delay_hours} onChange={(e) => updateStep(index, 'delay_hours', parseInt(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                  </div>
+                  {index > 0 && (
+                    <button type="button" onClick={() => removeStep(index)} className="p-2 text-red-500 hover:bg-red-50 rounded">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 text-white text-[10px] flex items-center justify-center rounded-full font-bold">
+                    {index + 1}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+              <button type="button" onClick={() => setShowAutomationModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Drip Campaign</button>
+            </div>
+          </form>
         </div>
       </div>
     );
@@ -955,6 +1136,7 @@ export default function EmailCampaigns() {
       {/* Modals */}
       {showCampaignModal && <CampaignModal />}
       {showTemplateModal && <TemplateModal />}
+      {showAutomationModal && <AutomationModal />}
     </div>
   );
 }

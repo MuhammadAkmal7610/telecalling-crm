@@ -37,6 +37,21 @@ export class ExternalLeadsController {
         return this.externalLeadsService.handleJustdial(data, orgId);
     }
 
+    @Post('facebook')
+    @ApiOperation({ summary: 'Facebook Lead Ads Webhook' })
+    @ApiQuery({ name: 'orgId', required: true })
+    @ApiQuery({ name: 'token', required: true })
+    async facebook(
+        @Body() data: any,
+        @Query('orgId') orgId: string,
+        @Query('token') token: string
+    ) {
+        if (!orgId) throw new BadRequestException('orgId is required');
+        if (!token) throw new BadRequestException('token is required');
+        await this.externalLeadsService.validateToken(orgId, token);
+        return this.externalLeadsService.handleFacebook(data, orgId);
+    }
+
     @Post('webhook/:orgId/:source')
     @ApiOperation({ summary: 'Generic Webhook' })
     @ApiParam({ name: 'orgId', required: true })

@@ -10,7 +10,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('billing')
-@Roles('root', 'billing_admin')
+@Roles('root', 'billing_admin', 'admin')
 export class BillingController {
     constructor(private readonly billingService: BillingService) { }
 

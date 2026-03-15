@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { XMarkIcon, PlusIcon, TrashIcon, PlayIcon, PauseIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PlusIcon, TrashIcon, PlayIcon, PauseIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { supabase } from '../lib/supabaseClient';
 import { useApi } from '../hooks/useApi';
 import { useWorkspace } from '../context/WorkspaceContext';
 
@@ -10,6 +11,15 @@ const WorkflowWizard = ({ isOpen, onClose, onSuccess, workflow = null }) => {
     const [currentStep, setCurrentStep] = useState(1);
     const [isTestMode, setIsTestMode] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [session, setSession] = useState(null);
+
+    useEffect(() => {
+        const getSession = async () => {
+            const { data } = await supabase.auth.getSession();
+            setSession(data.session);
+        };
+        getSession();
+    }, []);
     
     // Workflow data
     const [workflowData, setWorkflowData] = useState({
@@ -239,6 +249,67 @@ const WorkflowWizard = ({ isOpen, onClose, onSuccess, workflow = null }) => {
                                 {triggerTypes.find(t => t.value === workflowData.trigger.type)?.description}
                             </p>
                         </div>
+
+                        {workflowData.trigger.type === 'webhook_received' && (
+                            <div className="bg-teal-50 border border-teal-100 p-4 rounded-lg space-y-3">
+                                <h4 className="text-sm font-bold text-teal-800">Webhook Configuration</h4>
+                                <div>
+                                    <label className="block text-xs font-bold text-teal-600 uppercase mb-1">Webhook URL</label>
+                                    <div className="bg-white p-2 border border-teal-200 rounded text-xs font-mono break-all text-gray-600">
+                                        {`${import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'}/api/v1/webhooks/workflows/${workflowData.trigger.config?.slug || 'your-slug'}${workflowData.trigger.config?.token ? `?token=${workflowData.trigger.config.token}` : ''}`}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-teal-600 uppercase mb-1">Webhook Slug</label>
+                                        <input
+                                            type="text"
+                                            value={workflowData.trigger.config?.slug || ''}
+                                            onChange={(e) => setWorkflowData(prev => ({
+                                                ...prev,
+                                                trigger: { 
+                                                    ...prev.trigger, 
+                                                    config: { ...prev.trigger.config, slug: e.target.value } 
+                                                }
+                                            }))}
+                                            className="w-full px-3 py-1.5 border border-teal-200 rounded text-sm focus:ring-1 focus:ring-teal-500 outline-none"
+                                            placeholder="my-cool-webhook"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-teal-600 uppercase mb-1">Security Token (Optional)</label>
+                                        <input
+                                            type="text"
+                                            value={workflowData.trigger.config?.token || ''}
+                                            onChange={(e) => setWorkflowData(prev => ({
+                                                ...prev,
+                                                trigger: { 
+                                                    ...prev.trigger, 
+                                                    config: { ...prev.trigger.config, token: e.target.value } 
+                                                }
+                                            }))}
+                                            className="w-full px-3 py-1.5 border border-teal-200 rounded text-sm focus:ring-1 focus:ring-teal-500 outline-none"
+                                            placeholder="shared-secret"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={workflowData.trigger.config?.create_lead !== false}
+                                        onChange={(e) => setWorkflowData(prev => ({
+                                            ...prev,
+                                            trigger: { 
+                                                ...prev.trigger, 
+                                                config: { ...prev.trigger.config, create_lead: e.target.checked } 
+                                            }
+                                        }))}
+                                        className="rounded border-teal-300 text-teal-600 focus:ring-teal-500"
+                                    />
+                                    <label className="text-xs text-teal-700">Auto-create lead if not found</label>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
 
