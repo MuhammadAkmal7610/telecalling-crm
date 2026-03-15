@@ -22,13 +22,16 @@ import {
 } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useSocket } from '../contexts/SocketContext';
 import WorkspaceGuard from '../components/WorkspaceGuard';
+import toast from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 export default function WhatsAppIntegration() {
   const { apiFetch } = useApi();
   const { currentWorkspace } = useWorkspace();
+  const { isConnected } = useSocket();
   
   const [activeTab, setActiveTab] = useState('chats');
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,109 +41,65 @@ export default function WhatsAppIntegration() {
   const [showAutomationModal, setShowAutomationModal] = useState(false);
   
   // Mock data - in real app, fetch from API
-  const [chats, setChats] = useState([
-    {
-      id: '1',
-      name: 'Rahul Sharma',
-      phone: '+919876543210',
-      avatar: 'RS',
-      lastMessage: 'Hi, I\'m interested in your CRM solution',
-      timestamp: '2 min ago',
-      unread: 2,
-      status: 'online',
-      isLead: true,
-      leadStatus: 'hot',
-      assignee: 'John Doe'
-    },
-    {
-      id: '2',
-      name: 'Priya Patel',
-      phone: '+919876543211',
-      avatar: 'PP',
-      lastMessage: 'Can you share pricing details?',
-      timestamp: '15 min ago',
-      unread: 0,
-      status: 'offline',
-      isLead: true,
-      leadStatus: 'warm',
-      assignee: 'Jane Smith'
-    },
-    {
-      id: '3',
-      name: 'Amit Kumar',
-      phone: '+919876543212',
-      avatar: 'AK',
-      lastMessage: 'Thanks for the demo!',
-      timestamp: '1 hour ago',
-      unread: 0,
-      status: 'online',
-      isLead: false,
-      assignee: 'John Doe'
-    }
-  ]);
+  const [chats, setChats] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [automations, setAutomations] = useState([]);
+  const [messages, setMessages] = useState([]);
 
-  const [campaigns, setCampaigns] = useState([
-    {
-      id: '1',
-      name: 'Product Launch Campaign',
-      status: 'active',
-      sent: 150,
-      delivered: 142,
-      read: 89,
-      failed: 8,
-      template: 'Product Launch Template'
-    },
-    {
-      id: '2',
-      name: 'Follow-up Sequence',
-      status: 'draft',
-      sent: 0,
-      delivered: 0,
-      read: 0,
-      failed: 0,
-      template: 'Follow-up Template'
-    }
-  ]);
+  useEffect(() => {
+    fetchConversations();
+    // fetchCampaigns();
+    // fetchAutomations();
+  }, [currentWorkspace]);
 
-  const [automations, setAutomations] = useState([
-    {
-      id: '1',
-      name: 'Auto-Reply to New Leads',
-      trigger: 'Incoming message from new contact',
-      actions: 'Send welcome message, Create lead',
-      status: 'active',
-      triggered: 45,
-      completed: 43
-    },
-    {
-      id: '2',
-      name: 'Lead Qualification Bot',
-      trigger: 'Keyword: "pricing"',
-      actions: 'Send pricing info, Tag as interested',
-      status: 'active',
-      triggered: 23,
-      completed: 23
+  useEffect(() => {
+    if (selectedChat) {
+      fetchMessages(selectedChat.lead_id || selectedChat.id);
     }
-  ]);
+  }, [selectedChat]);
 
-  const [messages, setMessages] = useState([
-    {
-      id: '1',
-      chatId: '1',
-      text: 'Hi, I\'m interested in your CRM solution',
-      sender: 'customer',
-      timestamp: '2 min ago',
-      status: 'read'
-    },
-    {
-      id: '2',
-      chatId: '1',
-      text: 'Hello Rahul! I\'d be happy to help. Our CRM includes lead management, automated follow-ups, WhatsApp integration, and advanced analytics. Would you like to schedule a demo?',
-      sender: 'agent',
-      timestamp: '1 min ago',
-      status: 'delivered'
+  useEffect(() => {
+    const handleNewMessage = (event) => {
+      const msg = event.detail;
+      if (selectedChat && (msg.lead_id === selectedChat.id || msg.from === selectedChat.phone)) {
+        setMessages(prev => [...prev, msg]);
+      }
+      fetchConversations(); // Refresh list to update last message
+    };
+
+    const handleStatusUpdate = (event) => {
+      const { external_id, status } = event.detail;
+      setMessages(prev => prev.map(m => m.external_id === external_id ? { ...m, status } : m));
+    };
+
+    window.addEventListener('whatsapp_message_received', handleNewMessage);
+    window.addEventListener('whatsapp_message_status', handleStatusUpdate);
+
+    return () => {
+      window.removeEventListener('whatsapp_message_received', handleNewMessage);
+      window.removeEventListener('whatsapp_message_status', handleStatusUpdate);
+    };
+  }, [selectedChat]);
+
+  const fetchConversations = async () => {
+    try {
+      const res = await apiFetch('/whatsapp/conversations');
+      const data = await res.json();
+      if (res.ok) setChats(data);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
     }
-  ]);
+  };
+
+  const fetchMessages = async (leadId) => {
+    try {
+      const res = await apiFetch(`/whatsapp/messages/${leadId}`);
+      const data = await res.json();
+      if (res.ok) setMessages(data);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
+  };
 
   const tabs = [
     { id: 'chats', label: 'Chats', icon: MessageSquare, count: chats.length },
@@ -149,27 +108,39 @@ export default function WhatsAppIntegration() {
     { id: 'automation', label: 'Automation', icon: Bot, count: automations.length }
   ];
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedChat) return;
 
-    const newMessage = {
-      id: Date.now().toString(),
-      chatId: selectedChat.id,
-      text: messageInput,
-      sender: 'agent',
-      timestamp: 'Just now',
-      status: 'sent'
+    const messageData = {
+      to: selectedChat.phone,
+      message: messageInput,
+      lead_id: selectedChat.lead_id || selectedChat.id,
+      type: 'text'
     };
 
-    setMessages([...messages, newMessage]);
-    setMessageInput('');
+    try {
+      const response = await apiFetch('/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(messageData)
+      });
 
-    // Update last message in chat
-    setChats(chats.map(chat => 
-      chat.id === selectedChat.id 
-        ? { ...chat, lastMessage: messageInput, timestamp: 'Just now' }
-        : chat
-    ));
+      if (!response.ok) throw new Error('Failed to send message');
+      
+      const sentMsg = await response.json();
+      
+      // Update local state with the sent message
+      setMessages(prev => [...prev, {
+        ...sentMsg,
+        text: messageInput,
+        sender: 'agent',
+        timestamp: 'Just now'
+      }]);
+      setMessageInput('');
+    } catch (error) {
+      console.error('Error sending WhatsApp message:', error);
+      toast.error('Failed to send message');
+    }
   };
 
   const handleCallContact = (contact) => {

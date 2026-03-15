@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 
 export interface WhatsAppMessage {
@@ -69,6 +70,7 @@ export class WhatsAppService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly notificationsService: NotificationsService,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async sendMessage(messageData: Partial<WhatsAppMessage>, user: any) {
@@ -299,28 +301,56 @@ export class WhatsAppService {
   }
 
   private async sendViaDirectAPI(message: any, config: any) {
-    // Direct WhatsApp Business API implementation
-    const response = await fetch(`https://graph.facebook.com/v18.0/${config.phoneNumberId}/messages`, {
+    const accessToken = config.accessToken || process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneNumberId = config.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const version = process.env.WHATSAPP_API_VERSION || 'v18.0';
+
+    if (!accessToken || !phoneNumberId) {
+      throw new BadRequestException('WhatsApp Cloud API credentials missing');
+    }
+
+    const response = await fetch(`https://graph.facebook.com/${version}/${phoneNumberId}/messages`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${config.accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         messaging_product: 'whatsapp',
         to: message.to,
-        type: message.type,
-        [message.type]: message.type === 'text' 
-          ? { body: message.message }
-          : { template_name: message.template_name },
+        type: message.type || 'text',
+        [message.type || 'text']: message.type === 'template' 
+          ? { 
+              name: message.template_name,
+              language: { code: 'en_US' }, // default or from message
+              components: message.components || [] 
+            }
+          : { body: message.message || '' },
       }),
     });
 
     const data = await response.json();
+    
+    if (data.error) {
+      this.logger.error('WhatsApp Direct API Error:', data.error);
+      throw new BadRequestException(data.error.message);
+    }
+
     return {
       message_id: data.messages[0].id,
       status: 'sent',
     };
+  }
+
+  async verifyWebhook(mode: string, token: string, challenge: string) {
+    const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+
+    if (mode === 'subscribe' && token === verifyToken) {
+      this.logger.log('WhatsApp Webhook Verified');
+      return challenge;
+    }
+    
+    throw new BadRequestException('Invalid verification token');
   }
 
   private async handleIncomingMessage(value: any) {
@@ -331,36 +361,44 @@ export class WhatsAppService {
     const message = value.messages[0];
     const contact = value.contacts?.[0];
 
-    // Find or create lead
+    // Find lead
     const { data: lead } = await supabase
       .from('leads')
       .select('*')
       .eq('phone', message.from)
       .single();
 
-    if (!lead) {
-      // Create new lead from WhatsApp message
-      await this.createLeadFromWhatsApp(message, contact);
-    }
+    const messageData = {
+      external_id: message.id,
+      from: message.from,
+      to: value.metadata.display_phone_number || value.metadata.phone_number_id,
+      message: message.text?.body || '',
+      type: message.type,
+      status: 'received',
+      timestamp: new Date(parseInt(message.timestamp) * 1000).toISOString(),
+      lead_id: lead?.id,
+      workspace_id: lead?.workspace_id,
+      organization_id: lead?.organization_id,
+    };
 
     // Save incoming message
-    await supabase
+    const { data: insertedMessage } = await supabase
       .from(this.MESSAGES_TABLE)
-      .insert({
-        external_id: message.id,
-        from: message.from,
-        to: value.metadata.phone_number_id,
-        message: message.text?.body || '',
-        type: message.type,
-        status: 'received',
-        timestamp: new Date(parseInt(message.timestamp) * 1000).toISOString(),
-        lead_id: lead?.id,
-        workspace_id: lead?.workspace_id,
-        organization_id: lead?.organization_id,
-      });
+      .insert(messageData)
+      .select()
+      .single();
 
     // Update conversation
-    await this.updateConversation(message.from, { id: lead?.user_id });
+    if (lead) {
+      await this.updateConversation(message.from, lead);
+    }
+
+    // Emit real-time update
+    if (messageData.organization_id) {
+       this.notificationsGateway.server
+         .to(`org_${messageData.organization_id}`)
+         .emit('whatsapp_message_received', insertedMessage || messageData);
+    }
   }
 
   private async handleMessageStatus(value: any) {
@@ -371,13 +409,26 @@ export class WhatsAppService {
     const status = value.statuses[0];
 
     // Update message status
-    await supabase
+    const { data: updatedMessage } = await supabase
       .from(this.MESSAGES_TABLE)
       .update({
         status: status.status,
         updated_at: new Date(parseInt(status.timestamp) * 1000).toISOString(),
       })
-      .eq('external_id', status.id);
+      .eq('external_id', status.id)
+      .select()
+      .single();
+
+    // Emit real-time status update
+    if (updatedMessage?.organization_id) {
+      this.notificationsGateway.server
+        .to(`org_${updatedMessage.organization_id}`)
+        .emit('whatsapp_message_status', {
+          external_id: status.id,
+          status: status.status,
+          lead_id: updatedMessage.lead_id
+        });
+    }
   }
 
   private async updateConversation(phoneNumber: string, user: any) {

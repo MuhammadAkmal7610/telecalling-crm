@@ -32,6 +32,16 @@ export class WhatsAppController {
     );
   }
 
+  @Get('webhook')
+  @ApiOperation({ summary: 'Verify WhatsApp webhook' })
+  async verifyWebhook(
+    @Query('hub.mode') mode: string,
+    @Query('hub.verify_token') token: string,
+    @Query('hub.challenge') challenge: string,
+  ) {
+    return this.whatsappService.verifyWebhook(mode, token, challenge);
+  }
+
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Handle WhatsApp webhook' })

@@ -61,6 +61,14 @@ class SocketService {
       this.socket.on('task_action_complete', (data) => {
         this.handleTaskActionComplete(data);
       });
+
+      this.socket.on('whatsapp_message_received', (data) => {
+        this.handleWhatsAppMessage(data);
+      });
+
+      this.socket.on('whatsapp_message_status', (data) => {
+        this.handleWhatsAppStatus(data);
+      });
     });
   }
 
@@ -142,6 +150,18 @@ class SocketService {
   handleTaskUpdate(data) {
     // Store task update in local state or trigger UI update
     window.dispatchEvent(new CustomEvent('task_update', {
+      detail: data
+    }));
+  }
+
+  handleWhatsAppMessage(data) {
+    window.dispatchEvent(new CustomEvent('whatsapp_message_received', {
+      detail: data
+    }));
+  }
+
+  handleWhatsAppStatus(data) {
+    window.dispatchEvent(new CustomEvent('whatsapp_message_status', {
       detail: data
     }));
   }
