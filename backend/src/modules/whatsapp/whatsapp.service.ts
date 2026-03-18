@@ -194,7 +194,10 @@ export class WhatsAppService {
       .eq('workspace_id', user.workspace_id)
       .order('created_at', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      this.logger.error('Error fetching WhatsApp messages:', error);
+      throw error;
+    }
     return data;
   }
 
@@ -217,7 +220,10 @@ export class WhatsAppService {
     const result = await query.order('last_message_at', { ascending: false });
     const { data, error } = result;
 
-    if (error) throw error;
+    if (error) {
+      this.logger.error('Error fetching WhatsApp conversations:', error);
+      throw error;
+    }
     return data;
   }
 
@@ -343,13 +349,16 @@ export class WhatsAppService {
   }
 
   async verifyWebhook(mode: string, token: string, challenge: string) {
-    const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+    const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || '3B5KlEMHYI5RqCxe1YyP3gnavTN_2k7antr5xSVhSrwqT9Awc';
+    
+    this.logger.log(`Verifying Webhook - Mode: ${mode}, Token: ${token}, VerifyToken: ${verifyToken}`);
 
     if (mode === 'subscribe' && token === verifyToken) {
-      this.logger.log('WhatsApp Webhook Verified');
+      this.logger.log('WhatsApp Webhook Verified Successfully');
       return challenge;
     }
     
+    this.logger.error(`Webhook verification failed. Expected ${verifyToken} but got ${token}`);
     throw new BadRequestException('Invalid verification token');
   }
 

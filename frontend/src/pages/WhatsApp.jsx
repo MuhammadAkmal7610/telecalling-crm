@@ -4,8 +4,9 @@ import Header from '../components/Header';
 import { 
   MessageSquare, Send, Paperclip, Search, 
   MoreVertical, User, Phone, CheckCheck, 
-  Clock, Filter, Zap, BarChart3, ChevronRight
+  Clock, Filter, Zap, BarChart3, ChevronRight, ArrowLeft
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useApi } from '../hooks/useApi';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 
@@ -18,7 +19,43 @@ export default function WhatsApp() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('active');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const { apiFetch } = useApi();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    // Socket Listeners
+    const handleIncomingMessage = (event) => {
+      const msg = event.detail;
+      // If it's a new message for the current chat, add it
+      if (selectedConversation && (msg.from === selectedConversation.phone_number || msg.to === selectedConversation.phone_number)) {
+        setMessages(prev => [...prev, msg]);
+      }
+      // Refresh conversation list to update last message/unread count
+      fetchConversations();
+    };
+
+    const handleMessageStatus = (event) => {
+      const statusUpdate = event.detail;
+      setMessages(prev => prev.map(m => 
+        m.external_id === statusUpdate.external_id ? { ...m, status: statusUpdate.status } : m
+      ));
+    };
+
+    window.addEventListener('whatsapp_message_received', handleIncomingMessage);
+    window.addEventListener('whatsapp_message_status', handleMessageStatus);
+
+    return () => {
+      window.removeEventListener('whatsapp_message_received', handleIncomingMessage);
+      window.removeEventListener('whatsapp_message_status', handleMessageStatus);
+    };
+  }, [selectedConversation]);
 
   useEffect(() => {
     fetchConversations();
@@ -92,7 +129,7 @@ export default function WhatsApp() {
           <WorkspaceGuard>
             <div className="flex h-full bg-white">
               {/* Conversations List */}
-              <div className="w-80 border-r border-gray-200 flex flex-col shrink-0">
+              <div className={`w-full lg:w-80 border-r border-gray-200 flex flex-col shrink-0 ${isMobile && selectedConversation ? 'hidden' : 'flex'}`}>
                 <div className="p-4 border-b border-gray-200 bg-gray-50/50">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-bold text-gray-900">WhatsApp</h2>
@@ -138,13 +175,14 @@ export default function WhatsApp() {
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start mb-0.5">
                             <h4 className="font-semibold text-gray-900 text-sm truncate">
-                              {conv.lead?.name || conv.phone_number}
+                              {conv.lead?.name || conv.contact_name || conv.phone_number}
                             </h4>
                             <span className="text-[10px] text-gray-400">
                               {conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString([], {hour: '2-digit', minute:'2-digit'}) : ''}
                             </span>
                           </div>
-                          <p className="text-xs text-gray-500 truncate">
+                          <p className="text-xs text-gray-500 truncate flex items-center gap-1">
+                            {conv.last_message?.status === 'received' ? <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mr-1" /> : null}
                             {conv.last_message?.message || 'No messages yet'}
                           </p>
                         </div>
@@ -155,12 +193,20 @@ export default function WhatsApp() {
               </div>
 
               {/* Chat Window */}
-              <div className="flex-1 flex flex-col bg-gray-50">
+              <div className={`flex-1 flex flex-col bg-gray-50 ${isMobile && !selectedConversation ? 'hidden' : 'flex'}`}>
                 {selectedConversation ? (
                   <>
                     {/* Chat Header */}
                     <div className="h-16 px-6 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-3">
+                        {isMobile && (
+                          <button 
+                            onClick={() => setSelectedConversation(null)}
+                            className="p-1 hover:bg-gray-100 rounded-lg text-gray-500 mr-2"
+                          >
+                            <ArrowLeft className="w-5 h-5" />
+                          </button>
+                        )}
                         <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center">
                           <User className="w-5 h-5 text-teal-600" />
                         </div>

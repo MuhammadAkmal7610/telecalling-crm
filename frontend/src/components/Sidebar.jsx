@@ -13,9 +13,11 @@ import {
     UserGroupIcon, IdentificationIcon, ClipboardDocumentCheckIcon, ChatBubbleLeftRightIcon,
     GlobeAltIcon, CursorArrowRaysIcon, ArchiveBoxIcon, Squares2X2Icon, ViewColumnsIcon, DocumentTextIcon,
     ShieldCheckIcon, BuildingOfficeIcon, CreditCardIcon, ArrowTrendingUpIcon, ChatBubbleLeftRightIcon as WhatsAppIcon,
-    EnvelopeIcon, SunIcon, MoonIcon
+    EnvelopeIcon, SunIcon, MoonIcon, ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../assets/Logo.png';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const navigation = [
     { name: 'Dashboard', icon: PresentationChartLineIcon, path: '/dashboard' },
@@ -91,6 +93,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     const location = useLocation();
     const { can } = usePermission();
     const { isDarkMode, toggleTheme } = useTheme();
+    const { signOut } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = async () => {
+        await signOut();
+        navigate('/login');
+    };
 
     return (
         <>
@@ -305,7 +314,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 )}
 
                 {/* Theme Toggle */}
-                <div className="mt-auto w-full pb-6 px-4">
+                <div className="w-full pb-2 px-4">
                     <button
                         onClick={toggleTheme}
                         className="flex items-center justify-center w-full py-2 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all group"
@@ -316,6 +325,22 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                         ) : (
                             <MoonIcon className="w-5 h-5 text-gray-500 group-hover:scale-110 transition-transform" />
                         )}
+                    </button>
+                </div>
+
+                {/* Logout Button */}
+                <div className="w-full pb-4 px-2">
+                    <button
+                        onClick={handleLogout}
+                        className="group/item flex flex-col items-center justify-center w-full py-1 rounded-lg transition-colors duration-200 hover:bg-rose-50 text-gray-500 hover:text-rose-600"
+                        title="Sign Out"
+                    >
+                        <div className="flex items-center justify-center w-10 h-7 rounded-full mb-1">
+                            <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                        </div>
+                        <span className="text-[9px] font-medium truncate max-w-full px-1">
+                            Sign Out
+                        </span>
                     </button>
                 </div>
             </div>
@@ -349,6 +374,15 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                             </Link>
                         )
                     })}
+                    
+                    {/* Mobile Logout Case */}
+                    <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-4 px-6 py-3 rounded-full text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors mt-4"
+                    >
+                        <ArrowRightOnRectangleIcon className="h-6 w-6" />
+                        <span>Sign Out</span>
+                    </button>
                 </nav>
             </div>
         </>

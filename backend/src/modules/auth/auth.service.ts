@@ -113,7 +113,7 @@ export class AuthService {
         });
 
         if (error) {
-            this.logger.error(`Login error: ${error.message}`);
+            this.logger.error(`Login failed for email: ${loginDto.email}. Error: ${error.message}`);
             throw new UnauthorizedException('Invalid credentials');
         }
 

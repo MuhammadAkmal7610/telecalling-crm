@@ -7,8 +7,8 @@
 CREATE TABLE IF NOT EXISTS whatsapp_messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     external_id TEXT, -- WhatsApp message ID
-    from TEXT NOT NULL,
-    to TEXT NOT NULL,
+    "from" TEXT NOT NULL,
+    "to" TEXT NOT NULL,
     message TEXT,
     type TEXT DEFAULT 'text', -- 'text', 'image', 'document', 'template'
     status TEXT DEFAULT 'sent', -- 'sent', 'delivered', 'read', 'failed', 'received'
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS whatsapp_messages (
 CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_workspace ON whatsapp_messages(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_lead ON whatsapp_messages(lead_id);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_external ON whatsapp_messages(external_id);
-CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_from ON whatsapp_messages(from);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_from ON whatsapp_messages("from");
 ALTER TABLE whatsapp_messages ENABLE ROW LEVEL SECURITY;
 
 -- 2. Create WhatsApp conversations table
@@ -250,7 +250,7 @@ BEGIN
             ELSE unread_count
         END,
         updated_at = NOW()
-    WHERE phone_number = NEW.from AND workspace_id = NEW.workspace_id;
+    WHERE phone_number = NEW."from" AND workspace_id = NEW.workspace_id;
     
     RETURN NEW;
 END;
@@ -282,7 +282,7 @@ SELECT
 FROM whatsapp_conversations wc
 LEFT JOIN leads l ON wc.lead_id = l.id
 LEFT JOIN users assignee ON l.assignee_id = assignee.id
-LEFT JOIN whatsapp_messages wm ON wc.phone_number = wm.from AND wm.workspace_id = wc.workspace_id
+LEFT JOIN whatsapp_messages wm ON wc.phone_number = wm."from" AND wm.workspace_id = wc.workspace_id
 GROUP BY wc.id, l.name, l.status, l.assignee_id, assignee.name;
 
 -- 20. Create view for call analytics
