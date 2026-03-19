@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, UseGuards, Req, HttpCode, HttpStatus, Res } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Param, UseGuards, Req, HttpCode, HttpStatus, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -56,7 +56,7 @@ export class WhatsAppController {
   @UseGuards(JwtAuthGuard)
   @Get('messages/:leadId')
   @ApiOperation({ summary: 'Get WhatsApp messages for a lead' })
-  async getMessages(@Query('leadId') leadId: string, @Req() req: any) {
+  async getMessages(@Param('leadId') leadId: string, @Req() req: any) {
     return this.whatsappService.getMessages(leadId, req.user);
   }
 
@@ -71,6 +71,14 @@ export class WhatsAppController {
   @Get('analytics')
   @ApiOperation({ summary: 'Get WhatsApp analytics' })
   async getAnalytics(@Req() req: any, @Query('timeRange') timeRange?: string) {
-    return this.whatsappService.getAnalytics(req.user.workspace_id, timeRange);
+    return this.whatsappService.getAnalytics(req.user.workspaceId, timeRange);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('sync-templates')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sync WhatsApp templates from Meta' })
+  async syncTemplates(@Req() req: any) {
+    return this.whatsappService.syncTemplatesFromMeta(req.user);
   }
 }

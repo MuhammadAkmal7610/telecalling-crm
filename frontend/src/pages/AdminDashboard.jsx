@@ -8,72 +8,28 @@ import { useNavigate } from 'react-router-dom';
 import {
     UsersIcon,
     BuildingOfficeIcon,
-    UserPlusIcon,
-    ChartBarIcon,
     PhoneIcon,
     ArrowPathIcon,
     CheckCircleIcon,
     ClockIcon,
     MegaphoneIcon,
-    KeyIcon,
-    UserIcon,
-    Cog6ToothIcon,
     ShieldCheckIcon,
     ArrowTrendingUpIcon,
     CreditCardIcon,
+    PencilSquareIcon,
+    CheckIcon,
+    ArrowPathRoundedSquareIcon
 } from '@heroicons/react/24/outline';
-import Skeleton from '../components/ui/Skeleton';
-import EmptyState from '../components/ui/EmptyState';
-import { API_URL } from '../lib/config';
+import { toast } from 'react-hot-toast';
 
-const StatCard = ({ icon: Icon, label, value, sub, color = 'teal', trend }) => {
-    const colorMap = {
-        teal: 'bg-[#08A698]/10 text-[#08A698]',
-        blue: 'bg-blue-50 text-blue-600',
-        purple: 'bg-purple-50 text-purple-600',
-        amber: 'bg-amber-50 text-amber-600',
-        green: 'bg-green-50 text-green-600',
-        rose: 'bg-rose-50 text-rose-600',
-    };
-    return (
-        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-start justify-between">
-                <div className={`p-2.5 rounded-xl ${colorMap[color]}`}>
-                    <Icon className="w-5 h-5" />
-                </div>
-                {trend !== undefined && (
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${trend >= 0 ? 'bg-green-50 text-green-600' : 'bg-rose-50 text-rose-600'}`}>
-                        {trend >= 0 ? '+' : ''}{trend} this week
-                    </span>
-                )}
-            </div>
-            <div className="mt-3">
-                <div className="text-2xl font-bold text-gray-900">{value ?? <span className="text-gray-300 animate-pulse">—</span>}</div>
-                <div className="text-sm font-medium text-gray-700 mt-0.5">{label}</div>
-                {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
-            </div>
-        </div>
-    );
-};
-
-const RoleTag = ({ role }) => {
-    const styles = {
-        root: 'bg-purple-50 text-purple-700 border-purple-100',
-        billing_admin: 'bg-indigo-50 text-indigo-700 border-indigo-100',
-        admin: 'bg-blue-50 text-blue-700 border-blue-100',
-        manager: 'bg-teal-50 text-teal-700 border-teal-100',
-        marketing: 'bg-amber-50 text-amber-700 border-amber-100',
-        caller: 'bg-gray-100 text-gray-600 border-gray-200',
-    };
-    const icons = { root: KeyIcon, billing_admin: CreditCardIcon, admin: Cog6ToothIcon, manager: UserIcon, marketing: MegaphoneIcon, caller: PhoneIcon };
-    const Icon = icons[role] || UserIcon;
-    return (
-        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border ${styles[role] || styles.caller}`}>
-            <Icon className="w-3 h-3" />
-            {role?.charAt(0).toUpperCase() + role?.slice(1)}
-        </span>
-    );
-};
+// New Dashboard Components
+import DashboardGrid from '../components/dashboard/DashboardGrid';
+import DraggableWidget from '../components/dashboard/DraggableWidget';
+import StatCard from '../components/dashboard/StatCard';
+import RoleBreakdownWidget from '../components/dashboard/RoleBreakdownWidget';
+import StatusBreakdownWidget from '../components/dashboard/StatusBreakdownWidget';
+import QuickActionsWidget from '../components/dashboard/QuickActionsWidget';
+import ActivityFeedWidget from '../components/dashboard/ActivityFeedWidget';
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
@@ -83,11 +39,89 @@ export default function AdminDashboard() {
     const [activity, setActivity] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
+    
+    // Customization state
+    const [isEditing, setIsEditing] = useState(false);
+    const [layout, setLayout] = useState([]);
+    const [saving, setSaving] = useState(false);
 
-    // Redirect non-admins
+    const defaultLayout = [
+        { id: 'stat-users', type: 'stat', label: 'Total Users', icon: UsersIcon, color: 'teal' },
+        { id: 'stat-workspaces', type: 'stat', label: 'Workspaces', icon: BuildingOfficeIcon, color: 'blue' },
+        { id: 'stat-leads', type: 'stat', label: 'Total Leads', icon: ArrowTrendingUpIcon, color: 'purple' },
+        { id: 'stat-calls', type: 'stat', label: 'Calls This Week', icon: PhoneIcon, color: 'green' },
+        { id: 'role-breakdown', type: 'chart', span: 2 },
+        { id: 'status-breakdown', type: 'chart', span: 2 },
+        { id: 'quick-actions', type: 'actions', span: 2 },
+        { id: 'activity-feed', type: 'activity', span: 2 },
+        { id: 'stat-tasks-done', type: 'stat', label: 'Tasks Completed', icon: CheckCircleIcon, color: 'green' },
+        { id: 'stat-tasks-pending', type: 'stat', label: 'Tasks Pending', icon: ClockIcon, color: 'amber' },
+        { id: 'stat-active-campaigns', type: 'stat', label: 'Active Campaigns', icon: MegaphoneIcon, color: 'rose' },
+        { id: 'stat-total-campaigns', type: 'stat', label: 'Total Campaigns', icon: CreditCardIcon, color: 'blue' },
+    ];
+
     useEffect(() => {
         if (!isOrgAdmin && !isRoot) navigate('/dashboard');
+        fetchData();
+        loadLayout();
     }, [isOrgAdmin, isRoot]);
+
+    const loadLayout = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data, error } = await supabase
+                .from('users')
+                .select('dashboard_layout')
+                .eq('id', user.id)
+                .single();
+
+            if (data?.dashboard_layout && Array.isArray(data.dashboard_layout) && data.dashboard_layout.length > 0) {
+                // Ensure icons are mapped back (since JSON doesn't store components)
+                const restoredLayout = data.dashboard_layout.map(item => {
+                    const def = defaultLayout.find(d => d.id === item.id);
+                    return { ...item, icon: def?.icon };
+                });
+                setLayout(restoredLayout);
+            } else {
+                setLayout(defaultLayout);
+            }
+        } catch (e) {
+            console.error('Failed to load layout', e);
+            setLayout(defaultLayout);
+        }
+    };
+
+    const saveLayout = async () => {
+        setSaving(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Remove icon components before saving to DB
+            const layoutToSave = layout.map(({ icon, ...rest }) => rest);
+
+            const { error } = await supabase
+                .from('users')
+                .update({ dashboard_layout: layoutToSave })
+                .eq('id', user.id);
+
+            if (error) throw error;
+            toast.success('Dashboard layout saved');
+            setIsEditing(false);
+        } catch (e) {
+            console.error('Failed to save layout', e);
+            toast.error('Failed to save layout');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const resetLayout = () => {
+        setLayout(defaultLayout);
+        toast.success('Reset to default');
+    };
 
     const fetchData = async () => {
         setLoading(true);
@@ -97,13 +131,12 @@ export default function AdminDashboard() {
             const headers = { 'Authorization': `Bearer ${session.access_token}` };
 
             const [statsRes, activityRes] = await Promise.all([
-                fetch(`${API_URL}/admin/stats`, { headers }),
-                fetch(`${API_URL}/admin/activity?limit=15`, { headers }),
+                fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/admin/stats`, { headers }),
+                fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/admin/activity?limit=15`, { headers }),
             ]);
 
             if (statsRes.ok) {
                 const json = await statsRes.json();
-                // Handle both wrapped { data: {...} } and direct response
                 setStats(json?.data || json);
             }
             if (activityRes.ok) {
@@ -117,7 +150,34 @@ export default function AdminDashboard() {
         }
     };
 
-    useEffect(() => { fetchData(); }, []);
+    const renderWidget = (item) => {
+        let content = null;
+        let span = item.span === 2 ? 'col-span-2' : 'col-span-1';
+
+        switch (item.id) {
+            case 'stat-users': content = <StatCard icon={UsersIcon} label={item.label} value={stats?.overview.totalUsers} sub={`${stats?.users.byRole?.admin || 0} admins, ${stats?.users.byRole?.caller || 0} callers`} color={item.color} trend={stats?.overview.newUsersThisWeek} />; break;
+            case 'stat-workspaces': content = <StatCard icon={BuildingOfficeIcon} label={item.label} value={stats?.overview.totalWorkspaces} color={item.color} />; break;
+            case 'stat-leads': content = <StatCard icon={ArrowTrendingUpIcon} label={item.label} value={stats?.overview.totalLeads} sub={`${stats?.overview.newLeadsThisWeek} new this week`} color={item.color} trend={stats?.overview.newLeadsThisWeek} />; break;
+            case 'stat-calls': content = <StatCard icon={PhoneIcon} label={item.label} value={stats?.overview.callsThisWeek} color={item.color} />; break;
+            case 'stat-tasks-done': content = <StatCard icon={CheckCircleIcon} label={item.label} value={stats?.tasks.completed} color={item.color} />; break;
+            case 'stat-tasks-pending': content = <StatCard icon={ClockIcon} label={item.label} value={stats?.tasks.pending} color={item.color} />; break;
+            case 'stat-active-campaigns': content = <StatCard icon={MegaphoneIcon} label={item.label} value={stats?.overview.activeCampaigns} sub={`${stats?.overview.totalCampaigns} total`} color={item.color} />; break;
+            case 'stat-total-campaigns': content = <StatCard icon={CreditCardIcon} label={item.label} value={stats?.overview.totalCampaigns} color={item.color} />; break;
+            case 'role-breakdown': content = <RoleBreakdownWidget stats={stats} loading={loading} />; break;
+            case 'status-breakdown': content = <StatusBreakdownWidget stats={stats} loading={loading} />; break;
+            case 'quick-actions': content = <QuickActionsWidget />; break;
+            case 'activity-feed': content = <ActivityFeedWidget activity={activity} loading={loading} />; break;
+            default: return null;
+        }
+
+        return (
+            <div key={item.id} className={span}>
+                <DraggableWidget id={item.id} isEditing={isEditing}>
+                    {content}
+                </DraggableWidget>
+            </div>
+        );
+    };
 
     const tabs = [
         { id: 'overview', label: 'Overview' },
@@ -147,13 +207,36 @@ export default function AdminDashboard() {
                                         <p className="text-sm text-gray-500 mt-0.5">Organization-wide control panel</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={fetchData}
-                                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all ${loading ? 'opacity-60' : ''}`}
-                                >
-                                    <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin text-[#08A698]' : ''}`} />
-                                    Refresh
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    {activeTab === 'overview' && (
+                                        <>
+                                            {isEditing ? (
+                                                <div className="flex items-center gap-2">
+                                                    <button onClick={resetLayout} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                                                        <ArrowPathRoundedSquareIcon className="w-4 h-4" />
+                                                        Reset
+                                                    </button>
+                                                    <button onClick={saveLayout} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#08A698] rounded-lg hover:bg-[#068f82] disabled:opacity-50">
+                                                        <CheckIcon className="w-4 h-4" />
+                                                        {saving ? 'Saving...' : 'Save Layout'}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#08A698] bg-[#08A698]/5 border border-[#08A698]/20 rounded-lg hover:bg-[#08A698]/10 transition-all">
+                                                    <PencilSquareIcon className="w-4 h-4" />
+                                                    Customize
+                                                </button>
+                                            )}
+                                        </>
+                                    )}
+                                    <button
+                                        onClick={fetchData}
+                                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all ${loading ? 'opacity-60' : ''}`}
+                                    >
+                                        <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin text-[#08A698]' : ''}`} />
+                                        Refresh
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Tabs */}
@@ -172,102 +255,12 @@ export default function AdminDashboard() {
                             {/* ── Overview Tab ─────────────────────────────────── */}
                             {activeTab === 'overview' && (
                                 <div className="space-y-8">
-
-                                    {/* Stat Cards */}
-                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                        <StatCard icon={UsersIcon} label="Total Users" value={stats?.overview.totalUsers} sub={`${stats?.users.byRole?.admin || 0} admins, ${stats?.users.byRole?.caller || 0} callers`} color="teal" trend={stats?.overview.newUsersThisWeek} />
-                                        <StatCard icon={BuildingOfficeIcon} label="Workspaces" value={stats?.overview.totalWorkspaces} color="blue" />
-                                        <StatCard icon={ArrowTrendingUpIcon} label="Total Leads" value={stats?.overview.totalLeads} sub={`${stats?.overview.newLeadsThisWeek} new this week`} color="purple" trend={stats?.overview.newLeadsThisWeek} />
-                                        <StatCard icon={PhoneIcon} label="Calls This Week" value={stats?.overview.callsThisWeek} color="green" />
-                                    </div>
-
-                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                        <StatCard icon={CheckCircleIcon} label="Tasks Completed" value={stats?.tasks.completed} color="green" />
-                                        <StatCard icon={ClockIcon} label="Tasks Pending" value={stats?.tasks.pending} color="amber" />
-                                        <StatCard icon={MegaphoneIcon} label="Active Campaigns" value={stats?.overview.activeCampaigns} sub={`${stats?.overview.totalCampaigns} total`} color="rose" />
-                                        <StatCard icon={CreditCardIcon} label="Total Campaigns" value={stats?.overview.totalCampaigns} color="blue" />
-                                    </div>
-
-                                    {/* User Role Breakdown */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                                                <h2 className="text-sm font-bold text-gray-600 uppercase tracking-wider">Users by Role</h2>
-                                            </div>
-                                            <div className="p-6 space-y-3">
-                                                {loading ? (
-                                                    <Skeleton rows={5} />
-                                                ) : stats?.users.byRole ? (
-                                                    Object.entries(stats.users.byRole).sort((a, b) => b[1] - a[1]).map(([role, count]) => (
-                                                        <div key={role} className="flex items-center justify-between">
-                                                            <RoleTag role={role} />
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-32 bg-gray-100 rounded-full h-1.5">
-                                                                    <div
-                                                                        className="h-1.5 rounded-full bg-[#08A698]"
-                                                                        style={{ width: `${(count / stats.users.total) * 100}%` }}
-                                                                    />
-                                                                </div>
-                                                                <span className="text-sm font-bold text-gray-900 w-6 text-right">{count}</span>
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                ) : <EmptyState title="No data" subtitle="No role distribution available" />}
-                                            </div>
-                                        </div>
-
-                                        {/* Lead Status Breakdown */}
-                                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                                                <h2 className="text-sm font-bold text-gray-600 uppercase tracking-wider">Leads by Status</h2>
-                                            </div>
-                                            <div className="p-6 space-y-3">
-                                                {loading ? (
-                                                    <Skeleton rows={5} />
-                                                ) : stats?.leads.byStatus ? (
-                                                    Object.entries(stats.leads.byStatus).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([status, count]) => (
-                                                        <div key={status} className="flex items-center justify-between">
-                                                            <span className="text-sm font-medium text-gray-700 capitalize">{status}</span>
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-32 bg-gray-100 rounded-full h-1.5">
-                                                                    <div
-                                                                        className="h-1.5 rounded-full bg-purple-500"
-                                                                        style={{ width: `${(count / stats.leads.total) * 100}%` }}
-                                                                    />
-                                                                </div>
-                                                                <span className="text-sm font-bold text-gray-900 w-6 text-right">{count}</span>
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                ) : <EmptyState title="No data" subtitle="No leads status found" />}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Quick Actions */}
-                                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                                        <h2 className="text-sm font-bold text-gray-600 uppercase tracking-wider mb-4">Quick Actions</h2>
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                            {[
-                                                { label: 'Manage Users', icon: UsersIcon, path: '/users', color: 'teal' },
-                                                { label: 'Workspaces', icon: BuildingOfficeIcon, path: '/manage-workspaces', color: 'blue' },
-                                                { label: 'Billing', icon: CreditCardIcon, path: '/billing', color: 'purple' },
-                                                { label: 'Permissions', icon: ShieldCheckIcon, path: '/permission-templates', color: 'amber' },
-                                            ].map(action => {
-                                                const Icon = action.icon;
-                                                return (
-                                                    <button
-                                                        key={action.label}
-                                                        onClick={() => navigate(action.path)}
-                                                        className="flex flex-col items-center gap-2 p-4 bg-gray-50 hover:bg-[#08A698]/5 border border-gray-100 hover:border-[#08A698]/30 rounded-xl transition-all group"
-                                                    >
-                                                        <Icon className="w-6 h-6 text-gray-400 group-hover:text-[#08A698] transition-colors" />
-                                                        <span className="text-xs font-semibold text-gray-600 group-hover:text-[#08A698] transition-colors text-center">{action.label}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
+                                    <DashboardGrid 
+                                        items={layout} 
+                                        setItems={setLayout} 
+                                        isEditing={isEditing} 
+                                        renderItem={renderWidget}
+                                    />
                                 </div>
                             )}
 
@@ -324,42 +317,8 @@ export default function AdminDashboard() {
 
                             {/* ── Activity Feed Tab ────────────────────────────── */}
                             {activeTab === 'activity' && (
-                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
-                                        <h2 className="text-sm font-bold text-gray-600 uppercase tracking-wider">Recent Activity (Last 15)</h2>
-                                    </div>
-                                    <div className="divide-y divide-gray-200">
-                                        {loading ? (
-                                            <div className="p-6"><Skeleton rows={5} /></div>
-                                        ) : activity.length > 0 ? (
-                                            activity.map(a => (
-                                                <div key={a.id} className="flex items-start gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
-                                                    <div className={`mt-0.5 p-1.5 rounded-full ${a.type === 'call' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-                                                        {a.type === 'call' ? <PhoneIcon className="w-3.5 h-3.5" /> : <UserIcon className="w-3.5 h-3.5" />}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm text-gray-800">
-                                                            <span className="font-semibold">{a.user?.name || 'Unknown'}</span>
-                                                            {' logged a '}
-                                                            <span className="font-medium capitalize">{a.type}</span>
-                                                            {a.lead?.name && <> with <span className="font-semibold">{a.lead.name}</span></>}
-                                                        </p>
-                                                        {(a.details?.outcome || a.details?.notes) && (
-                                                            <p className="text-xs text-gray-500 mt-0.5">
-                                                                {a.details?.outcome && <>Outcome: {a.details.outcome}</>}
-                                                                {a.details?.notes && <> — {a.details.notes}</>}
-                                                            </p>
-                                                        )}
-                                                        <p className="text-xs text-gray-400 mt-0.5">
-                                                            {new Date(a.created_at).toLocaleString()}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <EmptyState title="No recent activity" subtitle="Your organization has no recent events" />
-                                        )}
-                                    </div>
+                                <div className="space-y-4">
+                                    <ActivityFeedWidget activity={activity} loading={loading} />
                                 </div>
                             )}
 

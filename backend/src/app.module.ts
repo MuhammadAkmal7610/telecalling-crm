@@ -32,6 +32,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { TelephonyModule } from './modules/telephony/telephony.module';
 import { QueuesModule } from './modules/queues/queues.module';
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
+import { EmailModule } from './modules/email/email.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
     TelephonyModule,
     QueuesModule,
     WhatsAppModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

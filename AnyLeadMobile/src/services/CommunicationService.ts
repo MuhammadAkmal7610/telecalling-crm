@@ -1,4 +1,7 @@
 import { ApiService } from './ApiService';
+import { Linking, Platform } from 'react-native';
+import { io, Socket } from 'socket.io-client';
+import Constants from 'expo-constants';
 
 export interface WhatsAppMessage {
   id: string;
@@ -139,6 +142,8 @@ export interface CallActivity {
 
 export class CommunicationService {
   private static instance: CommunicationService;
+  private socket: Socket | null = null;
+  private currentUserId: string | null = null;
 
   static getInstance(): CommunicationService {
     if (!CommunicationService.instance) {
@@ -466,6 +471,74 @@ export class CommunicationService {
     } catch (error) {
       console.error('Error fetching call history:', error);
       throw error;
+    }
+  }
+
+  // Dialer Native Integration
+  async triggerNativeDialer(phoneNumber: string): Promise<void> {
+    try {
+      const formattedPhone = this.formatPhoneNumber(phoneNumber);
+      const url = `tel:${formattedPhone}`;
+      const supported = await Linking.canOpenURL(url);
+      
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        console.error('Phone dialer not supported on this device');
+      }
+    } catch (error) {
+      console.error('Error opening native dialer:', error);
+      throw error;
+    }
+  }
+
+  setupDialerSocket(userId: string, token: string): void {
+    if (this.socket && this.currentUserId === userId) return;
+    
+    this.currentUserId = userId;
+    const apiUrl = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:3000';
+    
+    this.socket = io(`${apiUrl}/dialer`, {
+      query: { userId, token },
+      transports: ['websocket'],
+    });
+
+    this.socket.on('connect', () => {
+      console.log('Connected to Dialer WebSocket');
+    });
+
+    this.socket.on('new_lead_to_call', async (data: { leadId: string, leadName: string, leadPhone: string }) => {
+      console.log('Received lead to call:', data);
+      // Automatically trigger the dialer
+      await this.triggerNativeDialer(data.leadPhone);
+    });
+
+    this.socket.on('disconnect', () => {
+      console.log('Disconnected from Dialer WebSocket');
+    });
+  }
+
+  async reportCallResult(data: {
+    leadId: string,
+    agentId: string,
+    status: string,
+    duration: number,
+    notes: string,
+    workspaceId: string,
+    organization_id: string
+  }): Promise<void> {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('call_result', data);
+    } else {
+      // Fallback to HTTP if socket is down
+      await this.logCallActivity({
+        leadId: data.leadId,
+        phone: '', // Will be resolved backend
+        duration: data.duration,
+        status: data.status as any,
+        notes: data.notes,
+        outcome: 'interested', // Default or from data
+      });
     }
   }
 

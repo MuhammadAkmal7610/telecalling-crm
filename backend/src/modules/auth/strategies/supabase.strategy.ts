@@ -32,7 +32,7 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
                         return done(new Error('Invalid token format'), undefined);
                     }
                     const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());
-
+                    this.logger.debug(`Incoming token algorithm: ${header.alg}`);
                     if (header.alg === 'HS256') {
                         return done(null, secret);
                     }
@@ -63,7 +63,10 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
         }
 
         const supabase = this.supabaseService.getAdminClient();
-        const workspaceId = request.headers['x-workspace-id'] || null;
+        let workspaceId = request.headers['x-workspace-id'] || null;
+        if (workspaceId === 'undefined' || workspaceId === 'null') {
+            workspaceId = null;
+        }
 
         // Fetch the user's current role and organization from DB (single source of truth)
         const { data: userRecord, error: fetchError } = await supabase

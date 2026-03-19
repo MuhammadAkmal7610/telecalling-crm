@@ -9,13 +9,14 @@ import { LeadStatus } from '../leads/dto/lead.dto';
 
 export interface CreateCallDto {
     lead_id: string;
-    agent_id?: string;
+    agent_id: string;
     status: 'initiated' | 'connected' | 'missed' | 'voicemail' | 'ended';
     duration?: number;
     recording_url?: string;
     transcript?: string;
     notes?: string;
     call_status?: string;
+    direction?: 'inbound' | 'outbound';
     workspace_id: string;
     organization_id: string;
 }
@@ -386,6 +387,33 @@ export class TelephonyService {
                 this.logger.error(`Failed to automatically update lead status for ${leadId}: ${err.message}`);
             }
         }
+    }
+
+    async logCall(createCallDto: CreateCallDto) {
+        const supabase = this.supabaseService.getAdminClient();
+
+        const { data: call, error } = await supabase
+            .from(this.CALLS_TABLE)
+            .insert({
+                ...createCallDto,
+                started_at: new Date().toISOString(),
+                ended_at: new Date().toISOString(),
+                created_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+        if (error) throw new BadRequestException(error.message);
+
+        // Log activity
+        await this.activitiesService.create({
+            type: ActivityType.CALL,
+            title: 'Bulk/Manual Call Logged',
+            description: `Call logged for lead with status: ${createCallDto.status}`,
+            leadId: createCallDto.lead_id,
+        }, createCallDto.agent_id, createCallDto.workspace_id, createCallDto.organization_id);
+
+        return call;
     }
 
     private formatDuration(seconds: number): string {

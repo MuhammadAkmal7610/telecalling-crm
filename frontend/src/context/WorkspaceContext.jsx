@@ -19,7 +19,11 @@ export const WorkspaceProvider = ({ children }) => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) { setLoading(false); return; }
 
-            const storedId = localStorage.getItem(STORAGE_KEY);
+            let storedId = localStorage.getItem(STORAGE_KEY);
+            if (storedId === 'undefined' || storedId === 'null') {
+                storedId = null;
+                localStorage.removeItem(STORAGE_KEY);
+            }
 
             const res = await fetch(`${API_URL}/workspaces/my`, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }

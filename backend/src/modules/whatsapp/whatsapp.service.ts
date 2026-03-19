@@ -1,4 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -71,6 +72,7 @@ export class WhatsAppService {
     private readonly supabaseService: SupabaseService,
     private readonly notificationsService: NotificationsService,
     private readonly notificationsGateway: NotificationsGateway,
+    private readonly configService: ConfigService,
   ) {}
 
   async sendMessage(messageData: Partial<WhatsAppMessage>, user: any) {
@@ -78,7 +80,7 @@ export class WhatsAppService {
     
     try {
       // Get WhatsApp configuration
-      const config = await this.getWhatsAppConfig(user.organization_id);
+      const config = await this.getWhatsAppConfig(user.organizationId);
       
       if (!config) {
         throw new BadRequestException('WhatsApp not configured for this organization');
@@ -89,10 +91,11 @@ export class WhatsAppService {
         .from(this.MESSAGES_TABLE)
         .insert({
           ...messageData,
+          from: config.phoneNumber || config.phoneNumberId || 'System',
           status: 'sent',
           created_at: new Date().toISOString(),
-          workspace_id: user.workspace_id,
-          organization_id: user.organization_id,
+          workspace_id: user.workspaceId,
+          organization_id: user.organizationId,
         })
         .select()
         .single();
@@ -113,7 +116,7 @@ export class WhatsAppService {
 
       // Update conversation
       if (messageData.to) {
-        await this.updateConversation(messageData.to, user);
+        await this.updateConversation(messageData.to, user, messageData.message, false);
       }
 
       this.logger.log(`WhatsApp message sent to ${messageData.to}`);
@@ -187,11 +190,15 @@ export class WhatsAppService {
   async getMessages(leadId: string, user: any) {
     const supabase = this.supabaseService.getAdminClient();
     
+    if (!leadId || !user.workspaceId) {
+      throw new BadRequestException('Lead ID and Workspace ID are required');
+    }
+
     const { data, error } = await supabase
       .from(this.MESSAGES_TABLE)
       .select('*')
       .eq('lead_id', leadId)
-      .eq('workspace_id', user.workspace_id)
+      .eq('workspace_id', user.workspaceId)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -204,14 +211,17 @@ export class WhatsAppService {
   async getConversations(user: any, status?: string) {
     const supabase = this.supabaseService.getAdminClient();
     
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+
     let query = supabase
       .from(this.CONVERSATIONS_TABLE)
       .select(`
         *,
-        lead:leads(id, name, phone, status),
-        last_message:whatsapp_messages(id, message, created_at, status)
+        lead:leads(id, name, phone, status)
       `)
-      .eq('workspace_id', user.workspace_id);
+      .eq('workspace_id', user.workspaceId);
 
     if (status) {
       query = query.eq('status', status);
@@ -221,7 +231,7 @@ export class WhatsAppService {
     const { data, error } = result;
 
     if (error) {
-      this.logger.error('Error fetching WhatsApp conversations:', error);
+      this.logger.error(`Error fetching WhatsApp conversations for workspace ${user.workspace_id}: ${error.message}`, error.stack);
       throw error;
     }
     return data;
@@ -307,9 +317,9 @@ export class WhatsAppService {
   }
 
   private async sendViaDirectAPI(message: any, config: any) {
-    const accessToken = config.accessToken || process.env.WHATSAPP_ACCESS_TOKEN;
-    const phoneNumberId = config.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
-    const version = process.env.WHATSAPP_API_VERSION || 'v18.0';
+    const accessToken = config.accessToken || this.configService.get('WHATSAPP_ACCESS_TOKEN');
+    const phoneNumberId = config.phoneNumberId || this.configService.get('WHATSAPP_PHONE_NUMBER_ID');
+    const version = config.apiVersion || this.configService.get('WHATSAPP_API_VERSION') || 'v19.0';
 
     if (!accessToken || !phoneNumberId) {
       throw new BadRequestException('WhatsApp Cloud API credentials missing');
@@ -338,7 +348,7 @@ export class WhatsAppService {
     const data = await response.json();
     
     if (data.error) {
-      this.logger.error('WhatsApp Direct API Error:', data.error);
+      this.logger.error(`WhatsApp Direct API Error: ${JSON.stringify(data.error, null, 2)}`);
       throw new BadRequestException(data.error.message);
     }
 
@@ -399,7 +409,7 @@ export class WhatsAppService {
 
     // Update conversation
     if (lead) {
-      await this.updateConversation(message.from, lead);
+      await this.updateConversation(message.from, lead, messageData.message, true);
     }
 
     // Emit real-time update
@@ -440,7 +450,7 @@ export class WhatsAppService {
     }
   }
 
-  private async updateConversation(phoneNumber: string, user: any) {
+  private async updateConversation(phoneNumber: string, user: any, messageContent?: string, isIncoming: boolean = false) {
     const supabase = this.supabaseService.getAdminClient();
     
     // Find or create conversation
@@ -448,7 +458,7 @@ export class WhatsAppService {
       .from(this.CONVERSATIONS_TABLE)
       .select('*')
       .eq('phone_number', phoneNumber)
-      .eq('workspace_id', user.workspace_id)
+      .eq('workspace_id', user.workspaceId)
       .single();
 
     if (conversation) {
@@ -456,6 +466,8 @@ export class WhatsAppService {
         .from(this.CONVERSATIONS_TABLE)
         .update({
           last_message_at: new Date().toISOString(),
+          last_message_content: messageContent || conversation.last_message_content,
+          unread_count: isIncoming ? (conversation.unread_count || 0) + 1 : 0,
           status: 'active',
         })
         .eq('id', conversation.id);
@@ -464,8 +476,10 @@ export class WhatsAppService {
         .from(this.CONVERSATIONS_TABLE)
         .insert({
           phone_number: phoneNumber,
-          workspace_id: user.workspace_id,
-          organization_id: user.organization_id,
+          workspace_id: user.workspaceId,
+          organization_id: user.organizationId,
+          last_message_content: messageContent,
+          unread_count: isIncoming ? 1 : 0,
           status: 'active',
           last_message_at: new Date().toISOString(),
         });
@@ -491,7 +505,7 @@ export class WhatsAppService {
         source: 'WHATSAPP',
         status: 'fresh',
         workspace_id: workspace?.id,
-        organization_id: contact.organization_id,
+        organization_id: contact.organizationId,
         created_at: new Date().toISOString(),
       });
   }
@@ -499,6 +513,7 @@ export class WhatsAppService {
   private async getWhatsAppConfig(organizationId: string) {
     const supabase = this.supabaseService.getAdminClient();
     
+    // 1. Try to get from database
     const { data, error } = await supabase
       .from('integrations')
       .select('config')
@@ -507,8 +522,27 @@ export class WhatsAppService {
       .eq('status', 'active')
       .single();
 
-    if (error || !data) return null;
-    return data.config;
+    if (!error && data?.config) {
+      return data.config;
+    }
+
+    // 2. Fall back to Environment Variables (for dev/default setup)
+    const envAccessToken = this.configService.get('WHATSAPP_ACCESS_TOKEN');
+    const envPhoneID = this.configService.get('WHATSAPP_PHONE_NUMBER_ID');
+    const envPhoneNum = this.configService.get('WHATSAPP_PHONE_NUMBER');
+    
+    if (envAccessToken && envPhoneID) {
+      return {
+        provider: 'direct',
+        accessToken: envAccessToken,
+        phoneNumberId: envPhoneID,
+        phoneNumber: envPhoneNum || envPhoneID,
+        businessAccountId: this.configService.get('WHATSAPP_BUSINESS_ACCOUNT_ID'),
+        apiVersion: this.configService.get('WHATSAPP_API_VERSION') || 'v19.0',
+      };
+    }
+
+    return null;
   }
 
   private formatTemplateMessage(template: any, variables: Record<string, any>) {
@@ -520,6 +554,70 @@ export class WhatsAppService {
     });
     
     return message;
+  }
+
+  async syncTemplatesFromMeta(user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    const config = await this.getWhatsAppConfig(user.organizationId);
+    
+    if (!config || config.provider !== 'direct') {
+      throw new BadRequestException('WhatsApp Cloud API not configured or not using direct provider');
+    }
+
+    const accessToken = config.accessToken || this.configService.get('WHATSAPP_ACCESS_TOKEN');
+    const businessAccountId = config.businessAccountId || this.configService.get('WHATSAPP_BUSINESS_ACCOUNT_ID');
+    const version = config.apiVersion || this.configService.get('WHATSAPP_API_VERSION') || 'v19.0';
+
+    if (!accessToken || !businessAccountId) {
+      throw new BadRequestException('Meta Business Account ID or Access Token missing');
+    }
+
+    try {
+      const response = await fetch(`https://graph.facebook.com/${version}/${businessAccountId}/message_templates`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.error) throw new Error(data.error.message);
+
+      const templates = data.data || [];
+      const results = [];
+
+      for (const t of templates) {
+        const { data: upserted, error } = await supabase
+          .from(this.TEMPLATES_TABLE)
+          .upsert({
+            name: t.name,
+            category: t.category,
+            language: t.language,
+            components: t.components,
+            status: t.status.toLowerCase(),
+            workspace_id: user.workspaceId,
+            organization_id: user.organizationId,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'workspace_id, name' })
+          .select()
+          .single();
+
+        if (error) {
+          this.logger.error(`Failed to upsert template ${t.name}: ${error.message}`);
+        } else {
+          results.push(upserted);
+        }
+      }
+
+      return {
+        message: 'Templates synced successfully',
+        count: results.length,
+        templates: results,
+      };
+
+    } catch (error) {
+      this.logger.error('Error syncing WhatsApp templates:', error);
+      throw new BadRequestException('Failed to sync templates from Meta');
+    }
   }
 
   private groupMessagesByDay(messages: any[], daysBack: number) {

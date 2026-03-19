@@ -23,12 +23,17 @@ export function useApi() {
         const { data: { session } } = await supabase.auth.getSession();
 
         // Use context workspace if loaded, otherwise fall back to localStorage
-        const workspaceId = currentWorkspace?.id || localStorage.getItem(STORAGE_KEY);
+        let workspaceId = currentWorkspace?.id || localStorage.getItem(STORAGE_KEY);
+        
+        // Sanitize: "undefined" or "null" strings should be treated as actual null
+        if (workspaceId === 'undefined' || workspaceId === 'null') {
+            workspaceId = null;
+        }
 
         const headers = {
             'Authorization': `Bearer ${session?.access_token || ''}`,
             'Content-Type': 'application/json',
-            ...(workspaceId ? { 'x-workspace-id': workspaceId } : {}),
+            ...(workspaceId && workspaceId !== 'null' ? { 'x-workspace-id': workspaceId } : {}),
             ...(options.headers || {}),
         };
 

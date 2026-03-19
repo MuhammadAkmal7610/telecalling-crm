@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BillingService } from './billing.service';
+import { StripeService } from './stripe.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -12,7 +13,10 @@ import { Roles } from '../../common/decorators/roles.decorator';
 @Controller('billing')
 @Roles('root', 'billing_admin', 'admin')
 export class BillingController {
-    constructor(private readonly billingService: BillingService) { }
+    constructor(
+        private readonly billingService: BillingService,
+        private readonly stripeService: StripeService,
+    ) { }
 
     @Get('subscription')
     @ApiOperation({ summary: 'Get current subscription plan' })
@@ -30,5 +34,11 @@ export class BillingController {
     @ApiOperation({ summary: 'Upgrade / Update plan' })
     upgrade(@Body() body: { plan: string }, @CurrentUser() user: any) {
         return this.billingService.updateSubscription(user.organizationId, body.plan);
+    }
+
+    @Post('checkout')
+    @ApiOperation({ summary: 'Create Stripe checkout session' })
+    createCheckout(@Body() body: { plan: string }, @CurrentUser() user: any) {
+        return this.stripeService.createCheckoutSession(user.organizationId, body.plan, user.email);
     }
 }

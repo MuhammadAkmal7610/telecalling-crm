@@ -4,7 +4,7 @@ import Header from '../components/Header';
 import { 
   MessageSquare, Send, Paperclip, Search, 
   MoreVertical, User, Phone, CheckCheck, 
-  Clock, Filter, Zap, BarChart3, ChevronRight, ArrowLeft
+  Clock, Filter, Zap, BarChart3, ChevronRight, ArrowLeft, Plus, X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../hooks/useApi';
@@ -20,6 +20,9 @@ export default function WhatsApp() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('active');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [allLeads, setAllLeads] = useState([]);
+  const [leadSearchTerm, setLeadSearchTerm] = useState('');
   const { apiFetch } = useApi();
   const { user } = useAuth();
 
@@ -71,12 +74,18 @@ export default function WhatsApp() {
     try {
       setLoading(true);
       const res = await apiFetch(`/whatsapp/conversations?status=${activeTab}`);
+      const data = await res.json();
+      
       if (res.ok) {
-        const data = await res.json();
-        setConversations(data);
+        // data is { success: true, data: [...], ... }
+        const convList = data.data || data;
+        setConversations(Array.isArray(convList) ? convList : []);
+      } else {
+        setConversations([]);
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
+      setConversations([]);
     } finally {
       setLoading(false);
     }
@@ -85,12 +94,16 @@ export default function WhatsApp() {
   const fetchMessages = async (leadId) => {
     try {
       const res = await apiFetch(`/whatsapp/messages/${leadId}`);
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
-        setMessages(data);
+        const msgList = data.data || data;
+        setMessages(Array.isArray(msgList) ? msgList : []);
+      } else {
+        setMessages([]);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
+      setMessages([]);
     }
   };
 
@@ -117,6 +130,38 @@ export default function WhatsApp() {
       console.error('Error sending message:', error);
     }
   };
+  const fetchLeads = async () => {
+    try {
+      const res = await apiFetch('/leads?limit=50');
+      const data = await res.json();
+      if (res.ok) {
+        setAllLeads(data.data || data);
+      }
+    } catch (error) {
+      console.error('Error fetching leads:', error);
+    }
+  };
+
+  const startChatWithLead = (lead) => {
+    // Check if conversation already exists
+    const existing = conversations.find(c => c.lead_id === lead.id);
+    if (existing) {
+      setSelectedConversation(existing);
+    } else {
+      // Create a temporary conversation object for the UI
+      const tempConv = {
+        id: `temp-${lead.id}`,
+        lead_id: lead.id,
+        phone_number: lead.phone,
+        lead: lead,
+        last_message_content: '',
+        unread_count: 0,
+        status: 'active'
+      };
+      setSelectedConversation(tempConv);
+    }
+    setShowNewChatModal(false);
+  };
 
   return (
     <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased overflow-hidden">
@@ -134,6 +179,16 @@ export default function WhatsApp() {
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-bold text-gray-900">WhatsApp</h2>
                     <div className="flex gap-1">
+                      <button 
+                        onClick={() => {
+                          setShowNewChatModal(true);
+                          fetchLeads();
+                        }}
+                        className="p-1.5 bg-teal-600 hover:bg-teal-700 rounded-lg text-white transition-colors"
+                        title="New Chat"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
                       <button className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500">
                         <BarChart3 className="w-4 h-4" />
                       </button>
@@ -157,7 +212,7 @@ export default function WhatsApp() {
                 <div className="flex-1 overflow-y-auto">
                   {loading ? (
                     <div className="p-4 text-center text-gray-500 text-sm">Loading...</div>
-                  ) : conversations.length === 0 ? (
+                  ) : !Array.isArray(conversations) || conversations.length === 0 ? (
                     <div className="p-8 text-center">
                       <MessageSquare className="w-12 h-12 text-gray-200 mx-auto mb-3" />
                       <p className="text-gray-500 text-sm">No conversations found</p>
@@ -182,8 +237,8 @@ export default function WhatsApp() {
                             </span>
                           </div>
                           <p className="text-xs text-gray-500 truncate flex items-center gap-1">
-                            {conv.last_message?.status === 'received' ? <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mr-1" /> : null}
-                            {conv.last_message?.message || 'No messages yet'}
+                            {conv.unread_count > 0 ? <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mr-1" /> : null}
+                            {conv.last_message_content || 'No messages yet'}
                           </p>
                         </div>
                       </div>
@@ -290,6 +345,65 @@ export default function WhatsApp() {
                 )}
               </div>
             </div>
+
+            {/* New Chat Modal */}
+            {showNewChatModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh]">
+                  <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50 rounded-t-2xl">
+                    <h3 className="font-bold text-gray-900">New WhatsApp Chat</h3>
+                    <button 
+                      onClick={() => setShowNewChatModal(false)}
+                      className="p-1 hover:bg-gray-200 rounded-full text-gray-400 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="p-4">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                      <input 
+                        type="text"
+                        placeholder="Search leads by name or phone..."
+                        value={leadSearchTerm}
+                        onChange={(e) => setLeadSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all outline-none font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-2">
+                    {allLeads
+                      .filter(l => 
+                        l.name?.toLowerCase().includes(leadSearchTerm.toLowerCase()) || 
+                        l.phone?.includes(leadSearchTerm)
+                      )
+                      .map((lead) => (
+                        <div 
+                          key={lead.id}
+                          onClick={() => startChatWithLead(lead)}
+                          className="p-3 flex items-center gap-3 hover:bg-gray-50 rounded-xl cursor-pointer transition-all border border-transparent hover:border-gray-100 group"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center shrink-0 group-hover:bg-teal-100 transition-colors">
+                            <User className="w-5 h-5 text-teal-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 text-sm truncate">{lead.name}</p>
+                            <p className="text-xs text-gray-500">{lead.phone}</p>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-teal-500 transition-colors" />
+                        </div>
+                      ))}
+                    {allLeads.length === 0 && (
+                      <div className="p-8 text-center text-gray-500 text-sm">
+                        No leads found. Create a lead first!
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </WorkspaceGuard>
         </main>
       </div>
