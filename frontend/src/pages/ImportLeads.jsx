@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import {
@@ -21,6 +22,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import WorkspaceGuard from '../components/WorkspaceGuard';
+import { useWorkspace } from '../context/WorkspaceContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
@@ -32,6 +34,8 @@ const STEPS = {
 };
 
 export default function ImportLeads() {
+    const { currentWorkspace } = useWorkspace();
+    const navigate = useNavigate(); // Added navigate if needed, but keeping existing state
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(STEPS.UPLOAD);
     const [isUploading, setIsUploading] = useState(false);
@@ -56,7 +60,10 @@ export default function ImportLeads() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
             const res = await axios.get(`${API_URL}/lead-fields`, {
-                headers: { Authorization: `Bearer ${session.access_token}` }
+                headers: { 
+                    Authorization: `Bearer ${session.access_token}`,
+                    ...(currentWorkspace?.id ? { 'x-workspace-id': currentWorkspace.id } : {})
+                }
             });
             const fieldsData = res.data.data?.data || res.data.data || res.data || [];
             const fields = Array.isArray(fieldsData) ? fieldsData : [];
@@ -71,7 +78,10 @@ export default function ImportLeads() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
             const res = await axios.get(`${API_URL}/users`, {
-                headers: { Authorization: `Bearer ${session.access_token}` }
+                headers: { 
+                    Authorization: `Bearer ${session.access_token}`,
+                    ...(currentWorkspace?.id ? { 'x-workspace-id': currentWorkspace.id } : {})
+                }
             });
             const rawData = res.data.data?.data || res.data.data || res.data || [];
             const userData = Array.isArray(rawData) ? rawData : [];
@@ -190,7 +200,12 @@ export default function ImportLeads() {
 
             const response = await axios.post(`${API_URL}/leads/bulk-import`,
                 { leads: allLeads },
-                { headers: { Authorization: `Bearer ${session.access_token}` } }
+                { 
+                    headers: { 
+                        Authorization: `Bearer ${session.access_token}`,
+                        ...(currentWorkspace?.id ? { 'x-workspace-id': currentWorkspace.id } : {})
+                    } 
+                }
             );
 
             toast.success(`Successfully imported ${response.data.inserted} leads!`);
@@ -436,7 +451,7 @@ export default function ImportLeads() {
                                         </p>
                                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                                             <button
-                                                onClick={() => window.location.href = '/all-leads'}
+                                                onClick={() => navigate('/all-leads')}
                                                 className="px-10 py-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-all transform active:scale-95"
                                             >
                                                 View in Leads

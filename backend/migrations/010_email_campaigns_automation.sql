@@ -7,15 +7,21 @@ CREATE TABLE IF NOT EXISTS email_campaigns (
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
+    description TEXT,
     template_id UUID REFERENCES email_templates(id) ON DELETE SET NULL,
-    status VARCHAR(20) DEFAULT 'draft', -- 'draft', 'scheduled', 'sending', 'completed', 'paused', 'cancelled'
+    status VARCHAR(20) DEFAULT 'draft', -- 'draft', 'scheduled', 'running', 'completed', 'paused', 'cancelled'
     
     -- Campaign settings
     subject TEXT,
-    from_name VARCHAR(255),
-    from_email VARCHAR(255),
+    sender_name VARCHAR(255),
+    sender_email VARCHAR(255),
+    reply_to_email VARCHAR(255),
+    track_opens BOOLEAN DEFAULT TRUE,
+    track_clicks BOOLEAN DEFAULT TRUE,
     
     -- Scheduling
+    schedule_type VARCHAR(20) DEFAULT 'immediate', -- 'immediate', 'scheduled', 'recurring'
+    target_audience JSONB DEFAULT '{}',
     scheduled_at TIMESTAMP WITH TIME ZONE,
     started_at TIMESTAMP WITH TIME ZONE,
     completed_at TIMESTAMP WITH TIME ZONE,
@@ -27,7 +33,10 @@ CREATE TABLE IF NOT EXISTS email_campaigns (
     opened_count INTEGER DEFAULT 0,
     clicked_count INTEGER DEFAULT 0,
     failed_count INTEGER DEFAULT 0,
+    bounced_count INTEGER DEFAULT 0,
+    unsubscribed_count INTEGER DEFAULT 0,
     
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -38,15 +47,26 @@ CREATE TABLE IF NOT EXISTS email_logs (
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
     workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
     campaign_id UUID REFERENCES email_campaigns(id) ON DELETE SET NULL,
+    template_id UUID REFERENCES email_templates(id) ON DELETE SET NULL,
     lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
     
-    recipient VARCHAR(255) NOT NULL,
-    status VARCHAR(20) DEFAULT 'sent', -- 'sent', 'delivered', 'opened', 'clicked', 'failed'
+    recipient_email VARCHAR(255) NOT NULL,
+    recipient_name VARCHAR(255),
+    subject TEXT,
+    content TEXT,
+    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'sent', 'delivered', 'opened', 'clicked', 'bounced', 'unsubscribed', 'failed'
     error_message TEXT,
     
+    external_id VARCHAR(255),
+    tracking_id VARCHAR(255),
+    variables_used JSONB DEFAULT '{}',
+    
+    sent_at TIMESTAMP WITH TIME ZONE,
+    delivered_at TIMESTAMP WITH TIME ZONE,
     opened_at TIMESTAMP WITH TIME ZONE,
     clicked_at TIMESTAMP WITH TIME ZONE,
-    metadata JSONB DEFAULT '{}',
+    bounced_at TIMESTAMP WITH TIME ZONE,
+    unsubscribed_at TIMESTAMP WITH TIME ZONE,
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

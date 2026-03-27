@@ -65,6 +65,9 @@ import CallScripts from './pages/CallScripts';
 import DialerSettings from './pages/DialerSettings';
 import PublicLeadForm from './pages/PublicLeadForm';
 import WhatsApp from './pages/WhatsApp';
+import EmailCampaigns from './pages/EmailCampaigns';
+import Dialer from './pages/Dialer';
+import AdvancedAnalytics from './pages/AdvancedAnalytics';
 import { Outlet } from 'react-router-dom';
 
 
@@ -110,6 +113,7 @@ function App() {
                     <Route path="/facebook-leads" element={<FacebookLeads />} />
                     <Route path="/old-leads" element={<OldLeads />} />
                     <Route path="/campaigns" element={<Campaigns />} />
+                    <Route path="/email-campaigns" element={<EmailCampaigns />} />
                     <Route path="/all-leads" element={<AllLeads />} />
                     <Route path="/leads" element={<Navigate to="/all-leads" replace />} />
                     <Route path="/my-leads" element={<MyLeads />} />
@@ -152,6 +156,8 @@ function App() {
                     <Route path="/add-lead" element={<AddLead />} />
                     <Route path="/import-leads" element={<ImportLeads />} />
                     <Route path="/call-scripts" element={<CallScripts />} />
+                    <Route path="/dialer" element={<Dialer />} />
+                    <Route path="/advanced-analytics" element={<AdvancedAnalytics />} />
                     <Route path="/dialer-settings" element={<DialerSettings />} />
                   </Route>
                 </Route>

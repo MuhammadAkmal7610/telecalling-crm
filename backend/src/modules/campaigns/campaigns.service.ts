@@ -1,5 +1,6 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { CreateCampaignDto, UpdateCampaignDto, CampaignQueryDto } from './dto/campaign.dto';
 
 @Injectable()
@@ -7,7 +8,10 @@ export class CampaignsService {
     private readonly logger = new Logger(CampaignsService.name);
     private readonly TABLE = 'campaigns';
 
-    constructor(private readonly supabaseService: SupabaseService) { }
+    constructor(
+        private readonly supabaseService: SupabaseService,
+        private readonly whatsappService: WhatsAppService
+    ) { }
 
     private validateUUIDs(ids: string[]): string[] {
         return ids.filter(id => {
@@ -87,7 +91,7 @@ export class CampaignsService {
                 .select('status', { count: 'exact' })
                 .eq('campaign_id', c.id);
 
-            const wonCount = leadData?.filter(l => l.status === 'won').length || 0;
+            const wonCount = (leadData as any[])?.filter(l => l.status === 'won').length || 0;
             const progress = leadCount ? Math.round((wonCount / leadCount) * 100) : 0;
 
             return {
@@ -189,11 +193,99 @@ export class CampaignsService {
 
         if (error) throw new BadRequestException(error.message);
 
-        const stats = data.reduce((acc: Record<string, number>, l) => {
+        const stats = (data as any[]).reduce((acc: Record<string, number>, l) => {
             acc[l.status] = (acc[l.status] || 0) + 1;
             return acc;
         }, {});
 
         return { campaignId: id, stats, total: data.length };
+    }
+
+    /**
+     * Run a campaign for bulk messaging (WhatsApp or SMS)
+     */
+    async runCampaign(id: string, workspaceId: string, user: any) {
+        const supabase = this.supabaseService.getAdminClient();
+        const campaign = await this.findOne(id, workspaceId);
+
+        if (campaign.status === 'Completed') {
+            throw new BadRequestException('Campaign is already completed');
+        }
+
+        // Fetch leads for this campaign
+        const { data: leads, error: leadsError } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('campaign_id', id)
+            .eq('workspace_id', workspaceId);
+
+        if (leadsError) throw new BadRequestException(leadsError.message);
+        if (!leads || leads.length === 0) {
+            throw new BadRequestException('No leads found for this campaign');
+        }
+
+        this.logger.log(`Running campaign ${campaign.name} for ${leads.length} leads`);
+
+        // Update campaign status to 'Sending'
+        await supabase
+            .from(this.TABLE)
+            .update({ status: 'Sending', started_at: new Date().toISOString() })
+            .eq('id', id);
+
+        let successCount = 0;
+        let failCount = 0;
+
+        // Process leads
+        for (const lead of leads) {
+            try {
+                if (campaign.type === 'whatsapp') {
+                    await this.whatsappService.sendTemplateMessage(
+                        lead.phone,
+                        campaign.template_name,
+                        this.mapLeadToVariables(lead, campaign.variables_mapping),
+                        user
+                    );
+                } else if (campaign.type === 'sms') {
+                    // Placeholder for SMS service if implemented
+                    this.logger.warn('SMS service not implemented for bulk campaigns yet');
+                }
+                successCount++;
+            } catch (err) {
+                this.logger.error(`Failed to send message to lead ${lead.id} in campaign ${id}: ${err.message}`);
+                failCount++;
+            }
+
+            // Update progress occasionally
+            if ((successCount + failCount) % 10 === 0) {
+                const progress = Math.round(((successCount + failCount) / leads.length) * 100);
+                await supabase
+                    .from(this.TABLE)
+                    .update({ progress })
+                    .eq('id', id);
+            }
+        }
+
+        // Complete campaign
+        await supabase
+            .from(this.TABLE)
+            .update({ 
+                status: 'Completed', 
+                completed_at: new Date().toISOString(),
+                progress: 100,
+                success_count: successCount,
+                fail_count: failCount
+            })
+            .eq('id', id);
+
+        return { successCount, failCount, total: leads.length };
+    }
+
+    private mapLeadToVariables(lead: any, mapping: any): Record<string, any> {
+        if (!mapping) return { name: lead.name };
+        const variables: Record<string, any> = {};
+        Object.entries(mapping).forEach(([key, field]) => {
+            variables[key] = lead[field as string] || '';
+        });
+        return variables;
     }
 }

@@ -1,5 +1,5 @@
-import { Controller, Get, UseGuards, Param } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, UseGuards, Param, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -16,8 +16,12 @@ export class ReportsController {
 
     @Get('dashboard')
     @ApiOperation({ summary: 'Get summary stats for dashboard' })
-    getDashboard(@CurrentUser() user: any) {
-        return this.reportsService.getDashboardStats(user.organizationId, user.id);
+    @ApiQuery({ name: 'timeRange', required: false, example: '7d' })
+    getDashboard(
+        @CurrentUser() user: any,
+        @Query('timeRange') timeRange?: string
+    ) {
+        return this.reportsService.getDashboardStats(user.organizationId, user.id, user.workspaceId, timeRange || '7d');
     }
 
     @Get('performance')

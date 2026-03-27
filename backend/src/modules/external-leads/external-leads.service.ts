@@ -111,13 +111,55 @@ export class ExternalLeadsService {
         return this.processExternalLead(leadDto, organizationId);
     }
 
+    async handleGoogleAds(data: any, organizationId: string) {
+        this.logger.log(`Handling Google Ads lead for org: ${organizationId}`);
+        
+        // Google Ads Webhook format
+        // https://developers.google.com/google-ads/api/docs/conversions/upload-lead-conversions
+        const userColumnData = data.user_column_data || [];
+        const mappedData: any = {};
+        
+        userColumnData.forEach((field: any) => {
+            const columnId = field.column_id;
+            const stringValue = field.string_value;
+            
+            if (columnId === 'FULL_NAME') mappedData.name = stringValue;
+            else if (columnId === 'PHONE_NUMBER') mappedData.phone = stringValue;
+            else if (columnId === 'EMAIL') mappedData.email = stringValue;
+            else mappedData[columnId] = stringValue;
+        });
+
+        const leadDto: CreateLeadDto = {
+            name: mappedData.name || 'Google Ads Lead',
+            phone: mappedData.phone || data.phone_number,
+            email: mappedData.email || data.email,
+            source: LeadSource.GOOGLE_ADS,
+            customFields: {
+                ...mappedData,
+                google_key: data.google_key,
+                campaign_id: data.campaign_id,
+                adgroup_id: data.adgroup_id
+            }
+        };
+
+        return this.processExternalLead(leadDto, organizationId);
+    }
+
     async handleGenericWebhook(source: string, data: any, organizationId: string) {
         this.logger.log(`Handling Generic Webhook (${source}) for org: ${organizationId}`);
+        
+        // Enhanced generic mapping
+        const name = data.name || data.full_name || data.fullName || data.customer_name || 'Generic Lead';
+        const phone = data.phone || data.mobile || data.telephone || data.phone_number || data.contact;
+        const email = data.email || data.email_address || data.mail;
+        const city = data.city || data.location || data.address;
+
         const leadDto: CreateLeadDto = {
-            name: data.name || data.full_name || 'Generic Lead',
-            phone: data.phone || data.mobile || data.telephone,
-            email: data.email,
-            source: source as LeadSource,
+            name: String(name),
+            phone: String(phone),
+            email: email ? String(email) : undefined,
+            city: city ? String(city) : undefined,
+            source: source.toUpperCase() as LeadSource,
             customFields: data
         };
 

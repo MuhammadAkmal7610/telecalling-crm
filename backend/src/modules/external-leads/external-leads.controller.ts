@@ -67,4 +67,19 @@ export class ExternalLeadsController {
         await this.externalLeadsService.validateToken(orgId, token);
         return this.externalLeadsService.handleGenericWebhook(source, data, orgId);
     }
+
+    @Post('google-ads')
+    @ApiOperation({ summary: 'Google Ads Webhook' })
+    @ApiQuery({ name: 'orgId', required: true })
+    @ApiQuery({ name: 'token', required: true })
+    async googleAds(
+        @Body() data: any,
+        @Query('orgId') orgId: string,
+        @Query('token') token: string
+    ) {
+        if (!orgId) throw new BadRequestException('orgId is required');
+        if (!token) throw new BadRequestException('token is required');
+        await this.externalLeadsService.validateToken(orgId, token);
+        return this.externalLeadsService.handleGoogleAds(data, orgId);
+    }
 }

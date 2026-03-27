@@ -56,4 +56,11 @@ export class CampaignsController {
     getStats(@Param('id') id: string, @CurrentUser() user: any) {
         return this.campaignsService.getStats(id, user.workspaceId);
     }
+
+    @Post(':id/run')
+    @Roles('admin', 'manager', 'root')
+    @ApiOperation({ summary: 'Run a bulk messaging campaign' })
+    runCampaign(@Param('id') id: string, @CurrentUser() user: any) {
+        return this.campaignsService.runCampaign(id, user.workspaceId, user);
+    }
 }

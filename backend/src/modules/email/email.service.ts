@@ -137,18 +137,48 @@ export class EmailService {
     }
   }
 
+  // ==================== HELPER METHODS ====================
+  private getWorkspaceId(user: any): string {
+    const wsId = user.workspaceId || user.workspace_id;
+    if (!wsId || wsId === 'undefined' || wsId === 'null') {
+      this.logger.error(`Invalid workspace ID for user ${user.id}: ${wsId}`);
+      throw new BadRequestException('Workspace context is missing');
+    }
+    return wsId;
+  }
+
+  private getOrganizationId(user: any): string {
+    const orgId = user.organizationId || user.organization_id;
+    if (!orgId || orgId === 'undefined' || orgId === 'null') {
+      this.logger.error(`Invalid organization ID for user ${user.id}: ${orgId}`);
+      throw new BadRequestException('Organization context is missing');
+    }
+    return orgId;
+  }
+
   // ==================== EMAIL TEMPLATES ====================
 
   async createTemplate(templateData: Partial<EmailTemplate>, user: any) {
     const supabase = this.supabaseService.getAdminClient();
     
     try {
+      // Strip empty strings
+      const cleanedData: Record<string, any> = { ...templateData };
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === '') {
+          delete cleanedData[key];
+        }
+      });
+
+      const workspaceId = this.getWorkspaceId(user);
+      const organizationId = this.getOrganizationId(user);
+
       const { data, error } = await supabase
         .from(this.TEMPLATES_TABLE)
         .insert({
-          ...templateData,
-          workspace_id: user.workspace_id,
-          organization_id: user.organization_id,
+          ...cleanedData,
+          workspace_id: workspaceId,
+          organization_id: organizationId,
           created_by: user.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -169,10 +199,12 @@ export class EmailService {
   async getTemplates(user: any, category?: string) {
     const supabase = this.supabaseService.getAdminClient();
     
+    const workspaceId = this.getWorkspaceId(user);
+    
     let query = supabase
       .from(this.TEMPLATES_TABLE)
       .select('*')
-      .eq('workspace_id', user.workspace_id);
+      .eq('workspace_id', workspaceId);
 
     if (category) {
       query = query.eq('category', category);
@@ -191,14 +223,24 @@ export class EmailService {
     const supabase = this.supabaseService.getAdminClient();
     
     try {
+      // Strip empty strings
+      const cleanedData: Record<string, any> = { ...templateData };
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === '') {
+          delete cleanedData[key];
+        }
+      });
+
+      const workspaceId = this.getWorkspaceId(user);
+
       const { data, error } = await supabase
         .from(this.TEMPLATES_TABLE)
         .update({
-          ...templateData,
+          ...cleanedData,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .eq('workspace_id', user.workspace_id)
+        .eq('workspace_id', workspaceId)
         .select()
         .single();
 
@@ -215,11 +257,13 @@ export class EmailService {
   async deleteTemplate(id: string, user: any) {
     const supabase = this.supabaseService.getAdminClient();
     
+    const workspaceId = this.getWorkspaceId(user);
+    
     const { error } = await supabase
       .from(this.TEMPLATES_TABLE)
       .delete()
       .eq('id', id)
-      .eq('workspace_id', user.workspace_id);
+      .eq('workspace_id', workspaceId);
 
     if (error) throw error;
 
@@ -233,20 +277,31 @@ export class EmailService {
     const supabase = this.supabaseService.getAdminClient();
     
     try {
+      const workspaceId = this.getWorkspaceId(user);
+      const organizationId = this.getOrganizationId(user);
+
       // Calculate recipients
       const recipients = await this.calculateRecipients(
         campaignData.target_audience,
-        user.workspace_id,
-        user.organization_id
+        workspaceId,
+        organizationId
       );
+
+      // Strip empty strings to prevent database errors (especially for timestamps/UUIDs)
+      const cleanedData: Record<string, any> = { ...campaignData };
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === '') {
+          delete cleanedData[key];
+        }
+      });
 
       const { data, error } = await supabase
         .from(this.CAMPAIGNS_TABLE)
         .insert({
-          ...campaignData,
+          ...cleanedData,
           total_recipients: recipients.length,
-          workspace_id: user.workspace_id,
-          organization_id: user.organization_id,
+          workspace_id: workspaceId,
+          organization_id: organizationId,
           created_by: user.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -272,6 +327,8 @@ export class EmailService {
   async getCampaigns(user: any, status?: string) {
     const supabase = this.supabaseService.getAdminClient();
     
+    const workspaceId = this.getWorkspaceId(user);
+
     let query = supabase
       .from(this.CAMPAIGNS_TABLE)
       .select(`
@@ -279,7 +336,7 @@ export class EmailService {
         template:email_templates(id, name, subject),
         creator:users(id, name, email)
       `)
-      .eq('workspace_id', user.workspace_id);
+      .eq('workspace_id', workspaceId);
 
     if (status) {
       query = query.eq('status', status);
@@ -299,6 +356,8 @@ export class EmailService {
     const supabase = this.supabaseService.getAdminClient();
     
     try {
+      const workspaceId = this.getWorkspaceId(user);
+
       // Get campaign details
       const { data: campaign, error } = await supabase
         .from(this.CAMPAIGNS_TABLE)
@@ -307,7 +366,7 @@ export class EmailService {
           template:email_templates(*)
         `)
         .eq('id', campaignId)
-        .eq('workspace_id', user.workspace_id)
+        .eq('workspace_id', workspaceId)
         .single();
 
       if (error || !campaign) {
@@ -323,8 +382,8 @@ export class EmailService {
       // Get recipients
       const recipients = await this.calculateRecipients(
         campaign.target_audience,
-        user.workspace_id,
-        user.organization_id
+        workspaceId,
+        this.getOrganizationId(user)
       );
 
       // Send emails to recipients
@@ -368,6 +427,9 @@ export class EmailService {
         ? this.replaceVariables(campaign.template.html_content, recipient)
         : null;
 
+      const workspaceId = this.getWorkspaceId(user);
+      const organizationId = this.getOrganizationId(user);
+
       // Create email log
       const { data: emailLog, error } = await supabase
         .from(this.LOGS_TABLE)
@@ -381,8 +443,8 @@ export class EmailService {
           content,
           status: 'pending',
           variables_used: recipient,
-          workspace_id: user.workspace_id,
-          organization_id: user.organization_id,
+          workspace_id: workspaceId,
+          organization_id: organizationId,
           created_at: new Date().toISOString(),
         })
         .select()
@@ -541,12 +603,15 @@ export class EmailService {
     const supabase = this.supabaseService.getAdminClient();
     
     try {
+      const workspaceId = this.getWorkspaceId(user);
+      const organizationId = this.getOrganizationId(user);
+
       const { data, error } = await supabase
         .from(this.AUTOMATION_TABLE)
         .insert({
           ...automationData,
-          workspace_id: user.workspace_id,
-          organization_id: user.organization_id,
+          workspace_id: workspaceId,
+          organization_id: organizationId,
           created_by: user.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -567,13 +632,15 @@ export class EmailService {
   async getAutomations(user: any) {
     const supabase = this.supabaseService.getAdminClient();
     
+    const workspaceId = this.getWorkspaceId(user);
+
     const { data, error } = await supabase
       .from(this.AUTOMATION_TABLE)
       .select(`
         *,
         creator:users(id, name, email)
       `)
-      .eq('workspace_id', user.workspace_id)
+      .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -584,12 +651,14 @@ export class EmailService {
     const supabase = this.supabaseService.getAdminClient();
     
     try {
+      const workspaceId = this.getWorkspaceId(user);
+
       // Get automation details
       const { data: automation, error } = await supabase
         .from(this.AUTOMATION_TABLE)
         .select('*')
         .eq('id', automationId)
-        .eq('workspace_id', user.workspace_id)
+        .eq('workspace_id', workspaceId)
         .eq('is_active', true)
         .single();
 
@@ -627,8 +696,8 @@ export class EmailService {
           conditions_met: true,
           actions_executed: automation.actions,
           execution_status: 'completed',
-          workspace_id: user.workspace_id,
-          organization_id: user.organization_id,
+          workspace_id: workspaceId,
+          organization_id: this.getOrganizationId(user),
           created_at: new Date().toISOString(),
         });
 
@@ -646,11 +715,13 @@ export class EmailService {
     const supabase = this.supabaseService.getAdminClient();
     
     try {
+      const workspaceId = this.getWorkspaceId(user);
+
       const { data: campaign, error } = await supabase
         .from(this.CAMPAIGNS_TABLE)
         .select('*')
         .eq('id', campaignId)
-        .eq('workspace_id', user.workspace_id)
+        .eq('workspace_id', workspaceId)
         .single();
 
       if (error || !campaign) {
@@ -690,12 +761,13 @@ export class EmailService {
     const supabase = this.supabaseService.getAdminClient();
     
     try {
+      const workspaceId = this.getWorkspaceId(user);
       const dateFrom = this.getDateFrom(timeRange);
       
       const { data: logs, error } = await supabase
         .from(this.LOGS_TABLE)
         .select('*')
-        .eq('workspace_id', user.workspace_id)
+        .eq('workspace_id', workspaceId)
         .gte('created_at', dateFrom.toISOString());
 
       if (error) throw error;
@@ -824,8 +896,8 @@ export class EmailService {
           .insert({
             ...action.config,
             lead_id: data.lead_id,
-            workspace_id: user.workspace_id,
-            organization_id: user.organization_id,
+            workspace_id: this.getWorkspaceId(user),
+            organization_id: this.getOrganizationId(user),
             created_by: user.id,
             created_at: new Date().toISOString(),
           });
@@ -833,7 +905,7 @@ export class EmailService {
       case 'notify_user':
         await this.notificationsService.create(
           action.config.user_id,
-          user.organization_id,
+          this.getOrganizationId(user),
           action.config.title,
           action.config.message,
           'automation'
@@ -845,12 +917,14 @@ export class EmailService {
   private async sendAutomatedEmail(config: any, data: any, user: any) {
     const supabase = this.supabaseService.getAdminClient();
     
+    const workspaceId = this.getWorkspaceId(user);
+
     // Get template
     const { data: template } = await supabase
       .from('email_templates')
       .select('*')
       .eq('id', config.template_id)
-      .eq('workspace_id', user.workspace_id)
+      .eq('workspace_id', workspaceId)
       .single();
 
     if (!template) return;
@@ -887,12 +961,23 @@ export class EmailService {
   async createDripCampaign(campaignData: any, user: any) {
     const supabase = this.supabaseService.getAdminClient();
     try {
+      // Strip empty strings
+      const cleanedData: Record<string, any> = { ...campaignData };
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === '') {
+          delete cleanedData[key];
+        }
+      });
+
+      const workspaceId = this.getWorkspaceId(user);
+      const organizationId = this.getOrganizationId(user);
+
       const { data, error } = await supabase
         .from(this.DRIP_CAMPAIGNS_TABLE)
         .insert({
-          ...campaignData,
-          workspace_id: user.workspace_id,
-          organization_id: user.organization_id,
+          ...cleanedData,
+          workspace_id: workspaceId,
+          organization_id: organizationId,
           created_by: user.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -911,10 +996,11 @@ export class EmailService {
 
   async getDripCampaigns(user: any) {
     const supabase = this.supabaseService.getAdminClient();
+    const workspaceId = this.getWorkspaceId(user);
     const { data, error } = await supabase
       .from(this.DRIP_CAMPAIGNS_TABLE)
       .select('*')
-      .eq('workspace_id', user.workspace_id)
+      .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false });
 
     if (error) return [];
@@ -924,14 +1010,24 @@ export class EmailService {
   async updateDripCampaign(id: string, campaignData: any, user: any) {
     const supabase = this.supabaseService.getAdminClient();
     try {
+      // Strip empty strings
+      const cleanedData = { ...campaignData };
+      Object.keys(cleanedData).forEach(key => {
+        if (cleanedData[key] === '') {
+          delete cleanedData[key];
+        }
+      });
+
+      const workspaceId = this.getWorkspaceId(user);
+
       const { data, error } = await supabase
         .from(this.DRIP_CAMPAIGNS_TABLE)
         .update({
-          ...campaignData,
+          ...cleanedData,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .eq('workspace_id', user.workspace_id)
+        .eq('workspace_id', workspaceId)
         .select()
         .single();
 
@@ -945,11 +1041,12 @@ export class EmailService {
 
   async deleteDripCampaign(id: string, user: any) {
     const supabase = this.supabaseService.getAdminClient();
+    const workspaceId = this.getWorkspaceId(user);
     const { error } = await supabase
       .from(this.DRIP_CAMPAIGNS_TABLE)
       .delete()
       .eq('id', id)
-      .eq('workspace_id', user.workspace_id);
+      .eq('workspace_id', workspaceId);
 
     if (error) throw error;
     return { success: true };

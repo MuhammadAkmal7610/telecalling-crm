@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { useApi } from '../hooks/useApi';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -138,6 +139,8 @@ const TeleDialer = () => {
         }
     };
 
+    const [autoNextCountdown, setAutoNextCountdown] = useState(null);
+
     const endCall = async () => {
         if (!currentLead || !currentLead.callId) return;
 
@@ -161,7 +164,7 @@ const TeleDialer = () => {
             setCallHistory(prev => [{
                 lead: currentLead,
                 duration: callDuration,
-                status: callStatus,
+                status: callStatus || 'Completed',
                 notes: callNotes,
                 timestamp: new Date()
             }, ...prev]);
@@ -170,22 +173,38 @@ const TeleDialer = () => {
             const progressiveEnabled = localStorage.getItem('progressive_dialer') === 'true';
             const wrapupTime = parseInt(localStorage.getItem('wrapup_time')) || 10;
 
-            if (progressiveEnabled) {
+            if (progressiveEnabled && nextLead) {
                 toast.success(`Call ended. Next call in ${wrapupTime}s...`);
+                setAutoNextCountdown(wrapupTime);
+                
+                const countdownInterval = setInterval(() => {
+                    setAutoNextCountdown(prev => {
+                        if (prev <= 1) {
+                            clearInterval(countdownInterval);
+                            return null;
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
+
+                setTimeout(() => {
+                    if (localStorage.getItem('progressive_dialer') === 'true') {
+                        setCurrentLead(null);
+                        setDialerState('idle');
+                        initiateCall(nextLead);
+                    }
+                }, wrapupTime * 1000);
+            } else {
+                setTimeout(() => {
+                    setCurrentLead(null);
+                    setDialerState('idle');
+                    fetchNextLead();
+                }, 2000);
             }
-
-            setTimeout(() => {
-                setCurrentLead(null);
-                setDialerState('idle');
-                fetchNextLead();
-
-                if (progressiveEnabled && nextLead) {
-                    initiateCall(nextLead);
-                }
-            }, progressiveEnabled ? wrapupTime * 1000 : 2000);
 
         } catch (error) {
             console.error('Error ending call:', error);
+            toast.error('Failed to save call details');
         }
     };
 
@@ -360,7 +379,25 @@ const TeleDialer = () => {
                             <PhoneIcon className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                             <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Call</h3>
                             <p className="text-gray-500 mb-6">Select a lead to start calling</p>
-                            {nextLead && (
+                            
+                            {autoNextCountdown !== null ? (
+                                <div className="mb-6">
+                                    <div className="text-sm font-medium text-[#08A698] mb-2 uppercase tracking-wider">Next call starting in</div>
+                                    <div className="text-5xl font-bold text-gray-900 tabular-nums">
+                                        {autoNextCountdown}s
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            localStorage.setItem('progressive_dialer', 'false');
+                                            setAutoNextCountdown(null);
+                                            toast.error('Auto-dialing paused');
+                                        }}
+                                        className="mt-4 text-sm text-red-600 hover:text-red-700 font-medium"
+                                    >
+                                        Stop Auto-Dialing
+                                    </button>
+                                </div>
+                            ) : nextLead && (
                                 <button
                                     onClick={() => initiateCall(nextLead)}
                                     className="px-6 py-3 bg-[#08A698] text-white rounded-lg hover:bg-[#068f82] transition-colors"

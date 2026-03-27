@@ -36,6 +36,7 @@ import {
   Settings,
   Eye,
   BarChart3,
+  X,
   PieChart as PieChartIcon,
   TrendingUp as TrendingUpIcon,
 } from 'lucide-react';

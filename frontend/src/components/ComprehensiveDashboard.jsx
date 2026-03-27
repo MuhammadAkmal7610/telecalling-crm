@@ -227,23 +227,22 @@ const ComprehensiveDashboard = () => {
     const fetchDashboardData = async () => {
         setLoading(true);
         try {
-            const [statsRes, chartsRes, activitiesRes, performanceRes] = await Promise.all([
-                apiFetch(`/reports/dashboard?timeRange=${timeRange}`),
-                apiFetch(`/reports/charts?timeRange=${timeRange}`),
-                apiFetch(`/activities?limit=10`),
-                apiFetch(`/reports/performance?timeRange=${timeRange}`)
-            ]);
+            const response = await apiFetch(`/reports/dashboard?timeRange=${timeRange}`);
+            const data = await response.json();
 
-            const stats = await statsRes.json();
-            const charts = await chartsRes.json();
-            const activities = await activitiesRes.json();
-            const performance = await performanceRes.json();
+            // The backend now returns a flattened object with everything we need
+            const dashboard = data.data || data;
 
             setDashboardData({
-                stats: stats.data || stats || {},
-                charts: charts.data || charts || {},
-                activities: activities.data?.data || activities.data || [],
-                performance: performance.data || performance || []
+                stats: dashboard,
+                charts: {
+                    leadByStatus: dashboard.leadByStatus,
+                    taskByPriority: dashboard.taskByPriority,
+                    callActivity: dashboard.callActivity,
+                    revenueOverTime: dashboard.revenueOverTime
+                },
+                activities: dashboard.activities || [],
+                performance: dashboard.performance || []
             });
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
@@ -295,59 +294,127 @@ const ComprehensiveDashboard = () => {
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <DashboardWidget
-                    title="Total Leads"
+                    title={stats.labels?.totalLeads || 'Total Leads'}
                     icon={UsersIcon}
                     value={stats.totalLeads || 0}
-                    change="+12%"
-                    changeType="increase"
+                    change={stats.leadTrend?.change}
+                    changeType={stats.leadTrend?.changeType}
                     color="bg-blue-500"
                     onClick={() => navigate('/all-leads')}
                 />
                 <DashboardWidget
-                    title="Active Tasks"
+                    title={stats.labels?.activeTasks || 'Active Tasks'}
                     icon={CheckCircleIcon}
                     value={stats.activeTasks || 0}
-                    change="-3%"
-                    changeType="decrease"
+                    change={stats.taskTrend?.change}
+                    changeType={stats.taskTrend?.changeType}
                     color="bg-green-500"
                     onClick={() => navigate('/all-tasks')}
                 />
                 <DashboardWidget
-                    title="Total Calls"
+                    title={stats.labels?.totalCalls || 'Total Calls'}
                     icon={PhoneIcon}
                     value={stats.totalCalls || 0}
-                    change="+8%"
-                    changeType="increase"
+                    change={stats.callTrend?.change}
+                    changeType={stats.callTrend?.changeType}
                     color="bg-purple-500"
                     onClick={() => navigate('/call-report')}
                 />
                 <DashboardWidget
-                    title="Revenue"
+                    title={stats.labels?.revenue || 'Revenue'}
                     icon={CurrencyDollarIcon}
                     value={`₹${(stats.revenue || 0).toLocaleString()}`}
-                    change="+15%"
-                    changeType="increase"
+                    change={stats.revenueTrend?.change}
+                    changeType={stats.revenueTrend?.changeType}
                     color="bg-orange-500"
                     onClick={() => navigate('/reports')}
                 />
             </div>
 
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <ChartWidget
-                    title="Leads by Status"
-                    data={charts.leadsByStatus || []}
-                    height={250}
-                />
-                <ChartWidget
-                    title="Call Volume Trend"
-                    data={charts.callVolume || []}
-                    height={250}
-                />
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                <ChartWidget title={stats.labels?.leadsByStatus || 'Leads by Status'}>
+                    <div className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={stats.leadByStatus || []}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={100}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {(stats.leadByStatus || []).map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                                <Legend verticalAlign="bottom" height={36} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </ChartWidget>
+
+                <ChartWidget title={stats.labels?.tasksByPriority || 'Tasks by Priority'}>
+                    <div className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={stats.taskByPriority || []}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="priority" />
+                                <YAxis />
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                />
+                                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                                    {(stats.taskByPriority || []).map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </ChartWidget>
+
+                <ChartWidget title={stats.labels?.callActivity || 'Call Activity'}>
+                    <div className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={stats.callActivity || []}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="date" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Line type="monotone" dataKey="calls" stroke="#8884d8" name="Total Calls" strokeWidth={2} dot={{ r: 4 }} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                </ChartWidget>
+
+                <ChartWidget title={stats.labels?.revenueOverTime || 'Revenue Over Time'}>
+                    <div className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={stats.revenueOverTime || []}>
+                                <defs>
+                                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#08A698" stopOpacity={0.1} />
+                                        <stop offset="95%" stopColor="#08A698" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="date" />
+                                <YAxis />
+                                <Tooltip />
+                                <Area type="monotone" dataKey="amount" stroke="#08A698" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </ChartWidget>
             </div>
 
             {/* Bottom Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
                 <div className="lg:col-span-2">
                     <PerformanceTable data={performance} />
                 </div>
@@ -355,36 +422,36 @@ const ComprehensiveDashboard = () => {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">{stats.labels?.quickActions || 'Quick Actions'}</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <button
                         onClick={() => navigate('/add-lead')}
                         className="flex items-center justify-center gap-2 px-4 py-3 bg-[#08A698] text-white rounded-lg hover:bg-[#068f82] transition-colors"
                     >
                         <PlusIcon className="w-4 h-4" />
-                        Add Lead
+                        {stats.labels?.addLead || 'Add Lead'}
                     </button>
                     <button
                         onClick={() => navigate('/all-tasks')}
                         className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                         <CheckCircleIcon className="w-4 h-4" />
-                        Create Task
+                        {stats.labels?.createTask || 'Create Task'}
                     </button>
                     <button
                         onClick={() => navigate('/pipeline')}
                         className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                         <FunnelIcon className="w-4 h-4" />
-                        View Pipeline
+                        {stats.labels?.viewPipeline || 'View Pipeline'}
                     </button>
                     <button
                         onClick={() => navigate('/reports')}
                         className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                         <ChartBarIcon className="w-4 h-4" />
-                        Reports
+                        {stats.labels?.reports || 'Reports'}
                     </button>
                 </div>
             </div>

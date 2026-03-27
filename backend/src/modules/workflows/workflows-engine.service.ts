@@ -1,12 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
 export class WorkflowsEngineService {
     private readonly logger = new Logger(WorkflowsEngineService.name);
     private readonly TABLE = 'workflows';
 
-    constructor(private readonly supabaseService: SupabaseService) { }
+    constructor(
+        private readonly supabaseService: SupabaseService,
+        private readonly whatsappService: WhatsAppService
+    ) { }
 
     /**
      * Entry point for triggering workflows on a lead.
@@ -164,6 +168,10 @@ export class WorkflowsEngineService {
             case 'remove_tag':
                 await this.handleRemoveTagAction(config, lead, supabase);
                 break;
+
+            case 'send_whatsapp':
+                await this.handleSendWhatsAppAction(config, lead, supabase);
+                break;
                 
             default:
                 this.logger.warn(`Unsupported action type: ${type}`);
@@ -282,6 +290,54 @@ export class WorkflowsEngineService {
             template_id,
             recipient: smsData.recipient
         });
+    }
+
+    /**
+     * Handle send WhatsApp action
+     */
+    private async handleSendWhatsAppAction(config: any, lead: any, supabase: any) {
+        const { template_name, to, message, variables = {} } = config;
+        
+        const recipient = this.resolveVariables(to || lead.phone, lead);
+        const resolvedMessage = this.resolveVariables(message, lead);
+        
+        // Resolve variables for template if provided
+        const resolvedVariables: Record<string, any> = {};
+        Object.entries(variables).forEach(([key, val]) => {
+            resolvedVariables[key] = this.resolveVariables(String(val), lead);
+        });
+
+        const systemUser = {
+            id: '00000000-0000-0000-0000-000000000000',
+            organizationId: lead.organization_id,
+            workspaceId: lead.workspace_id,
+            name: 'Workflow Engine'
+        };
+
+        try {
+            if (template_name) {
+                await this.whatsappService.sendTemplateMessage(
+                    recipient,
+                    template_name,
+                    resolvedVariables,
+                    systemUser
+                );
+            } else {
+                await this.whatsappService.sendMessage({
+                    to: recipient,
+                    message: resolvedMessage,
+                    type: 'text',
+                    lead_id: lead.id
+                }, systemUser);
+            }
+
+            await this.createActivity(lead, 'whatsapp_sent', {
+                template_name,
+                recipient
+            });
+        } catch (error) {
+            this.logger.error(`Failed to send automated WhatsApp for lead ${lead.id}: ${error.message}`);
+        }
     }
 
     /**

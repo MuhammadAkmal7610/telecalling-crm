@@ -27,6 +27,7 @@ export enum LeadSource {
     IMPORT = 'Import',
     INDIAMART = 'IndiaMART',
     JUSTDIAL = 'Justdial',
+    GOOGLE_ADS = 'Google Ads',
 }
 
 export class CreateLeadDto {
