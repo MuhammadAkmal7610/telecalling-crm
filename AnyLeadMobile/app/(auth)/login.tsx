@@ -1,27 +1,39 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, useColorScheme, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, useColorScheme, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AuthBackground } from '../../src/components/AuthBackground';
-import { colors, fonts } from '../../src/theme/theme';
+import { AuthBackground } from '@/src/components/AuthBackground';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    const { signIn } = useAuth();
     const isDark = useColorScheme() === 'dark';
 
     const textColor = isDark ? colors.surface : colors.onBackground;
     const secondaryTextColor = isDark ? '#A1A1AA' : '#4B5563';
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
+        if (!email || !password) {
+            Alert.alert('Error', 'Please enter your email and password');
+            return;
+        }
+
         setIsLoading(true);
-        // Simulate login delay
-        setTimeout(() => {
+        try {
+            const { error } = await signIn(email, password);
+            if (error) {
+                Alert.alert('Login Failed', error.message);
+                setIsLoading(false);
+            }
+            // On success, AuthContext and (auth)/_layout.tsx handle the redirect automatically.
+        } catch (err: any) {
+            Alert.alert('Error', err.message || 'An unexpected error occurred');
             setIsLoading(false);
-            // Route to dashboard (will be created in (main)/dashboard.tsx soon)
-            // router.replace('/(main)/dashboard');
-        }, 1500);
+        }
     };
 
     return (

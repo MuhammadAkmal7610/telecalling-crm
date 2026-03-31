@@ -20,12 +20,16 @@ export interface Lead {
   name: string;
   email?: string;
   phone?: string;
+  alt_phone?: string;
+  company?: string;
+  notes?: string;
   status: string;
   source: string;
   assignee_id?: string;
   campaign_id?: string;
   organization_id: string;
   workspace_id?: string;
+  created_by?: string;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +43,7 @@ export interface Campaign {
   organization_id: string;
   workspace_id?: string;
   created_by: string;
+  progress?: number;
   created_at: string;
   updated_at: string;
 }
@@ -48,7 +53,7 @@ export interface Activity {
   lead_id: string;
   user_id: string;
   type: string;
-  description: string;
+  details: string;
   metadata?: any;
   organization_id: string;
   workspace_id?: string;

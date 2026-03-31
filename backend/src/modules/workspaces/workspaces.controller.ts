@@ -1,12 +1,14 @@
 import {
     Controller, Get, Post, Patch, Delete,
     Param, Body, UseGuards,
+    BadRequestException,
 } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { WorkspaceSettingsDto } from './dto/workspace-settings.dto';
 
 @Controller('workspaces')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -99,5 +101,21 @@ export class WorkspacesController {
         @CurrentUser() user: any,
     ) {
         return this.workspacesService.removeMember(id, userId, user.organizationId);
+    }
+
+    /** GET /workspaces/my/settings — current workspace preferences */
+    @Get('my/settings')
+    getMySettings(@CurrentUser() user: any) {
+        if (!user.workspaceId) throw new BadRequestException('x-workspace-id header is required');
+        const isOrgAdminOrRoot = user.orgRole === 'admin' || user.orgRole === 'root';
+        return this.workspacesService.getMySettings(user.id, user.workspaceId, user.organizationId, isOrgAdminOrRoot);
+    }
+
+    /** PATCH /workspaces/my/settings — update current workspace preferences */
+    @Patch('my/settings')
+    updateMySettings(@CurrentUser() user: any, @Body() dto: WorkspaceSettingsDto) {
+        if (!user.workspaceId) throw new BadRequestException('x-workspace-id header is required');
+        const isOrgAdminOrRoot = user.orgRole === 'admin' || user.orgRole === 'root';
+        return this.workspacesService.updateMySettings(user.id, user.workspaceId, user.organizationId, isOrgAdminOrRoot, dto);
     }
 }

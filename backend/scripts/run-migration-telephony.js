@@ -1,5 +1,7 @@
 const { Client } = require('pg');
-require('dotenv').config();
+const dotenv = require('dotenv');
+const path = require('path');
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 async function runMigration() {
     const client = new Client({

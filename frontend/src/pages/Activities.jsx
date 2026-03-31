@@ -2,6 +2,7 @@ import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabaseClient';
 import { useEffect, useState } from 'react';
+import { useApi } from '../hooks/useApi';
 import { toast } from 'react-hot-toast';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import {
@@ -104,6 +105,7 @@ const ActivityIcon = ({ type }) => {
 };
 
 export default function Activities() {
+    const { apiFetch } = useApi();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [activities, setActivities] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -115,14 +117,8 @@ export default function Activities() {
     const fetchActivities = async () => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            const token = session.access_token;
-
             // Fetch Activities
-            const actRes = await fetch(`${API_URL}/activities?limit=50`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const actRes = await apiFetch('/activities?limit=50');
             let activitiesData = [];
             if (actRes.ok) {
                 const result = await actRes.json();
@@ -130,9 +126,7 @@ export default function Activities() {
             }
 
             // Fetch Tasks
-            const taskRes = await fetch(`${API_URL}/tasks?limit=50`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const taskRes = await apiFetch('/tasks?limit=50');
             let tasksData = [];
             if (taskRes.ok) {
                 const result = await taskRes.json();

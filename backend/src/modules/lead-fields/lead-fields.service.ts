@@ -66,6 +66,7 @@ export class LeadFieldsService {
             { name: 'email', label: 'Email', type: 'email', is_default: true, position: 3 },
             { name: 'source', label: 'Source', type: 'text', is_default: true, position: 4 },
             { name: 'alt_phone', label: 'Alt Phone', type: 'tel', is_default: true, position: 5 },
+            { name: 'company', label: 'Company', type: 'text', is_default: true, position: 6 },
         ];
 
         const rows = defaults.map(d => ({ ...d, organization_id: organizationId }));

@@ -1,50 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { ApiService } from '../../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Workspace {
   id: string;
   name: string;
-  description: string;
-  organizationId: string;
-  status: 'active' | 'inactive' | 'suspended';
-  settings: {
-    timezone: string;
-    currency: string;
-    dateFormat: string;
-    language: string;
-  };
-  limits: {
-    users: number;
-    leads: number;
-    storage: number; // in MB
-    apiCalls: number; // per month
-  };
-  usage: {
-    users: number;
-    leads: number;
-    storage: number;
-    apiCalls: number;
-  };
-  features: {
-    analytics: boolean;
-    automation: boolean;
-    integrations: boolean;
-    customFields: boolean;
-    apiAccess: boolean;
-  };
-  createdAt: string;
-  updatedAt: string;
-  owner: {
-    id: string;
-    name: string;
-    email: string;
-  };
+  description?: string;
+  organization_id?: string;
+  is_default?: boolean;
+  created_at?: string;
+  myRole?: string;
+  // Mock fields for UI layout
+  status?: string;
+  limits?: any;
+  usage?: any;
+  features?: any;
+  owner?: any;
 }
 
 interface Organization {
@@ -64,8 +40,8 @@ interface Organization {
 
 export default function WorkspaceManagementScreen() {
   const router = useRouter();
-  const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const { user, updateUserWorkspace } = useAuth();
+  const isDark = useColorScheme() === 'dark';
   
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -99,162 +75,20 @@ export default function WorkspaceManagementScreen() {
   };
 
   const loadOrganizations = async () => {
-    // Mock organizations data
-    const mockOrganizations: Organization[] = [
-      {
-        id: 'org1',
-        name: 'Tech Solutions Inc',
-        domain: 'techsolutions.com',
-        plan: 'professional',
-        status: 'active',
-        workspaces: [],
-        billing: {
-          nextBillingDate: new Date(Date.now() + 2592000000).toISOString(),
-          amount: 299,
-          currency: 'USD'
-        },
-        createdAt: new Date(Date.now() - 31536000000).toISOString()
-      },
-      {
-        id: 'org2',
-        name: 'Sales Corp',
-        domain: 'salescorp.com',
-        plan: 'enterprise',
-        status: 'active',
-        workspaces: [],
-        billing: {
-          nextBillingDate: new Date(Date.now() + 86400000).toISOString(),
-          amount: 599,
-          currency: 'USD'
-        },
-        createdAt: new Date(Date.now() - 63072000000).toISOString()
-      }
-    ];
-    setOrganizations(mockOrganizations);
+    setOrganizations([]);
   };
 
   const loadWorkspaces = async () => {
-    // Mock workspaces data
-    const mockWorkspaces: Workspace[] = [
-      {
-        id: 'ws1',
-        name: 'Main Sales Team',
-        description: 'Primary workspace for sales operations',
-        organizationId: 'org1',
-        status: 'active',
-        settings: {
-          timezone: 'America/New_York',
-          currency: 'USD',
-          dateFormat: 'MM/DD/YYYY',
-          language: 'en'
-        },
-        limits: {
-          users: 50,
-          leads: 10000,
-          storage: 5000,
-          apiCalls: 100000
-        },
-        usage: {
-          users: 23,
-          leads: 3456,
-          storage: 1234,
-          apiCalls: 45678
-        },
-        features: {
-          analytics: true,
-          automation: true,
-          integrations: true,
-          customFields: true,
-          apiAccess: true
-        },
-        createdAt: new Date(Date.now() - 2592000000).toISOString(),
-        updatedAt: new Date(Date.now() - 86400000).toISOString(),
-        owner: {
-          id: 'user1',
-          name: 'John Smith',
-          email: 'john@techsolutions.com'
-        }
-      },
-      {
-        id: 'ws2',
-        name: 'Support Team',
-        description: 'Customer support and service workspace',
-        organizationId: 'org1',
-        status: 'active',
-        settings: {
-          timezone: 'America/Los_Angeles',
-          currency: 'USD',
-          dateFormat: 'MM/DD/YYYY',
-          language: 'en'
-        },
-        limits: {
-          users: 20,
-          leads: 5000,
-          storage: 2000,
-          apiCalls: 50000
-        },
-        usage: {
-          users: 8,
-          leads: 1234,
-          storage: 567,
-          apiCalls: 12345
-        },
-        features: {
-          analytics: true,
-          automation: false,
-          integrations: true,
-          customFields: false,
-          apiAccess: false
-        },
-        createdAt: new Date(Date.now() - 5184000000).toISOString(),
-        updatedAt: new Date(Date.now() - 172800000).toISOString(),
-        owner: {
-          id: 'user2',
-          name: 'Sarah Johnson',
-          email: 'sarah@techsolutions.com'
-        }
-      },
-      {
-        id: 'ws3',
-        name: 'Marketing',
-        description: 'Marketing campaigns and lead generation',
-        organizationId: 'org2',
-        status: 'inactive',
-        settings: {
-          timezone: 'Europe/London',
-          currency: 'GBP',
-          dateFormat: 'DD/MM/YYYY',
-          language: 'en'
-        },
-        limits: {
-          users: 15,
-          leads: 3000,
-          storage: 1500,
-          apiCalls: 30000
-        },
-        usage: {
-          users: 5,
-          leads: 567,
-          storage: 234,
-          apiCalls: 6789
-        },
-        features: {
-          analytics: true,
-          automation: true,
-          integrations: true,
-          customFields: true,
-          apiAccess: true
-        },
-        createdAt: new Date(Date.now() - 7776000000).toISOString(),
-        updatedAt: new Date(Date.now() - 604800000).toISOString(),
-        owner: {
-          id: 'user3',
-          name: 'Michael Chen',
-          email: 'michael@salescorp.com'
-        }
+    try {
+      const { data, error } = await ApiService.getMyWorkspaces();
+      if (!error && data) {
+        setWorkspaces(data);
+      } else {
+        setWorkspaces([]);
       }
-    ];
-    setWorkspaces(mockWorkspaces);
+    } catch {
+      setWorkspaces([]);
+    }
   };
 
   const onRefresh = async () => {
@@ -332,138 +166,66 @@ export default function WorkspaceManagementScreen() {
     return '#10B981';
   };
 
+  const handleSelectWorkspace = async (workspaceId: string) => {
+    try {
+      setLoading(true);
+      
+      // If already active, just go back to dashboard
+      if (user?.workspace_id === workspaceId) {
+        router.replace('/dashboard' as any);
+        return;
+      }
+
+      const { error } = await updateUserWorkspace(workspaceId);
+      if (error) {
+        Alert.alert('Error', 'Failed to update active workspace');
+      } else {
+        router.replace('/dashboard' as any);
+      }
+    } catch {
+      Alert.alert('Error', 'Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderWorkspaceItem = ({ item }: { item: Workspace }) => {
-    const userUsage = getUsagePercentage(item.usage.users, item.limits.users);
-    const leadUsage = getUsagePercentage(item.usage.leads, item.limits.leads);
-    const storageUsage = getUsagePercentage(item.usage.storage, item.limits.storage);
+    const isActive = user?.workspace_id === item.id;
 
     return (
-      <Card style={[styles.workspaceCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+      <Card style={[styles.workspaceCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF', borderColor: isActive ? colors.primary : 'transparent', borderWidth: isActive ? 2 : 0 }]}>
         <View style={styles.workspaceHeader}>
           <View style={styles.workspaceInfo}>
             <Text style={[styles.workspaceName, { color: isDark ? colors.surface : colors.onBackground }]}>
               {item.name}
             </Text>
-            <Text style={[styles.workspaceDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              {item.description}
-            </Text>
+            {item.description ? (
+              <Text style={[styles.workspaceDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                {item.description}
+              </Text>
+            ) : null}
             <View style={styles.workspaceMeta}>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-                <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-                  {item.status}
+              <View style={[styles.statusBadge, { backgroundColor: (isActive ? '#10B981' : '#6B7280') + '20' }]}>
+                <Text style={[styles.statusText, { color: isActive ? '#10B981' : '#6B7280' }]}>
+                  {isActive ? 'Active' : 'Inactive'}
                 </Text>
               </View>
-              <Text style={[styles.ownerText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Owner: {item.owner.name}
-              </Text>
+              {item.myRole && (
+                <Text style={[styles.ownerText, { color: isDark ? '#9CA3AF' : '#6B7280', textTransform: 'capitalize' }]}>
+                  Role: {item.myRole}
+                </Text>
+              )}
             </View>
           </View>
+          
           <TouchableOpacity
-            style={[styles.statusToggle, { backgroundColor: item.status === 'active' ? '#10B981' : '#E5E7EB' }]}
-            onPress={() => toggleWorkspaceStatus(item.id)}
+            style={[styles.statusToggle, { backgroundColor: isActive ? '#10B981' : colors.primary }]}
+            onPress={() => handleSelectWorkspace(item.id)}
           >
-            <Text style={[styles.toggleText, { color: item.status === 'active' ? '#FFFFFF' : '#6B7280' }]}>
-              {item.status === 'active' ? 'Active' : 'Inactive'}
+            <Text style={[styles.toggleText, { color: '#FFFFFF' }]}>
+              {isActive ? 'Current' : 'Select'}
             </Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.usageSection}>
-          <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-            Resource Usage
-          </Text>
-          
-          <View style={styles.usageItem}>
-            <View style={styles.usageHeader}>
-              <Text style={[styles.usageLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Users
-              </Text>
-              <Text style={[styles.usageText, { color: isDark ? colors.surface : colors.onBackground }]}>
-                {item.usage.users}/{item.limits.users}
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressBackground, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}>
-                <View 
-                  style={[styles.progressFill, { 
-                    width: `${userUsage}%`, 
-                    backgroundColor: getUsageColor(userUsage) 
-                  }]} 
-                />
-              </View>
-              <Text style={[styles.percentageText, { color: getUsageColor(userUsage) }]}>
-                {userUsage.toFixed(0)}%
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.usageItem}>
-            <View style={styles.usageHeader}>
-              <Text style={[styles.usageLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Leads
-              </Text>
-              <Text style={[styles.usageText, { color: isDark ? colors.surface : colors.onBackground }]}>
-                {item.usage.leads.toLocaleString()}/{item.limits.leads.toLocaleString()}
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressBackground, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}>
-                <View 
-                  style={[styles.progressFill, { 
-                    width: `${leadUsage}%`, 
-                    backgroundColor: getUsageColor(leadUsage) 
-                  }]} 
-                />
-              </View>
-              <Text style={[styles.percentageText, { color: getUsageColor(leadUsage) }]}>
-                {leadUsage.toFixed(0)}%
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.usageItem}>
-            <View style={styles.usageHeader}>
-              <Text style={[styles.usageLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Storage
-              </Text>
-              <Text style={[styles.usageText, { color: isDark ? colors.surface : colors.onBackground }]}>
-                {item.usage.storage}MB/{item.limits.storage}MB
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressBackground, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}>
-                <View 
-                  style={[styles.progressFill, { 
-                    width: `${storageUsage}%`, 
-                    backgroundColor: getUsageColor(storageUsage) 
-                  }]} 
-                />
-              </View>
-              <Text style={[styles.percentageText, { color: getUsageColor(storageUsage) }]}>
-                {storageUsage.toFixed(0)}%
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.featuresSection}>
-          <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-            Features
-          </Text>
-          <View style={styles.featuresGrid}>
-            {Object.entries(item.features).map(([key, enabled]) => (
-              <View key={key} style={styles.featureItem}>
-                <Ionicons 
-                  name={enabled ? 'checkmark-circle' : 'close-circle'} 
-                  size={16} 
-                  color={enabled ? '#10B981' : '#EF4444'} 
-                />
-                <Text style={[styles.featureText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  {key.replace(/([A-Z])/g, ' $1').trim()}
-                </Text>
-              </View>
-            ))}
-          </View>
         </View>
 
         <View style={styles.workspaceActions}>
@@ -481,16 +243,18 @@ export default function WorkspaceManagementScreen() {
             <Ionicons name="people-outline" size={16} color={colors.primary} />
             <Text style={[styles.actionText, { color: colors.primary }]}>Members</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => deleteWorkspace(item.id)}
-          >
-            <Ionicons name="trash-outline" size={16} color="#EF4444" />
-            <Text style={[styles.actionText, { color: '#EF4444' }]}>Delete</Text>
-          </TouchableOpacity>
+          {item.myRole === 'admin' && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => deleteWorkspace(item.id)}
+            >
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+              <Text style={[styles.actionText, { color: '#EF4444' }]}>Delete</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </Card>
-  );
+    );
   };
 
   const renderOrganizationItem = ({ item }: { item: Organization }) => (
@@ -622,10 +386,9 @@ export default function WorkspaceManagementScreen() {
         renderItem={renderWorkspaceItem}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        refreshControl={{
-          refreshing,
-          onRefresh,
-        }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="business-outline" size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />

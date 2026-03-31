@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { ApiService } from '../../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface DetailedReport {
@@ -28,7 +28,7 @@ interface ReportTemplate {
 export default function DetailedReportsScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
   
   const [reports, setReports] = useState<DetailedReport[]>([]);
   const [loading, setLoading] = useState(true);

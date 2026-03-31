@@ -10,8 +10,18 @@ import {
     PhoneIcon,
     EnvelopeIcon,
     SparklesIcon,
-    FunnelIcon
+    FunnelIcon,
+    UserIcon,
+    ClipboardDocumentCheckIcon,
+    UsersIcon
 } from '@heroicons/react/24/outline';
+
+const filters = [
+    { name: 'All', label: 'All Results', icon: SparklesIcon },
+    { name: 'Leads', label: 'Leads', icon: UserIcon },
+    { name: 'Tasks', label: 'Tasks', icon: ClipboardDocumentCheckIcon },
+    { name: 'Users', label: 'Users', icon: UsersIcon }
+];
 
 const Search = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);

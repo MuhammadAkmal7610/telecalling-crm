@@ -21,7 +21,7 @@ const DraggableWidget = ({ id, children, isEditing, onRemove }) => {
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="relative group">
+        <div ref={setNodeRef} style={style} className="relative group h-full">
             {isEditing && (
                 <div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div

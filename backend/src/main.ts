@@ -4,13 +4,22 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import helmet from 'helmet';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
-  // ---added by akmal--─── CORS ─────────────────────────────────────────────────────────────────
+  const corsOrigins = (configService.get<string>('CORS_ORIGINS') || 'http://localhost:5173,http://localhost:3000,http://localhost:8081')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  app.use(helmet());
+
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: corsOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-workspace-id'],
     credentials: true,

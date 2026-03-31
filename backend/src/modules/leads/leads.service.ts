@@ -38,17 +38,21 @@ export class LeadsService {
             stage_id: stageId || stage_id,
             assignee_id: assigneeId || assignee_id,
             custom_fields: customFields || custom_fields,
-            organization_id: organizationId,
+            ...(organizationId && { organization_id: organizationId }),
         };
     }
 
     private mapDbToDto(db: any) {
+        if (!db) return null;
         const {
             alt_phone,
             stage_id,
             assignee_id,
             custom_fields,
             organization_id,
+            workspace_id,
+            created_at,
+            updated_at,
             ...rest
         } = db;
 
@@ -59,6 +63,9 @@ export class LeadsService {
             assigneeId: assignee_id,
             customFields: custom_fields,
             organizationId: organization_id,
+            workspaceId: workspace_id,
+            createdAt: created_at,
+            updatedAt: updated_at,
         };
     }
 
@@ -68,11 +75,38 @@ export class LeadsService {
         const mappedDto = this.mapDtoToDb(createLeadDto);
 
         const supabase = this.supabaseService.getAdminClient();
+
+        // If stage_id is missing, find and assign the default stage for the workspace
+        if (!mappedDto.stage_id) {
+            const { data: defaultStage } = await supabase
+                .from('lead_stages')
+                .select('id')
+                .eq('workspace_id', workspaceId)
+                .eq('is_default', true)
+                .limit(1)
+                .maybeSingle();
+            
+            if (defaultStage) {
+                mappedDto.stage_id = defaultStage.id;
+            } else {
+                // Fallback to the first stage if no explicit default is set
+                const { data: firstStage } = await supabase
+                    .from('lead_stages')
+                    .select('id')
+                    .eq('workspace_id', workspaceId)
+                    .order('position', { ascending: true })
+                    .limit(1)
+                    .maybeSingle();
+                if (firstStage) mappedDto.stage_id = firstStage.id;
+            }
+        }
+
         const { data, error } = await supabase
             .from(this.TABLE)
             .insert({
                 ...mappedDto,
                 workspace_id: workspaceId,
+                organization_id: organizationId,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             })
@@ -85,7 +119,7 @@ export class LeadsService {
         await this.activitiesService.create({
             type: ActivityType.NOTE,
             title: 'Lead Created',
-            description: `New lead created: ${data.name}`,
+            details: `New lead created: ${data.name}`,
             leadId: data.id
         }, user.id, workspaceId, organizationId);
 
@@ -100,6 +134,23 @@ export class LeadsService {
                     name: user.name || 'System'
                 }
             });
+        }
+
+        // Persistent Notification
+        await this.notificationsService.triggerLeadNotification(
+            organizationId,
+            data.assignee_id || user.id,
+            data.name,
+            'created'
+        );
+
+        if (data.assignee_id && data.assignee_id !== user.id) {
+            await this.notificationsService.triggerLeadNotification(
+                organizationId,
+                data.assignee_id,
+                data.name,
+                'assigned'
+            );
         }
 
         // Trigger Workflows
@@ -118,6 +169,9 @@ export class LeadsService {
 
     async findAll(query: LeadQueryDto, user: any) {
         const workspaceId = user.workspaceId;
+        if (!workspaceId || workspaceId === 'null' || workspaceId === 'undefined') {
+            return [];
+        }
         const supabase = this.supabaseService.getAdminClient();
         let dbQuery = supabase
             .from(this.TABLE)
@@ -140,6 +194,21 @@ export class LeadsService {
         }
         if (query.search) {
             dbQuery = dbQuery.or(`name.ilike.%${query.search}%,email.ilike.%${query.search}%,phone.ilike.%${query.search}%`);
+        }
+
+        // Apply timeRange filter
+        if (query.timeRange) {
+            const now = new Date();
+            const fromDate = new Date();
+
+            if (query.timeRange === '7d') fromDate.setDate(now.getDate() - 7);
+            else if (query.timeRange === '30d') fromDate.setDate(now.getDate() - 30);
+            else if (query.timeRange === '90d') fromDate.setDate(now.getDate() - 90);
+            else if (query.timeRange === '1y') fromDate.setFullYear(now.getFullYear() - 1);
+
+            if (query.timeRange !== 'all') {
+                dbQuery = dbQuery.gte('created_at', fromDate.toISOString());
+            }
         }
 
         // Apply pagination
@@ -190,6 +259,7 @@ export class LeadsService {
             .from(this.TABLE)
             .update({
                 ...mappedDto,
+                organization_id: organizationId,
                 updated_at: new Date().toISOString(),
             })
             .eq('id', id)
@@ -204,7 +274,7 @@ export class LeadsService {
             await this.activitiesService.create({
                 type: ActivityType.STATUS_CHANGE,
                 title: 'Status Changed',
-                description: `Status changed from ${existingLead.status} to ${updateLeadDto.status}`,
+                details: `Status changed from ${existingLead.status} to ${updateLeadDto.status}`,
                 leadId: id
             }, user.id, workspaceId, organizationId);
         }
@@ -273,7 +343,7 @@ export class LeadsService {
                 this.activitiesService.create({
                     type: ActivityType.NOTE,
                     title: 'Lead Imported',
-                    description: `Lead imported: ${lead.name}`,
+                    details: `Lead imported: ${lead.name}`,
                     leadId: lead.id
                 }, user.id, workspaceId, organizationId).catch(err =>
                     this.logger.error(`Failed to log activity for imported lead ${lead.id}: ${err.message}`)
@@ -305,11 +375,19 @@ export class LeadsService {
                 this.activitiesService.create({
                     type: ActivityType.NOTE,
                     title: 'Lead Assigned',
-                    description: `Lead assigned to ${assigneeId} by ${user.name || 'System'}`,
+                    details: `Lead assigned to ${assigneeId} by ${user.name || 'System'}`,
                     leadId: lead.id
                 }, user.id, workspaceId, organizationId).catch(err =>
                     this.logger.error(`Failed to log assignment for lead ${lead.id}: ${err.message}`)
                 );
+
+                // Trigger Persistent Notification
+                this.notificationsService.triggerLeadNotification(
+                    organizationId,
+                    assigneeId,
+                    lead.name,
+                    'assigned'
+                ).catch(err => this.logger.error(`Failed to trigger notification: ${err.message}`));
             });
         }
 
@@ -360,7 +438,7 @@ export class LeadsService {
             await this.activitiesService.create({
                 type: ActivityType.STAGE_CHANGE,
                 title: 'Stage Changed',
-                description: `Lead moved from stage to stage`,
+                details: `Lead moved from stage to stage`,
                 leadId: id
             }, user.id, workspaceId, organizationId);
         } catch (err) {
@@ -378,6 +456,16 @@ export class LeadsService {
             });
         }
 
+        // Persistent Notification
+        if (updatedLead.assignee_id) {
+            await this.notificationsService.triggerLeadNotification(
+                organizationId,
+                updatedLead.assignee_id,
+                updatedLead.name,
+                'updated'
+            );
+        }
+
         return updatedLead;
     }
 
@@ -392,7 +480,7 @@ export class LeadsService {
         await this.activitiesService.create({
             type: ActivityType.STATUS_CHANGE,
             title: 'Status Changed',
-            description: `Status changed to ${status}${lostReason ? ` - Reason: ${lostReason}` : ''}`,
+            details: `Status changed to ${status}${lostReason ? ` - Reason: ${lostReason}` : ''}`,
             leadId
         }, user.id, user.workspaceId, user.organizationId).catch(err =>
             this.logger.error(`Failed to log status change activity for lead ${leadId}: ${err.message}`)

@@ -31,17 +31,20 @@ import {
   ArrowLeft,
   MoreVertical,
 } from 'lucide-react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { useApi } from '../hooks/useApi';
 import { useWorkspace } from '../context/WorkspaceContext';
+import Sidebar from '../components/Sidebar';
+import Header from '../components/Header';
+import WorkspaceGuard from '../components/WorkspaceGuard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 export default function EmailCampaigns() {
   const { apiFetch } = useApi();
   const { currentWorkspace } = useWorkspace();
-  
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('campaigns');
   const [campaigns, setCampaigns] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -93,8 +96,8 @@ export default function EmailCampaigns() {
   const fetchCampaigns = async () => {
     try {
       const res = await apiFetch('/email/campaigns' + (statusFilter ? `?status=${statusFilter}` : ''));
-      const data = await res.json();
-      setCampaigns(Array.isArray(data) ? data : []);
+      const result = await res.json();
+      setCampaigns(Array.isArray(result.data) ? result.data : []);
     } catch (error) {
       console.error('Error fetching campaigns:', error);
       setCampaigns([]);
@@ -104,8 +107,8 @@ export default function EmailCampaigns() {
   const fetchTemplates = async () => {
     try {
       const res = await apiFetch('/email/templates');
-      const data = await res.json();
-      setTemplates(Array.isArray(data) ? data : []);
+      const result = await res.json();
+      setTemplates(Array.isArray(result.data) ? result.data : []);
     } catch (error) {
       console.error('Error fetching templates:', error);
       setTemplates([]);
@@ -114,9 +117,9 @@ export default function EmailCampaigns() {
 
   const fetchAutomations = async () => {
     try {
-      const res = await apiFetch('/email/drip-campaigns');
-      const data = await res.json();
-      setAutomations(Array.isArray(data) ? data : []);
+      const res = await apiFetch('/email/automations'); // Fixed endpoint if it was wrong
+      const result = await res.json();
+      setAutomations(Array.isArray(result.data) ? result.data : []);
     } catch (error) {
       console.error('Error fetching automations:', error);
       setAutomations([]);
@@ -126,8 +129,8 @@ export default function EmailCampaigns() {
   const fetchAnalytics = async () => {
     try {
       const res = await apiFetch('/email/analytics');
-      const data = await res.json();
-      setAnalytics(data);
+      const result = await res.json();
+      setAnalytics(result.data || {});
     } catch (error) {
       console.error('Error fetching analytics:', error);
       setAnalytics(null);
@@ -368,13 +371,18 @@ export default function EmailCampaigns() {
           body: JSON.stringify(templateData),
         });
         
+        const result = await res.json();
+        
         if (res.ok) {
           setShowTemplateModal(false);
           fetchTemplates();
-          alert('Template created successfully!');
+          toast.success('Template created successfully!');
+        } else {
+          toast.error(result.message || 'Failed to create template');
         }
       } catch (error) {
-        alert('Failed to create template');
+        console.error('Create template error:', error);
+        toast.error('An unexpected error occurred');
       }
     };
 
@@ -1039,7 +1047,7 @@ export default function EmailCampaigns() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Delivery Rate</p>
-                <p className="text-2xl font-semibold text-gray-900">{analytics.deliveryRate.toFixed(1)}%</p>
+                <p className="text-2xl font-semibold text-gray-900">{(analytics.deliveryRate || 0).toFixed(1)}%</p>
               </div>
               <div className="p-3 rounded-lg bg-green-100">
                 <CheckCircle className="w-6 h-6 text-green-600" />
@@ -1051,7 +1059,7 @@ export default function EmailCampaigns() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Open Rate</p>
-                <p className="text-2xl font-semibold text-gray-900">{analytics.openRate.toFixed(1)}%</p>
+                <p className="text-2xl font-semibold text-gray-900">{(analytics.openRate || 0).toFixed(1)}%</p>
               </div>
               <div className="p-3 rounded-lg bg-purple-100">
                 <Eye className="w-6 h-6 text-purple-600" />
@@ -1063,7 +1071,7 @@ export default function EmailCampaigns() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Click Rate</p>
-                <p className="text-2xl font-semibold text-gray-900">{analytics.clickRate.toFixed(1)}%</p>
+                <p className="text-2xl font-semibold text-gray-900">{(analytics.clickRate || 0).toFixed(1)}%</p>
               </div>
               <div className="p-3 rounded-lg bg-orange-100">
                 <Target className="w-6 h-6 text-orange-600" />
@@ -1085,55 +1093,69 @@ export default function EmailCampaigns() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-6 py-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Mail className="w-4 h-4" />
-            <span>Email Marketing</span>
-            <ArrowRight className="w-4 h-4" />
-            <span className="text-gray-900 font-medium">
-              {tabs.find(tab => tab.id === activeTab)?.label}
-            </span>
-          </div>
-        </div>
+    <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased overflow-hidden">
+      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+      
+      <div className="flex flex-1 flex-col h-full min-w-0">
+        <Header setIsSidebarOpen={setSidebarOpen} />
+        
+        <main className="flex-1 overflow-y-auto bg-gray-50/50">
+          <WorkspaceGuard>
+            <div className="min-h-full">
+              {/* Internal Navigation Header */}
+              <div className="bg-white border-b border-gray-200">
+                <div className="px-6 py-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Mail className="w-4 h-4" />
+                    <span>Email Marketing</span>
+                    <ArrowRight className="w-4 h-4" />
+                    <span className="text-gray-900 font-medium">
+                      {tabs.find(tab => tab.id === activeTab)?.label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+                <div className="px-6">
+                  <nav className="flex space-x-8">
+                    {tabs.map((tab) => {
+                      const Icon = tab.icon;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id)}
+                          className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-all ${
+                            activeTab === tab.id
+                              ? 'border-[#08A698] text-[#08A698]'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          {tab.label}
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+              </div>
+
+              {/* Content Area */}
+              <div className="p-6 md:p-8">
+                <div className="mx-auto max-w-7xl">
+                  {activeTab === 'campaigns' && renderCampaigns()}
+                  {activeTab === 'templates' && renderTemplates()}
+                  {activeTab === 'automation' && renderAutomation()}
+                  {activeTab === 'analytics' && renderAnalytics()}
+                </div>
+              </div>
+            </div>
+          </WorkspaceGuard>
+        </main>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-6">
-          <nav className="flex space-x-8">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-6">
-        {activeTab === 'campaigns' && renderCampaigns()}
-        {activeTab === 'templates' && renderTemplates()}
-        {activeTab === 'automation' && renderAutomation()}
-        {activeTab === 'analytics' && renderAnalytics()}
-      </div>
-
-      {/* Modals */}
+      {/* Modals outside main for stacking context */}
       {showCampaignModal && <CampaignModal />}
       {showTemplateModal && <TemplateModal />}
       {showAutomationModal && <AutomationModal />}

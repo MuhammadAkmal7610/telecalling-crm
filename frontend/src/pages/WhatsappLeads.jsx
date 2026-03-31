@@ -22,7 +22,7 @@ export default function WhatsappLeads() {
     const fetchWhatsappLeads = async () => {
         setLoading(true);
         try {
-            const res = await apiFetch('/leads?source=whatsapp');
+            const res = await apiFetch('/leads?source=WhatsApp');
             const result = await res.json();
             const data = result.data?.data || result.data || [];
 

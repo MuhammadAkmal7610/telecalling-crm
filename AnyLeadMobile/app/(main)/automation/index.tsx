@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../src/components/common/Card';
-import { colors, fonts } from '../../src/theme/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { ApiService } from '../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Workflow {
@@ -44,7 +44,7 @@ interface Task {
 export default function AutomationScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
   
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -375,7 +375,7 @@ export default function AutomationScreen() {
         </View>
         <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) + '20' }]}>
           <Text style={[styles.priorityText, { color: getPriorityColor(item.priority) }]}>
-            {item.priority.toUpperCase()}
+            {(item.priority || 'Medium').toUpperCase()}
           </Text>
         </View>
       </View>

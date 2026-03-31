@@ -24,6 +24,16 @@ export class ReportsController {
         return this.reportsService.getDashboardStats(user.organizationId, user.id, user.workspaceId, timeRange || '7d');
     }
 
+    @Get('pipeline-conversion')
+    @ApiOperation({ summary: 'Get pipeline conversion analytics' })
+    @ApiQuery({ name: 'timeRange', required: false, example: '30d' })
+    getPipelineConversion(
+        @CurrentUser() user: any,
+        @Query('timeRange') timeRange?: string
+    ) {
+        return this.reportsService.getPipelineConversionRate(user.workspaceId, user.organizationId, timeRange || '30d');
+    }
+
     @Get('performance')
     @ApiOperation({ summary: 'Get user performance leaderboard' })
     getPerformance(@CurrentUser() user: any) {

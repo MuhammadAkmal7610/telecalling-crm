@@ -481,7 +481,7 @@ export class EmailService {
     }
   }
 
-  private async sendEmail(emailData: {
+  public async sendEmail(emailData: {
     to: string;
     from: string;
     senderName?: string;
@@ -948,10 +948,21 @@ export class EmailService {
       .select('config')
       .eq('type', 'email')
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
-      throw new BadRequestException('Email integration not configured');
+      // Fallback to .env variables if database config is not present
+      this.logger.warn('Email integration not found in database, falling back to environment variables');
+      return {
+        provider: process.env.EMAIL_PROVIDER || 'smtp',
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.EMAIL_PORT || '587'),
+        user: process.env.EMAIL_USER || process.env.SMTP_USER,
+        pass: process.env.EMAIL_PASS || process.env.SMTP_PASS,
+        apiKey: process.env.SENDGRID_API_KEY,
+        senderEmail: process.env.SENDER_EMAIL,
+        senderName: process.env.SENDER_NAME,
+      };
     }
 
     return data.config;

@@ -63,7 +63,7 @@ export class TelephonyService {
         await this.activitiesService.create({
             type: ActivityType.CALL,
             title: 'Call Initiated',
-            description: `Call started with lead`,
+            details: `Call started with lead`,
             leadId: createCallDto.lead_id,
         }, createCallDto.agent_id || user.id, createCallDto.workspace_id, createCallDto.organization_id);
 
@@ -112,7 +112,7 @@ export class TelephonyService {
             await this.activitiesService.create({
                 type: ActivityType.CALL,
                 title: 'Call Ended',
-                description: `Call completed - Duration: ${this.formatDuration(existingCall.duration || 0)}`,
+                details: `Call completed - Duration: ${this.formatDuration(existingCall.duration || 0)}`,
                 leadId: existingCall.lead_id,
             }, userId, existingCall.workspace_id, existingCall.organization_id);
 
@@ -409,7 +409,7 @@ export class TelephonyService {
         await this.activitiesService.create({
             type: ActivityType.CALL,
             title: 'Bulk/Manual Call Logged',
-            description: `Call logged for lead with status: ${createCallDto.status}`,
+            details: `Call logged for lead with status: ${createCallDto.status}`,
             leadId: createCallDto.lead_id,
         }, createCallDto.agent_id, createCallDto.workspace_id, createCallDto.organization_id);
 

@@ -12,6 +12,7 @@ import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
+import JoinOrganization from './pages/auth/JoinOrganization';
 import Home from './pages/Home';
 import Search from './pages/Search';
 import Dashboard from './pages/Dashboard';
@@ -86,6 +87,7 @@ function App() {
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/invite/:token" element={<JoinOrganization />} />
                 <Route path="/f/:orgName" element={<PublicLeadForm />} />
 
                 <Route element={<ProtectedRoute />}>

@@ -74,12 +74,22 @@ export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
 
   constructor(private readonly supabaseService: SupabaseService) {}
+  
+  private validateIds(organizationId?: string, workspaceId?: string) {
+    if (organizationId === 'undefined' || organizationId === 'null' || !organizationId) {
+      throw new BadRequestException('Organization ID is required and must be valid');
+    }
+    if (workspaceId === 'undefined' || workspaceId === 'null' || !workspaceId) {
+      throw new BadRequestException('Workspace ID is required and must be valid');
+    }
+  }
 
   async getDashboardData(
     organizationId: string,
     workspaceId: string,
     timeRange: AnalyticsTimeRange
   ): Promise<DashboardData> {
+    this.validateIds(organizationId, workspaceId);
     try {
       const [metrics, trends, topPerformers, alerts] = await Promise.all([
         this.getMetrics(organizationId, workspaceId, timeRange),
@@ -130,6 +140,7 @@ export class AnalyticsService {
     workspaceId: string,
     timeRange: AnalyticsTimeRange
   ) {
+    this.validateIds(organizationId, workspaceId);
     const supabase = this.supabaseService.getAdminClient();
 
     const [leadsTrend, callsTrend, revenueTrend] = await Promise.all([
@@ -162,6 +173,7 @@ export class AnalyticsService {
       timeRange: AnalyticsTimeRange;
     }
   ) {
+    this.validateIds(organizationId, workspaceId);
     const supabase = this.supabaseService.getAdminClient();
     
     // Build dynamic query based on report configuration
@@ -175,6 +187,7 @@ export class AnalyticsService {
   }
 
   async getRealTimeMetrics(workspaceId: string) {
+    this.validateIds('bypass', workspaceId);
     const supabase = this.supabaseService.getAdminClient();
     
     const now = new Date();
@@ -220,6 +233,7 @@ export class AnalyticsService {
   }
 
   async getConversionFunnel(workspaceId: string, timeRange: AnalyticsTimeRange) {
+    this.validateIds('bypass', workspaceId);
     const supabase = this.supabaseService.getAdminClient();
 
     const stages = ['fresh', 'contacted', 'interested', 'qualified', 'proposal', 'negotiation', 'won'];
@@ -256,6 +270,7 @@ export class AnalyticsService {
   }
 
   async getAgentPerformance(workspaceId: string, timeRange: AnalyticsTimeRange) {
+    this.validateIds('bypass', workspaceId);
     const supabase = this.supabaseService.getAdminClient();
 
     // Fetch users (agents) in the workspace

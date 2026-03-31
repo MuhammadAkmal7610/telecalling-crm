@@ -15,7 +15,10 @@ import {
     CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 
+import { useApi } from '../hooks/useApi';
+
 const Notifications = () => {
+    const { apiFetch } = useApi();
     const [activeTab, setActiveTab] = useState('All');
     const [showUnread, setShowUnread] = useState(true);
     const [serverNotifications, setServerNotifications] = useState([]);
@@ -23,26 +26,23 @@ const Notifications = () => {
     
     // Combine server and real-time notifications
     const allNotifications = [...realTimeNotifications, ...serverNotifications];
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+
+    const fetchNotifications = async () => {
+        try {
+            const res = await apiFetch('/notifications');
+            if (res.ok) {
+                const result = await res.json();
+                const dataArray = result.data || result;
+                setServerNotifications(Array.isArray(dataArray) ? dataArray : []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch notifications");
+        }
+    };
 
     useEffect(() => {
-        const fetchNotifications = async () => {
-            try {
-                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-                if (!token) return;
-                const res = await fetch(`${API_URL}/notifications`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setServerNotifications(data);
-                }
-            } catch (error) {
-                console.error("Failed to fetch notifications");
-            }
-        };
         fetchNotifications();
-    }, [API_URL]);
+    }, []);
 
     const handleMarkAsRead = async (id) => {
         try {
@@ -51,10 +51,8 @@ const Notifications = () => {
                 markNotificationRead(id);
             } else {
                 // Fallback to HTTP API
-                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-                await fetch(`${API_URL}/notifications/${id}/read`, {
-                    method: 'PATCH',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                await apiFetch(`/notifications/${id}/read`, {
+                    method: 'PATCH'
                 });
             }
             // Update local state
@@ -66,10 +64,8 @@ const Notifications = () => {
 
     const handleMarkAllAsRead = async () => {
         try {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            await fetch(`${API_URL}/notifications/mark-all-read`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+            await apiFetch('/notifications/mark-all-read', {
+                method: 'POST'
             });
             setServerNotifications(serverNotifications.map(n => ({ ...n, read: true })));
         } catch (error) {

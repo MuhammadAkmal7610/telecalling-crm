@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, useColorScheme, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useColorScheme, TextInput, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { ApiService } from '../../../src/services/ApiService';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { Campaign } from '../../../src/lib/supabase';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { ApiService } from '@/src/services/ApiService';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { usePopupMessages } from '@/src/hooks/usePopupMessages';
+import { Campaign } from '@/src/lib/supabase';
 
 interface CampaignFormData {
   name: string;
@@ -22,6 +23,7 @@ const CAMPAIGN_PRIORITIES = ['low', 'medium', 'high'];
 export default function CreateCampaignScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { showSuccess, showError, showValidation } = usePopupMessages();
   const isDark = useColorScheme() === 'dark';
   const [formData, setFormData] = useState<CampaignFormData>({
     name: '',
@@ -39,7 +41,7 @@ export default function CreateCampaignScreen() {
 
   const validateForm = () => {
     if (!formData.name.trim()) {
-      Alert.alert('Error', 'Campaign name is required');
+      showValidation('Campaign name is required');
       return false;
     }
     return true;
@@ -65,15 +67,10 @@ export default function CreateCampaignScreen() {
         throw error;
       }
 
-      Alert.alert('Success', 'Campaign created successfully', [
-        {
-          text: 'OK',
-          onPress: () => router.back(),
-        },
-      ]);
+      showSuccess('Your campaign has been successfully created', () => router.back());
     } catch (error) {
       console.error('Error creating campaign:', error);
-      Alert.alert('Error', 'Failed to create campaign');
+      showError('Failed to create campaign. Please try again.');
     } finally {
       setLoading(false);
     }

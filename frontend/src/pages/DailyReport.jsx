@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import FilterPageTemplate from '../components/FilterPageTemplate';
 import LeadDetailModal from '../components/LeadDetailModal';
-import { supabase } from '../lib/supabaseClient';
 import WorkspaceGuard from '../components/WorkspaceGuard';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+import { useApi } from '../hooks/useApi';
 
 export default function DailyReport() {
+    const { apiFetch } = useApi();
     const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState(null);
@@ -19,14 +18,9 @@ export default function DailyReport() {
     const fetchDailyLeads = async () => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
             // Fetch leads for today
             const today = new Date().toISOString().split('T')[0];
-            const res = await fetch(`${API_URL}/leads?limit=1000`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
+            const res = await apiFetch(`/leads?limit=500`);
             const result = await res.json();
             const data = result.data?.data || result.data || [];
 

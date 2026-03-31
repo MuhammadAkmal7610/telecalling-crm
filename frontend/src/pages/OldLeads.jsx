@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import { useApi } from '../hooks/useApi';
+import { useWorkspace } from '../context/WorkspaceContext';
 import {
     MagnifyingGlassIcon,
     FunnelIcon,
@@ -23,25 +25,74 @@ import {
     CalendarIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { toast } from 'react-hot-toast';
 
 export default function OldLeads() {
+    const { apiFetch } = useApi();
+    const { currentWorkspace } = useWorkspace();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [selectedLeadId, setSelectedLeadId] = useState(1);
+    const [selectedLeadId, setSelectedLeadId] = useState(null);
     const [activeTab, setActiveTab] = useState('Activity History');
     const [isReportColumnOpen, setIsReportColumnOpen] = useState(true);
+    const [leads, setLeads] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [activities, setActivities] = useState([]);
 
-    // Mock Data - Old Leads (Older dates)
-    const leads = [
-        { id: 1, name: 'John Doe', phone: '923130009999', status: 'Archive', rating: 0, time: '2d ago' },
-        { id: 2, name: 'Jane Smith', phone: '923400008888', status: 'Cold', rating: 0, time: '3d ago' },
-        { id: 3, name: 'Robert Johnson', phone: '923200007777', status: 'Cold', rating: 1, time: '5d ago' },
-        { id: 4, name: 'Emily Davis', phone: '923300006666', status: 'Archive', rating: 0, time: '1w ago' },
-        { id: 5, name: 'Michael Brown', phone: '923000005555', status: 'Trash', rating: 0, time: '2w ago' },
-        { id: 6, name: 'David Wilson', phone: '937000004444', status: 'Cold', rating: 0, time: '1mo ago' },
-        { id: 7, name: 'Sarah Miller', phone: '923000003333', status: 'Archive', rating: 0, time: '2mo ago' },
-    ];
+    useEffect(() => {
+        fetchOldLeads();
+    }, [currentWorkspace]);
 
-    const selectedLead = leads.find(l => l.id === selectedLeadId) || leads[0];
+    useEffect(() => {
+        if (selectedLeadId) {
+            fetchLeadActivities(selectedLeadId);
+        }
+    }, [selectedLeadId]);
+
+    const fetchOldLeads = async () => {
+        setLoading(true);
+        try {
+            const res = await apiFetch('/leads?archive=true&limit=100');
+            const result = await res.json();
+            const leadData = result.data?.data || result.data || result;
+            const finalLeads = Array.isArray(leadData) ? leadData : [];
+            setLeads(finalLeads);
+            if (finalLeads.length > 0 && !selectedLeadId) setSelectedLeadId(finalLeads[0].id);
+        } catch (error) {
+            console.error('Error fetching old leads:', error);
+            toast.error('Failed to load old leads');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchLeadActivities = async (leadId) => {
+        try {
+            const res = await apiFetch(`/activities?leadId=${leadId}`);
+            const result = await res.json();
+            const activityData = result.data || result;
+            setActivities(Array.isArray(activityData) ? activityData : []);
+        } catch (error) {
+            console.error('Error fetching lead activities:', error);
+        }
+    };
+
+    const selectedLead = leads.find(l => l.id === selectedLeadId) || (leads.length > 0 ? leads[0] : null);
+
+    const getTimeAgo = (date) => {
+        if (!date) return 'N/A';
+        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + "y";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + "mo";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + "d";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + "h";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + "m";
+        return Math.floor(seconds) + "s";
+    };
 
     return (
         <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans">
@@ -134,6 +185,9 @@ export default function OldLeads() {
                         </div>
 
                         <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            {leads.length === 0 && !loading && (
+                                <div className="py-20 text-center text-gray-400 italic text-sm">No old leads found</div>
+                            )}
                             {leads.map((lead) => (
                                 <div
                                     key={lead.id}
@@ -142,7 +196,7 @@ export default function OldLeads() {
                                 >
                                     <div className="flex justify-between items-start mb-1.5">
                                         <h3 className={`font-semibold text-sm truncate pr-2 ${selectedLeadId === lead.id ? 'text-gray-800' : 'text-gray-600'}`}>{lead.name}</h3>
-                                        <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap bg-gray-100 px-1.5 py-0.5 rounded">{lead.time}</span>
+                                        <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap bg-gray-100 px-1.5 py-0.5 rounded">{getTimeAgo(lead.created_at)}</span>
                                     </div>
                                     <div className="text-xs text-gray-400 mb-3 font-mono tracking-tight">{lead.phone}</div>
                                     <div className="flex items-center justify-between">
@@ -155,70 +209,75 @@ export default function OldLeads() {
 
                     {/* RIGHT COLUMN: Lead Details */}
                     <div className="flex-1 bg-[#F8F9FA] flex flex-col overflow-hidden relative">
-                        <div className="bg-white/80 backdrop-blur-md p-6 border-b border-gray-200 shadow-sm z-20 sticky top-0">
-                            <div className="flex justify-between items-start mb-5">
-                                <div>
-                                    <h1 className="text-2xl font-bold text-gray-700 mb-2 flex items-center gap-3">
-                                        {selectedLead.name}
-                                        <div className="flex gap-1.5 ml-2 opacity-50 grayscale group-hover:grayscale-0 transition-all">
-                                            {/* Muted actions for old leads */}
-                                            <button className="p-1.5 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200 transition-colors"><ChatBubbleOvalLeftEllipsisIcon className="w-4 h-4" /></button>
-                                            <button className="p-1.5 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200 transition-colors"><PhoneIcon className="w-4 h-4" /></button>
+                        {selectedLead ? (
+                            <>
+                                <div className="bg-white/80 backdrop-blur-md p-6 border-b border-gray-200 shadow-sm z-20 sticky top-0">
+                                    <div className="flex justify-between items-start mb-5">
+                                        <div>
+                                            <h1 className="text-2xl font-bold text-gray-700 mb-2 flex items-center gap-3">
+                                                {selectedLead.name}
+                                                <div className="flex gap-1.5 ml-2 opacity-50 grayscale group-hover:grayscale-0 transition-all">
+                                                    {/* Muted actions for old leads */}
+                                                    <button className="p-1.5 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200 transition-colors"><ChatBubbleOvalLeftEllipsisIcon className="w-4 h-4" /></button>
+                                                    <button className="p-1.5 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200 transition-colors"><PhoneIcon className="w-4 h-4" /></button>
+                                                </div>
+                                            </h1>
+                                            <div className="flex items-center gap-3">
+                                                <StatusBadge status={selectedLead.status} />
+                                                <span className="text-xs text-gray-400 italic">Last engaged: {getTimeAgo(selectedLead.updated_at)}</span>
+                                            </div>
                                         </div>
-                                    </h1>
-                                    <div className="flex items-center gap-3">
-                                        <StatusBadge status={selectedLead.status} />
-                                        <span className="text-xs text-gray-400 italic">Last engaged: {selectedLead.time}</span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-y-5 gap-x-12 mb-6 opacity-80">
+                                        <div className="space-y-5">
+                                            <InfoField label="Last Interest" value={selectedLead.company || 'Unknown'} icon={HashtagIcon} />
+                                            <InfoField label="Source" value={selectedLead.source || 'Legacy Import'} icon={ArchiveBoxIcon} />
+                                        </div>
+                                        <div className="space-y-5">
+                                            <InfoField label="Phone" value={selectedLead.phone} icon={PhoneIcon} flag />
+                                            <InfoField label="Old ID" value={selectedLead.facebookLeadId || `OLD-${selectedLead.id}`} icon={HashtagIcon} />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-5 gap-3 mt-6 pt-5 border-t border-gray-100 grayscale opacity-70 hover:opacity-100 hover:grayscale-0 transition-all">
+                                        <ActionButton icon={ArrowPathIcon} label="REACTIVATE" />
+                                        <ActionButton icon={ClockIcon} label="HISTORY" />
+                                        <ActionButton icon={EllipsisVerticalIcon} label="NOTE" />
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-y-5 gap-x-12 mb-6 opacity-80">
-                                <div className="space-y-5">
-                                    <InfoField label="Last Interest" value="Unknown" icon={HashtagIcon} />
-                                    <InfoField label="Source" value="Legacy Import" icon={ArchiveBoxIcon} />
+                                <div className="bg-white flex border-b border-gray-200 px-6 sticky top-[300px] z-10 shadow-sm">
+                                    <TabButton label="Historical Data" active={activeTab === 'Activity History'} onClick={() => setActiveTab('Activity History')} />
                                 </div>
-                                <div className="space-y-5">
-                                    <InfoField label="Phone" value={selectedLead.phone} icon={PhoneIcon} flag />
-                                    <InfoField label="Old ID" value={`OLD-${selectedLead.id}00`} icon={HashtagIcon} />
+
+                                {/* Timeline */}
+                                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-gray-50/50">
+                                    <div className="text-center text-xs text-gray-400 mb-4 divider">End of active history</div>
+
+                                    <div className="relative pl-2 space-y-0 opacity-75">
+                                        <div className="absolute left-[19px] top-2 bottom-4 w-0.5 bg-gray-200 border-l border-dashed border-gray-300"></div>
+
+                                        {activities.length === 0 ? (
+                                            <div className="py-8 text-center text-gray-300 italic text-xs">No historical records available</div>
+                                        ) : (
+                                            activities.map((act, idx) => (
+                                                <TimelineItem
+                                                    key={act.id}
+                                                    icon={<ArchiveBoxIcon className="w-3.5 h-3.5 text-gray-500" />}
+                                                    bg="bg-gray-100 border-gray-200"
+                                                    text={act.type + ": " + (typeof act.details === 'string' ? act.details : JSON.stringify(act.details))}
+                                                    time={getTimeAgo(act.created_at)}
+                                                    isLast={idx === activities.length - 1}
+                                                />
+                                            ))
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div className="grid grid-cols-5 gap-3 mt-6 pt-5 border-t border-gray-100 grayscale opacity-70 hover:opacity-100 hover:grayscale-0 transition-all">
-                                <ActionButton icon={ArrowPathIcon} label="REACTIVATE" />
-                                <ActionButton icon={ClockIcon} label="HISTORY" />
-                                <ActionButton icon={EllipsisVerticalIcon} label="NOTE" />
-                            </div>
-                        </div>
-
-                        <div className="bg-white flex border-b border-gray-200 px-6 sticky top-[300px] z-10 shadow-sm">
-                            <TabButton label="Historical Data" active={activeTab === 'Activity History'} onClick={() => setActiveTab('Activity History')} />
-                        </div>
-
-                        {/* Timeline */}
-                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-gray-50/50">
-                            <div className="text-center text-xs text-gray-400 mb-4 divider">End of active history</div>
-
-                            <div className="relative pl-2 space-y-0 opacity-75">
-                                <div className="absolute left-[19px] top-2 bottom-4 w-0.5 bg-gray-200 border-l border-dashed border-gray-300"></div>
-
-                                <TimelineItem
-                                    icon={<ArchiveBoxIcon className="w-3.5 h-3.5 text-gray-500" />}
-                                    bg="bg-gray-100 border-gray-200"
-                                    text="Lead moved to archive automatically"
-                                    time="2w ago"
-                                    isLast={false}
-                                />
-                                <TimelineItem
-                                    icon={<PhoneIcon className="w-3.5 h-3.5 text-gray-400" />}
-                                    bg="bg-gray-50 border-gray-200"
-                                    text="Call attempted - No Answer"
-                                    time="1mo ago"
-                                    isLast={true}
-                                />
-                            </div>
-                        </div>
-
+                            </>
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center text-gray-400 italic">Select an old lead to view history</div>
+                        )}
                     </div>
                 </main>
             </div>

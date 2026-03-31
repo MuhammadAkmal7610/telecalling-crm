@@ -50,31 +50,18 @@ export default function LeadAssignmentScreen() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      // For now, use mock users. In future, implement getWorkspaceUsers in ApiService
-      const mockUsers: User[] = [
-        {
-          id: '1',
-          name: 'John Doe',
-          email: 'john@example.com',
-          role: 'sales',
-          assigned_leads_count: 5
-        },
-        {
-          id: '2',
-          name: 'Jane Smith',
-          email: 'jane@example.com',
-          role: 'manager',
-          assigned_leads_count: 3
-        },
-        {
-          id: '3',
-          name: 'Bob Wilson',
-          email: 'bob@example.com',
-          role: 'agent',
-          assigned_leads_count: 8
-        }
-      ];
-      setUsers(mockUsers);
+      const response = await ApiService.getUsers();
+      if (response && response.data) {
+        const backendUsers = response.data.data || [];
+        const mappedUsers: User[] = backendUsers.map((u: any) => ({
+          id: u.id,
+          name: u.name || u.email,
+          email: u.email,
+          role: (u.role?.toLowerCase() || 'agent'),
+          assigned_leads_count: 0
+        }));
+        setUsers(mappedUsers);
+      }
     } catch (error) {
       console.error('Error loading users:', error);
       Alert.alert('Error', 'Failed to load users');

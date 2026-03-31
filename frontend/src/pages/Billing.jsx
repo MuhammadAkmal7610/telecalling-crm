@@ -2,6 +2,7 @@ import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabaseClient';
 import { useEffect, useState } from 'react';
+import { useApi } from '../hooks/useApi';
 import {
     PencilSquareIcon,
     ShoppingCartIcon,
@@ -13,6 +14,7 @@ import {
     ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../assets/Logo.png';
+import { toast } from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
@@ -102,28 +104,44 @@ const FloatingInput = ({ label, value, onChange, type = "text", required = false
     );
 };
 
-const EditBillingModal = ({ isOpen, onClose }) => {
+const EditBillingModal = ({ isOpen, onClose, billingData, onSave }) => {
+    const [formData, setFormData] = useState(billingData || {});
+
+    useEffect(() => {
+        setFormData(billingData || {});
+    }, [billingData]);
+
     if (!isOpen) return null;
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave(formData);
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <h2 className="text-xl font-bold text-gray-800">Edit Billing Information</h2>
-                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                    <button type="button" onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
                         <XMarkIcon className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Body */}
-                <div className="p-8 space-y-6">
+                <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto no-scrollbar">
                     {/* Country Select */}
                     <div className="relative">
-                        <select className="block px-4 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#08A698] peer">
-                            <option>Pakistan</option>
-                            <option>United Arab Emirates</option>
-                            <option>United States</option>
+                        <select 
+                            value={formData.country || 'Pakistan'}
+                            onChange={(e) => setFormData({...formData, country: e.target.value})}
+                            className="block px-4 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#08A698] peer"
+                        >
+                            <option value="Pakistan">Pakistan</option>
+                            <option value="United Arab Emirates">United Arab Emirates</option>
+                            <option value="United States">United States</option>
+                            <option value="India">India</option>
                         </select>
                         <label className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#08A698] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1">
                             Country <span className="text-gray-400 font-normal">(required)</span>
@@ -131,49 +149,81 @@ const EditBillingModal = ({ isOpen, onClose }) => {
                         <ChevronDownIcon className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                     </div>
 
-                    <FloatingInput label="Address" value="Flat 810 Abushakara builiding Al rega Dubai, UAE" required />
+                    <FloatingInput 
+                        label="Address Line 1" 
+                        value={formData.address_line1 || ''} 
+                        onChange={(e) => setFormData({...formData, address_line1: e.target.value})}
+                        required 
+                    />
 
-                    <FloatingInput label="Address Line 2" value="" />
+                    <FloatingInput 
+                        label="Address Line 2" 
+                        value={formData.address_line2 || ''} 
+                        onChange={(e) => setFormData({...formData, address_line2: e.target.value})}
+                    />
 
-                    <FloatingInput label="Pincode" value="25314" required />
-
-                    <FloatingInput label="Registered Name of the Company" value="Eon Holding" required />
-
-                    <FloatingInput label="Email" value="eonholdings.pk@gmail.com" type="email" required />
-
-                    {/* Phone Input with Flag */}
-                    <div className="relative flex items-center border border-gray-300 rounded-lg focus-within:border-[#08A698] focus-within:ring-1 focus-within:ring-[#08A698]">
-                        <div className="flex items-center gap-2 pl-4 pr-3 py-3 border-r border-gray-200 bg-gray-50/50 rounded-l-lg">
-                            <div className="w-5 h-5 rounded-full bg-green-900 border border-white overflow-hidden relative">
-                                <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-white"></div>
-                            </div>
-                            <span className="text-sm text-gray-600 font-medium tracking-wide">+92</span>
-                        </div>
-                        <input
-                            type="tel"
-                            className="flex-1 px-4 py-3 bg-transparent text-sm text-gray-900 focus:outline-none"
-                            value="3330380404"
+                    <div className="grid grid-cols-2 gap-4">
+                        <FloatingInput 
+                            label="City" 
+                            value={formData.city || ''} 
+                            onChange={(e) => setFormData({...formData, city: e.target.value})}
+                            required 
                         />
-                        <label className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 left-20">
-                            Phone <span className="text-gray-400 font-normal">(required)</span>
-                        </label>
+                        <FloatingInput 
+                            label="Pincode" 
+                            value={formData.pincode || ''} 
+                            onChange={(e) => setFormData({...formData, pincode: e.target.value})}
+                            required 
+                        />
                     </div>
+
+                    <FloatingInput 
+                        label="Registered Name of the Company" 
+                        value={formData.company_name || ''} 
+                        onChange={(e) => setFormData({...formData, company_name: e.target.value})}
+                        required 
+                    />
+
+                    <FloatingInput 
+                        label="Billing Email" 
+                        value={formData.email || ''} 
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        type="email" 
+                        required 
+                    />
+
+                    <div className="relative">
+                        <FloatingInput 
+                            label="Phone Number" 
+                            value={formData.phone || ''} 
+                            onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                            required 
+                        />
+                    </div>
+
+                    <FloatingInput 
+                        label="Tax ID / GSTIN / VAT" 
+                        value={formData.tax_id || ''} 
+                        onChange={(e) => setFormData({...formData, tax_id: e.target.value})}
+                    />
 
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 pt-2">
-                    <button className="w-full py-3.5 bg-[#08A698] hover:bg-[#079186] text-white font-semibold rounded-xl text-sm transition-all shadow-sm hover:shadow active:scale-[0.99] duration-200">
-                        Save & Continue
+                <div className="p-6 pt-2 border-t border-gray-100">
+                    <button type="submit" className="w-full py-3.5 bg-[#08A698] hover:bg-[#079186] text-white font-semibold rounded-xl text-sm transition-all shadow-sm hover:shadow active:scale-[0.99] duration-200">
+                        Save Information
                     </button>
                 </div>
-            </div>
+            </form>
         </div>
     );
 };
 
-const ViewBillingModal = ({ isOpen, onClose, onEdit }) => {
+const ViewBillingModal = ({ isOpen, onClose, onEdit, billingData }) => {
     if (!isOpen) return null;
+
+    const info = billingData || {};
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -192,8 +242,8 @@ const ViewBillingModal = ({ isOpen, onClose, onEdit }) => {
                         {/* Card Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900 inline-block mr-2">Eon Holding</h3>
-                                <span className="text-gray-500 text-sm">(eonholdings.pk@gmail.com)</span>
+                                <h3 className="text-lg font-bold text-gray-900 inline-block mr-2">{info.company_name || 'Organization Details'}</h3>
+                                <span className="text-gray-500 text-sm">({info.email || 'N/A'})</span>
                             </div>
                             <button
                                 onClick={onEdit}
@@ -208,23 +258,25 @@ const ViewBillingModal = ({ isOpen, onClose, onEdit }) => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-7 gap-x-8">
                             <div className="group">
                                 <div className="text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Country</div>
-                                <div className="text-gray-900 font-medium">Pakistan</div>
+                                <div className="text-gray-900 font-medium">{info.country || 'N/A'}</div>
                             </div>
                             <div className="group">
                                 <div className="text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Pincode</div>
-                                <div className="text-gray-900 font-medium">25314</div>
+                                <div className="text-gray-900 font-medium">{info.pincode || 'N/A'}</div>
                             </div>
                             <div className="group">
                                 <div className="text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Phone no</div>
-                                <div className="text-gray-900 font-medium font-mono">+92 333 038 0404</div>
+                                <div className="text-gray-900 font-medium font-mono">{info.phone || 'N/A'}</div>
                             </div>
                             <div className="sm:col-span-2 group">
                                 <div className="text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Address</div>
-                                <div className="text-gray-900 font-medium leading-relaxed">Flat 810 Abushakara builiding Al rega Dubai, UAE</div>
+                                <div className="text-gray-900 font-medium leading-relaxed">
+                                    {info.address_line1}{info.address_line2 ? `, ${info.address_line2}` : ''}{info.city ? `, ${info.city}` : ''}
+                                </div>
                             </div>
                             <div className="group">
-                                <div className="text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">GSTIN</div>
-                                <div className="text-gray-400 italic">Not set</div>
+                                <div className="text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Tax ID / GSTIN</div>
+                                <div className="text-gray-900 font-medium">{info.tax_id || 'Not set'}</div>
                             </div>
                         </div>
                     </div>
@@ -235,6 +287,7 @@ const ViewBillingModal = ({ isOpen, onClose, onEdit }) => {
 };
 
 export default function Billing() {
+    const { apiFetch } = useApi();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [billingCycle, setBillingCycle] = useState('Annual');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -242,8 +295,8 @@ export default function Billing() {
 
     const [subscription, setSubscription] = useState(null);
     const [transactions, setTransactions] = useState([]);
+    const [billingData, setBillingData] = useState(null);
     const [loading, setLoading] = useState(true);
-
     const [user, setUser] = useState(null);
 
     useEffect(() => {
@@ -258,56 +311,85 @@ export default function Billing() {
         };
         getUser();
         fetchBillingData();
+        checkUrlParams();
     }, []);
+
+    const checkUrlParams = () => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('mock_success') || params.get('session_id')) {
+            toast.success('Your subscription has been updated!');
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    };
 
     const fetchBillingData = async () => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const headers = { 'Authorization': `Bearer ${session.access_token}` };
-
-            const [subRes, transRes] = await Promise.all([
-                fetch(`${API_URL}/billing/subscription`, { headers }),
-                fetch(`${API_URL}/billing/transactions`, { headers })
+            const [subRes, transRes, infoRes] = await Promise.all([
+                apiFetch('/billing/subscription'),
+                apiFetch('/billing/transactions'),
+                apiFetch('/billing/info')
             ]);
 
             const subResult = await subRes.json();
             const transResult = await transRes.json();
+            const infoResult = await infoRes.json();
 
             setSubscription(subResult.data || subResult);
             setTransactions(transResult.data || transResult);
+            setBillingData(infoResult.data || infoResult);
         } catch (error) {
             console.error('Error fetching billing data:', error);
+            toast.error('Failed to load billing information');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleUpgrade = async (planName) => {
+    const handleSaveBillingInfo = async (data) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const res = await fetch(`${API_URL}/billing/upgrade`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ plan: planName })
+            const res = await apiFetch('/billing/info', {
+                method: 'PATCH',
+                body: JSON.stringify(data)
             });
 
             if (res.ok) {
-                fetchBillingData();
-                alert(`Successfully upgraded to ${planName} plan!`);
+                const result = await res.json();
+                setBillingData(result.data || result);
+                setIsEditModalOpen(false);
+                toast.success('Billing information updated');
             } else {
-                const err = await res.json();
-                alert(`Upgrade failed: ${err.message}`);
+                toast.error('Failed to update billing information');
             }
         } catch (error) {
-            console.error('Upgrade error:', error);
+            console.error('Update error:', error);
+            toast.error('An error occurred while saving');
+        }
+    };
+
+    const handleCheckout = async (plan) => {
+        try {
+            const res = await apiFetch('/billing/checkout', {
+                method: 'POST',
+                body: JSON.stringify({ plan })
+            });
+
+            const result = await res.json();
+            if (result.url) {
+                // If it's a mock result, we might just want to reload with success
+                if (result.url.includes('mock_success')) {
+                    window.location.href = result.url;
+                } else {
+                    // Redirect to Stripe
+                    window.location.href = result.url;
+                }
+            } else {
+                toast.error('Unable to initiate checkout');
+            }
+        } catch (error) {
+            console.error('Checkout error:', error);
+            toast.error('Checkout failed to start');
         }
     };
 
@@ -315,11 +397,17 @@ export default function Billing() {
         <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased">
             <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
 
-            <EditBillingModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} />
+            <EditBillingModal 
+                isOpen={isEditModalOpen} 
+                onClose={() => setIsEditModalOpen(false)} 
+                billingData={billingData}
+                onSave={handleSaveBillingInfo}
+            />
 
             <ViewBillingModal
                 isOpen={isViewModalOpen}
                 onClose={() => setIsViewModalOpen(false)}
+                billingData={billingData}
                 onEdit={() => {
                     setIsViewModalOpen(false);
                     setIsEditModalOpen(true);
@@ -375,7 +463,10 @@ export default function Billing() {
                                                         <div className="text-xs text-gray-500">Expiry Date : {item.expiry}</div>
                                                     </div>
                                                 </div>
-                                                <button className="self-start sm:self-center px-6 py-2 border border-[#08A698] text-[#08A698] font-medium text-sm rounded-lg hover:bg-[#08A698] hover:text-white transition-all shadow-sm active:scale-95">
+                                                <button 
+                                                    onClick={() => handleCheckout(item.id === 1 ? 'pro' : 'plus')}
+                                                    className="self-start sm:self-center px-6 py-2 border border-[#08A698] text-[#08A698] font-medium text-sm rounded-lg hover:bg-[#08A698] hover:text-white transition-all shadow-sm active:scale-95"
+                                                >
                                                     Add
                                                 </button>
                                             </div>
@@ -398,7 +489,10 @@ export default function Billing() {
                                                         <div className="text-sm font-bold text-gray-700">{item.price}</div>
                                                     </div>
                                                 </div>
-                                                <button className="self-start sm:self-center px-6 py-2 border border-[#08A698] text-[#08A698] font-medium text-sm rounded-lg hover:bg-[#08A698] hover:text-white transition-all shadow-sm active:scale-95">
+                                                <button 
+                                                    onClick={() => handleCheckout('enterprise')}
+                                                    className="self-start sm:self-center px-6 py-2 border border-[#08A698] text-[#08A698] font-medium text-sm rounded-lg hover:bg-[#08A698] hover:text-white transition-all shadow-sm active:scale-95"
+                                                >
                                                     Add
                                                 </button>
                                             </div>
@@ -424,8 +518,8 @@ export default function Billing() {
                                                 </div>
                                             ) : (
                                                 <div>
-                                                    <div className="font-bold text-gray-900 text-sm mb-0.5">{user?.name || 'Loading...'}</div>
-                                                    <div className="text-sm text-gray-500">({user?.email})</div>
+                                                    <div className="font-bold text-gray-900 text-sm mb-0.5">{billingData?.company_name || user?.name || 'Your Name'}</div>
+                                                    <div className="text-sm text-gray-500">({billingData?.email || user?.email})</div>
                                                 </div>
                                             )}
                                             <div className="flex gap-2">

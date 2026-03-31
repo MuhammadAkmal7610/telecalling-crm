@@ -158,4 +158,90 @@ export class AuthService {
 
         return { message: 'Password has been reset successfully' };
     }
+
+    async signupInvite(signupDto: any, token: string) {
+        const adminSupabase = this.supabaseService.getAdminClient();
+
+        // 1. Verify invitation
+        const { data: invite, error: inviteError } = await adminSupabase
+            .from('invitations')
+            .select('*')
+            .eq('token', token)
+            .eq('status', 'pending')
+            .maybeSingle();
+
+        if (inviteError || !invite) {
+            throw new BadRequestException('Invalid or expired invitation token');
+        }
+
+        // 2. Sign up user in Supabase Auth
+        const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
+            email: signupDto.email,
+            password: signupDto.password,
+            email_confirm: true,
+            user_metadata: {
+                full_name: signupDto.name,
+                phone: signupDto.phone,
+                role: invite.role,
+                organization_id: invite.organization_id,
+                signup_completed: true,
+            },
+        });
+
+        if (authError || !authData?.user) {
+            this.logger.error(`Signup error: ${authError?.message || 'User creation failed'}`);
+            throw new BadRequestException(authError?.message || 'User creation failed');
+        }
+
+        const userId = authData.user.id;
+
+        // 3. Create entry in users table
+        const { error: userError } = await adminSupabase
+            .from('users')
+            .insert({
+                id: userId,
+                organization_id: invite.organization_id,
+                email: signupDto.email,
+                name: signupDto.name,
+                role: invite.role,
+                status: 'Working',
+            });
+
+        if (userError) {
+            this.logger.error(`User record creation error: ${userError.message}`);
+        }
+
+        // 4. Link to workspace if specified in invitation
+        if (invite.workspace_id) {
+            await adminSupabase.from('workspace_members').upsert({
+                workspace_id: invite.workspace_id,
+                user_id: userId,
+                role: invite.role === 'admin' ? 'admin' : 'caller'
+            }, { onConflict: 'workspace_id,user_id' });
+        } else {
+             // Find default workspace of the organization
+             const { data: defaultWs } = await adminSupabase
+             .from('workspaces')
+             .select('id')
+             .eq('organization_id', invite.organization_id)
+             .eq('is_default', true)
+             .maybeSingle();
+         
+             if (defaultWs) {
+                 await adminSupabase.from('workspace_members').upsert({
+                     workspace_id: defaultWs.id,
+                     user_id: userId,
+                     role: invite.role === 'admin' ? 'admin' : 'caller'
+                 }, { onConflict: 'workspace_id,user_id' });
+             }
+        }
+
+        // 5. Mark invitation as accepted
+        await adminSupabase.from('invitations').update({ status: 'accepted' }).eq('id', invite.id);
+
+        return {
+            message: 'Signup successful. You can now log in.',
+            user: authData.user,
+        };
+    }
 }

@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AuthBackground } from '../../src/components/AuthBackground';
-import { colors, fonts } from '../../src/theme/theme';
+import { AuthBackground } from '@/src/components/AuthBackground';
+import { colors, fonts } from '@/src/theme/theme';
 
 export default function ForgotPasswordScreen() {
     const router = useRouter();

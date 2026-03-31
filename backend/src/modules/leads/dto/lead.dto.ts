@@ -63,6 +63,12 @@ export class CreateLeadDto {
     @Transform(({ value }) => value === '' ? undefined : value)
     city?: string;
 
+    @ApiPropertyOptional({ example: 'Acme Corp', description: 'Company name' })
+    @IsOptional()
+    @IsString()
+    @Transform(({ value }) => value === '' ? undefined : value)
+    company?: string;
+
     @ApiPropertyOptional({ example: 28 })
     @IsOptional()
     @IsNumber()
@@ -217,11 +223,25 @@ export class LeadQueryDto {
     @ApiPropertyOptional({ enum: LeadStatus })
     @IsOptional()
     @IsEnum(LeadStatus)
+    @Transform(({ value }) => {
+        if (typeof value !== 'string') return value;
+        const entry = Object.values(LeadStatus).find(
+            (v) => v.toLowerCase() === value.toLowerCase()
+        );
+        return entry || value;
+    })
     status?: LeadStatus;
 
     @ApiPropertyOptional({ enum: LeadSource })
     @IsOptional()
     @IsEnum(LeadSource)
+    @Transform(({ value }) => {
+        if (typeof value !== 'string') return value;
+        const entry = Object.values(LeadSource).find(
+            (v) => v.toLowerCase() === value.toLowerCase()
+        );
+        return entry || value;
+    })
     source?: LeadSource;
 
     @ApiPropertyOptional()
@@ -262,4 +282,9 @@ export class LeadQueryDto {
     @IsOptional()
     @IsString()
     organizationId?: string;
+
+    @ApiPropertyOptional({ example: '30d' })
+    @IsOptional()
+    @IsString()
+    timeRange?: string;
 }

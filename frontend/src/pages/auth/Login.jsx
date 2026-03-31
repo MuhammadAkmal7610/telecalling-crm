@@ -95,7 +95,18 @@ const Login = () => {
                 </form>
 
                 <div className="mt-6 text-center text-slate-400 text-sm space-y-2">
-                    {/* Signup link removed: Only invited users can sign up. */}
+                    <div>
+                        No organization account yet?{' '}
+                        <Link
+                            to="/signup"
+                            className="text-teal-400 hover:text-teal-300 font-medium transition-colors"
+                        >
+                            Create Organization
+                        </Link>
+                    </div>
+                    <div className="text-xs text-slate-500">
+                        Team members can also join using their invite link.
+                    </div>
                     <div>
                         Need help?{' '}
                         <a href="mailto:support@wewave.com" className="text-white hover:text-slate-200 font-medium transition-colors">

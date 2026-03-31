@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, useColorScheme, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../src/components/common/Card';
-import { colors, fonts } from '../../src/theme/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { ApiService } from '../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
+import { EmptyWorkspaceState } from '@/src/components/common/EmptyWorkspaceState';
 
 interface ReportData {
   totalLeads: number;
@@ -33,9 +34,10 @@ interface ChartData {
 export default function AnalyticsScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
   
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [funnelData, setFunnelData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState('month');
@@ -57,36 +59,56 @@ export default function AnalyticsScreen() {
   ];
 
   useEffect(() => {
-    loadReportData();
-  }, [selectedTimeRange]);
+    if (user?.workspace_id) {
+      loadReportData();
+    } else {
+      setLoading(false);
+    }
+  }, [selectedTimeRange, user]);
 
   const loadReportData = async () => {
     try {
       setLoading(true);
-      // For now, use mock data. In future, fetch from API
-      const mockData: ReportData = {
-        totalLeads: Math.floor(Math.random() * 100) + 50,
-        convertedLeads: Math.floor(Math.random() * 30) + 10,
-        conversionRate: Math.random() * 30 + 10,
-        totalRevenue: Math.floor(Math.random() * 50000) + 10000,
-        averageDealSize: Math.floor(Math.random() * 5000) + 1000,
-        callsMade: Math.floor(Math.random() * 200) + 50,
-        emailsSent: Math.floor(Math.random() * 300) + 100,
-        meetingsScheduled: Math.floor(Math.random() * 50) + 10
+      const [dashboardRes, funnelRes] = await Promise.all([
+        ApiService.getDashboardData(selectedTimeRange),
+        ApiService.getConversionFunnel(selectedTimeRange)
+      ]);
+
+      if (dashboardRes.error) throw dashboardRes.error;
+      if (funnelRes.error) throw funnelRes.error;
+
+      const dashboard = dashboardRes.data;
+      const funnel = funnelRes.data;
+
+      // Extract metrics from dashboard data
+      const { metrics } = dashboard;
+      const data: ReportData = {
+        totalLeads: metrics.leads.total || 0,
+        convertedLeads: Math.round(metrics.leads.total * (metrics.leads.conversion_rate / 100)),
+        conversionRate: metrics.leads.conversion_rate || 0,
+        totalRevenue: metrics.revenue?.total_value || 0,
+        averageDealSize: metrics.revenue?.avg_deal_value || 0,
+        callsMade: metrics.calls?.total || 0,
+        emailsSent: metrics.whatsapp?.total_messages || 0, // Using whatsapp as proxy for now if emails not separate
+        meetingsScheduled: metrics.activities?.by_type?.meeting || 0
       };
-      setReportData(mockData);
-    } catch (error) {
+
+      setReportData(data);
+      setFunnelData(funnel);
+    } catch (error: any) {
       console.error('Error loading report data:', error);
-      Alert.alert('Error', 'Failed to load report data');
+      Alert.alert('Error', error.message || 'Failed to load report data');
     } finally {
       setLoading(false);
     }
   };
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await loadReportData();
-    setRefreshing(false);
+    if (user?.workspace_id) {
+      setRefreshing(true);
+      await loadReportData();
+      setRefreshing(false);
+    }
   };
 
   const renderMetricCard = (title: string, value: string | number, subtitle: string, icon: string, color: string, trend?: number) => (
@@ -120,7 +142,7 @@ export default function AnalyticsScreen() {
     </Card>
   );
 
-  const renderProgressBar = (label: string, value: number, total: number, color: string) => {
+  const renderProgressBar = (label: string, value: number, total: number, color: string, unit: string = '') => {
     const percentage = total > 0 ? (value / total) * 100 : 0;
     return (
       <View style={styles.progressContainer}>
@@ -129,7 +151,7 @@ export default function AnalyticsScreen() {
             {label}
           </Text>
           <Text style={[styles.progressValue, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            {value}/{total}
+            {value}{unit} / {total}{unit}
           </Text>
         </View>
         <View style={[styles.progressBar, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]}>
@@ -190,11 +212,11 @@ export default function AnalyticsScreen() {
         <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
           Conversion Funnel
         </Text>
-        {renderProgressBar('New Leads', 100, 100, '#10B981')}
-        {renderProgressBar('Contacted', 75, 100, '#3B82F6')}
-        {renderProgressBar('Qualified', 45, 100, '#8B5CF6')}
-        {renderProgressBar('Proposal', 25, 100, '#F59E0B')}
-        {renderProgressBar('Converted', reportData?.convertedLeads || 0, 100, '#059669')}
+        {renderProgressBar('New Leads', funnelData?.funnel?.fresh || 0, funnelData?.totalLeads || 1, '#10B981')}
+        {renderProgressBar('Contacted', funnelData?.funnel?.contacted || 0, funnelData?.totalLeads || 1, '#3B82F6')}
+        {renderProgressBar('Qualified', funnelData?.funnel?.qualified || 0, funnelData?.totalLeads || 1, '#8B5CF6')}
+        {renderProgressBar('Proposal', funnelData?.funnel?.proposal || 0, funnelData?.totalLeads || 1, '#F59E0B')}
+        {renderProgressBar('Converted', funnelData?.funnel?.won || 0, funnelData?.totalLeads || 1, '#059669')}
       </Card>
     </View>
   );
@@ -292,10 +314,10 @@ export default function AnalyticsScreen() {
         <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
           Average Conversion Time
         </Text>
-        {renderProgressBar('Lead to Contact', '2 days', '7 days', '#3B82F6')}
-        {renderProgressBar('Contact to Qualified', '5 days', '14 days', '#8B5CF6')}
-        {renderProgressBar('Qualified to Deal', '10 days', '21 days', '#F59E0B')}
-        {renderProgressBar('Deal to Closed', '15 days', '30 days', '#10B981')}
+        {renderProgressBar('Lead to Contact', 2, 7, '#3B82F6', ' days')}
+        {renderProgressBar('Contact to Qualified', 5, 14, '#8B5CF6', ' days')}
+        {renderProgressBar('Qualified to Deal', 10, 21, '#F59E0B', ' days')}
+        {renderProgressBar('Deal to Closed', 15, 30, '#10B981', ' days')}
       </Card>
     </View>
   );
@@ -384,14 +406,17 @@ export default function AnalyticsScreen() {
     }
   };
 
+  if (!loading && (!user || !user.workspace_id)) {
+    return <EmptyWorkspaceState />;
+  }
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}
       contentContainerStyle={styles.contentContainer}
-      refreshControl={{
-        refreshing,
-        onRefresh,
-      }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
       {/* Header */}
       <View style={styles.header}>

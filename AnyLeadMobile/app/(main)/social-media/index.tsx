@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, RefreshControl, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { ApiService } from '../../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface SocialLead {
@@ -78,7 +78,7 @@ interface SocialPost {
 export default function SocialMediaScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
   
   const [leads, setLeads] = useState<SocialLead[]>([]);
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
@@ -466,7 +466,7 @@ export default function SocialMediaScreen() {
         <View style={styles.leadMeta}>
           <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) + '20' }]}>
             <Text style={[styles.priorityText, { color: getPriorityColor(item.priority) }]}>
-              {item.priority.toUpperCase()}
+              {(item.priority || 'Medium').toUpperCase()}
             </Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
@@ -761,10 +761,9 @@ export default function SocialMediaScreen() {
         renderItem={renderLeadItem}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        refreshControl={{
-          refreshing,
-          onRefresh,
-        }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="person-add-outline" size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />

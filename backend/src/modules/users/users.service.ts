@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { InviteUserDto, UpdateUserDto, AssignLicenseDto, UserQueryDto } from './dto/user.dto';
+import { UserSettingsDto } from './dto/user-settings.dto';
 
 @Injectable()
 export class UsersService {
@@ -88,7 +89,7 @@ export class UsersService {
                 initials: dto.initials,
                 phone: dto.phone,
                 role: dto.role ?? 'caller',
-                status: 'Invited',
+                status: dto.password ? 'Working' : 'Invited',
                 permission_template_id: dto.permissionTemplateId || null,
                 license_type: dto.licenseType || null,
                 invited_by: invitedBy,
@@ -143,7 +144,7 @@ export class UsersService {
             .eq('organization_id', organizationId)
             .single();
 
-        if (error || !data) throw new NotFoundException(`User ${id} not found in your organization`);
+        if (error || !data) throw new NotFoundException(`User ${id} not found`);
         return data;
     }
 
@@ -155,7 +156,6 @@ export class UsersService {
             .from(this.TABLE)
             .update({ ...dto, updated_at: new Date().toISOString() })
             .eq('id', id)
-            .eq('organization_id', organizationId)
             .select()
             .single();
 
@@ -218,16 +218,20 @@ export class UsersService {
         return this.findOne(userId, organizationId);
     }
 
-    async updateMe(userId: string, dto: { name?: string; phone?: string; initials?: string }, organizationId: string) {
+    async updateMe(userId: string, dto: { name?: string; phone?: string; initials?: string; workspace_id?: string }, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
+
+        const updates: any = {
+            updated_at: new Date().toISOString(),
+        };
+        if (dto.name !== undefined) updates.name = dto.name;
+        if (dto.phone !== undefined) updates.phone = dto.phone;
+        if (dto.initials !== undefined) updates.initials = dto.initials;
+        if (dto.workspace_id !== undefined) updates.workspace_id = dto.workspace_id;
+
         const { data, error } = await supabase
             .from(this.TABLE)
-            .update({
-                name: dto.name,
-                phone: dto.phone,
-                initials: dto.initials,
-                updated_at: new Date().toISOString(),
-            })
+            .update(updates)
             .eq('id', userId)
             .eq('organization_id', organizationId)
             .select()
@@ -235,6 +239,50 @@ export class UsersService {
 
         if (error) throw new BadRequestException(error.message);
         return data;
+    }
+
+    async getMySettings(userId: string, organizationId: string): Promise<any> {
+        const supabase = this.supabaseService.getAdminClient();
+
+        const { data, error } = await supabase
+            .from(this.TABLE)
+            .select('settings')
+            .eq('id', userId)
+            .eq('organization_id', organizationId)
+            .single();
+
+        if (error) throw new BadRequestException(error.message);
+        return data?.settings || {};
+    }
+
+    async updateMySettings(userId: string, organizationId: string, dto: UserSettingsDto): Promise<any> {
+        // Ensure user exists in the org
+        await this.findOne(userId, organizationId);
+
+        const current = await this.getMySettings(userId, organizationId);
+        const next = {
+            ...current,
+            ...(dto || {}),
+            notifications: {
+                ...(current?.notifications || {}),
+                ...(dto?.notifications || {}),
+            },
+        };
+
+        const supabase = this.supabaseService.getAdminClient();
+        const { data, error } = await supabase
+            .from(this.TABLE)
+            .update({
+                settings: next,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', userId)
+            .eq('organization_id', organizationId)
+            .select('settings')
+            .single();
+
+        if (error) throw new BadRequestException(error.message);
+        return data?.settings || next;
     }
 
     async getUserActivity(userId: string, organizationId: string) {

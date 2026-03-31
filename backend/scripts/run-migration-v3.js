@@ -18,7 +18,7 @@ async function runMigration() {
     console.log('Running migration: create lead_field_definitions table...');
 
     const { error } = await supabase.rpc('exec_sql', {
-        sql_query: `
+        sql: `
         CREATE TABLE IF NOT EXISTS lead_field_definitions (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
             organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,

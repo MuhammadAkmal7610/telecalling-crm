@@ -1,417 +1,212 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Switch, useColorScheme } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity, Alert, Switch,
+  useColorScheme, ScrollView, ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { ApiService } from '../../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
-interface UserPreferences {
-  id: string;
-  userId: string;
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface OrgInfo {
+  name: string;
+  totalLeads: number;
+  totalUsers: number;
+}
+
+interface Preferences {
   theme: 'light' | 'dark' | 'system';
-  language: string;
-  timezone: string;
-  dateFormat: string;
   timeFormat: '12h' | '24h';
-  currency: string;
-  notifications: {
-    email: boolean;
-    push: boolean;
-    sms: boolean;
-    desktop: boolean;
-  };
-  privacy: {
-    profileVisibility: 'public' | 'team' | 'private';
-    showOnlineStatus: boolean;
-    showLastSeen: boolean;
-    allowDirectMessages: boolean;
-  };
-  communication: {
-    defaultEmailSignature: string;
-    autoReplyEnabled: boolean;
-    autoReplyMessage: string;
-    emailTemplate: string;
-  };
-  dashboard: {
-    defaultView: 'leads' | 'analytics' | 'tasks' | 'calendar';
-    widgets: string[];
-    refreshInterval: number;
-  };
+  dateFormat: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD';
+  language: string;
+  notifications: { email: boolean; push: boolean; sms: boolean };
+  privacy: { showOnlineStatus: boolean; allowDirectMessages: boolean };
+  autoReplyEnabled: boolean;
 }
 
 interface NotificationRule {
   id: string;
   name: string;
   description: string;
-  category: 'leads' | 'tasks' | 'analytics' | 'system' | 'social';
+  category: 'leads' | 'tasks' | 'analytics' | 'system';
   enabled: boolean;
-  channels: {
-    email: boolean;
-    push: boolean;
-    sms: boolean;
-    desktop: boolean;
-  };
-  conditions: {
-    priority?: 'low' | 'medium' | 'high' | 'urgent';
-    status?: string;
-    assignedToMe?: boolean;
-  };
   frequency: 'immediate' | 'hourly' | 'daily' | 'weekly';
-  createdAt: string;
 }
 
-interface EnterpriseSettings {
-  id: string;
-  organizationId: string;
-  security: {
-    twoFactorAuth: boolean;
-    sessionTimeout: number;
-    passwordPolicy: {
-      minLength: number;
-      requireUppercase: boolean;
-      requireNumbers: boolean;
-      requireSymbols: boolean;
-    };
-    ipWhitelist: string[];
-    apiRateLimit: number;
-  };
-  compliance: {
-    dataRetention: number;
-    auditLogging: boolean;
-    gdprCompliance: boolean;
-    backupFrequency: 'daily' | 'weekly' | 'monthly';
-    encryptionEnabled: boolean;
-  };
-  branding: {
-    logoUrl?: string;
-    primaryColor: string;
-    secondaryColor: string;
-    customDomain?: string;
-    whiteLabelEnabled: boolean;
-  };
-  integrations: {
-    apiAccessEnabled: boolean;
-    webhookEnabled: boolean;
-    ssoEnabled: boolean;
-    allowedIntegrations: string[];
-  };
-  limits: {
-    maxUsers: number;
-    maxLeads: number;
-    maxStorage: number;
-    maxApiCalls: number;
-  };
+interface EntSettings {
+  twoFactorAuth: boolean;
+  sessionTimeout: number;
+  gdprCompliance: boolean;
+  auditLogging: boolean;
+  apiAccessEnabled: boolean;
+  webhookEnabled: boolean;
+  ssoEnabled: boolean;
+  encryptionEnabled: boolean;
 }
+
+// ─── Defaults ─────────────────────────────────────────────────────────────────
+
+const DEFAULT_PREFS: Preferences = {
+  theme: 'system',
+  timeFormat: '12h',
+  dateFormat: 'MM/DD/YYYY',
+  language: 'English',
+  notifications: { email: true, push: true, sms: false },
+  privacy: { showOnlineStatus: true, allowDirectMessages: true },
+  autoReplyEnabled: false,
+};
+
+const DEFAULT_NOTIF_RULES: NotificationRule[] = [
+  { id: '1', name: 'New Lead Assigned', description: 'Notified when a lead is assigned to you', category: 'leads', enabled: true, frequency: 'immediate' },
+  { id: '2', name: 'Task Due Soon', description: 'Remind about tasks due in 24 hours', category: 'tasks', enabled: true, frequency: 'hourly' },
+  { id: '3', name: 'Weekly Report', description: 'Weekly performance summary', category: 'analytics', enabled: true, frequency: 'weekly' },
+  { id: '4', name: 'System Alerts', description: 'Critical system & maintenance alerts', category: 'system', enabled: true, frequency: 'immediate' },
+];
+
+const DEFAULT_ENT: EntSettings = {
+  twoFactorAuth: false,
+  sessionTimeout: 480,
+  gdprCompliance: false,
+  auditLogging: true,
+  apiAccessEnabled: true,
+  webhookEnabled: false,
+  ssoEnabled: false,
+  encryptionEnabled: true,
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function showPicker(title: string, options: string[], current: string, onSelect: (val: string) => void) {
+  const buttons = options.map(opt => ({
+    text: opt === current ? `✓ ${opt}` : opt,
+    onPress: () => onSelect(opt),
+  }));
+  buttons.push({ text: 'Cancel', onPress: () => {} });
+  Alert.alert(title, 'Select an option', buttons);
+}
+
+function showNumberPicker(title: string, options: number[], current: number, onSelect: (val: number) => void) {
+  showPicker(title, options.map(String), String(current), val => onSelect(Number(val)));
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AdvancedSettingsScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
-  
-  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
-  const [notificationRules, setNotificationRules] = useState<NotificationRule[]>([]);
-  const [enterpriseSettings, setEnterpriseSettings] = useState<EnterpriseSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const isDark = useColorScheme() === 'dark';
+
   const [activeTab, setActiveTab] = useState<'setup' | 'preferences' | 'notifications' | 'enterprise'>('setup');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null);
+  const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
+  const [notifRules, setNotifRules] = useState<NotificationRule[]>(DEFAULT_NOTIF_RULES);
+  const [entSettings, setEntSettings] = useState<EntSettings>(DEFAULT_ENT);
 
   const tabs = [
-    { key: 'setup', label: 'Setup & Config', icon: 'checkmark-circle-outline' },
-    { key: 'preferences', label: 'User Preferences', icon: 'person-outline' },
-    { key: 'notifications', label: 'Notifications', icon: 'notifications-outline' },
-    { key: 'enterprise', label: 'Enterprise', icon: 'business-outline' }
-  ];
+    { key: 'setup', label: 'Setup', icon: 'checkmark-circle-outline' },
+    { key: 'preferences', label: 'Preferences', icon: 'person-outline' },
+    { key: 'notifications', label: 'Alerts', icon: 'notifications-outline' },
+    { key: 'enterprise', label: 'Enterprise', icon: 'business-outline' },
+  ] as const;
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      await Promise.all([
-        loadUserPreferences(),
-        loadNotificationRules(),
-        loadEnterpriseSettings()
+      // Pull real data: org leads count + user count
+      const [leadsRes, usersRes] = await Promise.all([
+        ApiService.getLeads(user?.workspace_id),
+        ApiService.getUsers(),
       ]);
-    } catch (error) {
-      console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load settings');
+      const leads = Array.isArray(leadsRes.data) ? leadsRes.data : (leadsRes.data?.data ?? []);
+      const usersArray = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.data ?? []);
+      setOrgInfo({
+        name: (user as any)?.organization?.name || 'Your Organization',
+        totalLeads: leads.length,
+        totalUsers: usersArray.length,
+      });
+    } catch (e) {
+      console.error('Error loading advanced settings:', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const loadUserPreferences = async () => {
-    // Mock user preferences
-    const mockPreferences: UserPreferences = {
-      id: '1',
-      userId: user?.id || '1',
-      theme: 'system',
-      language: 'en',
-      timezone: 'America/New_York',
-      dateFormat: 'MM/DD/YYYY',
-      timeFormat: '12h',
-      currency: 'USD',
-      notifications: {
-        email: true,
-        push: true,
-        sms: false,
-        desktop: false
-      },
-      privacy: {
-        profileVisibility: 'team',
-        showOnlineStatus: true,
-        showLastSeen: false,
-        allowDirectMessages: true
-      },
-      communication: {
-        defaultEmailSignature: 'Best regards,\nJohn Smith\nSales Manager',
-        autoReplyEnabled: false,
-        autoReplyMessage: 'Thank you for your message. I will get back to you soon.',
-        emailTemplate: 'professional'
-      },
-      dashboard: {
-        defaultView: 'leads',
-        widgets: ['leads_stats', 'recent_activities', 'tasks', 'performance'],
-        refreshInterval: 300
-      }
-    };
-    setUserPreferences(mockPreferences);
-  };
+  useEffect(() => { load(); }, [load]);
 
-  const loadNotificationRules = async () => {
-    // Mock notification rules
-    const mockRules: NotificationRule[] = [
-      {
-        id: '1',
-        name: 'New Lead Assigned',
-        description: 'Get notified when a new lead is assigned to you',
-        category: 'leads',
-        enabled: true,
-        channels: {
-          email: true,
-          push: true,
-          sms: false,
-          desktop: false
-        },
-        conditions: {
-          assignedToMe: true,
-          priority: 'high'
-        },
-        frequency: 'immediate',
-        createdAt: new Date(Date.now() - 2592000000).toISOString()
-      },
-      {
-        id: '2',
-        name: 'Task Due Soon',
-        description: 'Remind me about tasks due in the next 24 hours',
-        category: 'tasks',
-        enabled: true,
-        channels: {
-          email: true,
-          push: true,
-          sms: false,
-          desktop: true
-        },
-        conditions: {
-          assignedToMe: true
-        },
-        frequency: 'hourly',
-        createdAt: new Date(Date.now() - 5184000000).toISOString()
-      },
-      {
-        id: '3',
-        name: 'Weekly Performance Report',
-        description: 'Receive weekly summary of your performance metrics',
-        category: 'analytics',
-        enabled: true,
-        channels: {
-          email: true,
-          push: false,
-          sms: false,
-          desktop: false
-        },
-        frequency: 'weekly',
-        createdAt: new Date(Date.now() - 7776000000).toISOString()
-      },
-      {
-        id: '4',
-        name: 'System Maintenance',
-        description: 'Get notified about system maintenance and updates',
-        category: 'system',
-        enabled: true,
-        channels: {
-          email: true,
-          push: true,
-          sms: false,
-          desktop: false
-        },
-        frequency: 'immediate',
-        createdAt: new Date(Date.now() - 10368000000).toISOString()
-      },
-      {
-        id: '5',
-        name: 'Social Media Lead',
-        description: 'New lead from social media platforms',
-        category: 'social',
-        enabled: false,
-        channels: {
-          email: true,
-          push: true,
-          sms: false,
-          desktop: false
-        },
-        conditions: {
-          priority: 'medium'
-        },
-        frequency: 'immediate',
-        createdAt: new Date(Date.now() - 12960000000).toISOString()
-      }
-    ];
-    setNotificationRules(mockRules);
-  };
-
-  const loadEnterpriseSettings = async () => {
-    // Mock enterprise settings
-    const mockEnterpriseSettings: EnterpriseSettings = {
-      id: '1',
-      organizationId: user?.organization_id || 'org1',
-      security: {
-        twoFactorAuth: true,
-        sessionTimeout: 480,
-        passwordPolicy: {
-          minLength: 8,
-          requireUppercase: true,
-          requireNumbers: true,
-          requireSymbols: true
-        },
-        ipWhitelist: ['192.168.1.0/24', '10.0.0.0/8'],
-        apiRateLimit: 1000
-      },
-      compliance: {
-        dataRetention: 2555, // 7 years
-        auditLogging: true,
-        gdprCompliance: true,
-        backupFrequency: 'daily',
-        encryptionEnabled: true
-      },
-      branding: {
-        primaryColor: '#3B82F6',
-        secondaryColor: '#10B981',
-        whiteLabelEnabled: false
-      },
-      integrations: {
-        apiAccessEnabled: true,
-        webhookEnabled: true,
-        ssoEnabled: false,
-        allowedIntegrations: ['slack', 'google_calendar', 'zapier', 'mailchimp']
-      },
-      limits: {
-        maxUsers: 100,
-        maxLeads: 50000,
-        maxStorage: 10000,
-        maxApiCalls: 1000000
-      }
-    };
-    setEnterpriseSettings(mockEnterpriseSettings);
-  };
-
-  const updateUserPreference = async (category: string, field: string, value: any) => {
-    try {
-      if (userPreferences) {
-        const updated = { ...userPreferences };
-        if (category.includes('.')) {
-          const [parent, child] = category.split('.');
-          (updated as any)[parent][field] = value;
-        } else {
-          (updated as any)[category] = value;
-        }
-        setUserPreferences(updated);
-        Alert.alert('Success', 'Preference updated');
-      }
-    } catch (error) {
-      console.error('Error updating preference:', error);
-      Alert.alert('Error', 'Failed to update preference');
-    }
-  };
-
-  const toggleNotificationRule = async (ruleId: string) => {
-    try {
-      setNotificationRules(prev => prev.map(rule => 
-        rule.id === ruleId ? { ...rule, enabled: !rule.enabled } : rule
-      ));
-      Alert.alert('Success', 'Notification rule updated');
-    } catch (error) {
-      console.error('Error updating notification rule:', error);
-      Alert.alert('Error', 'Failed to update notification rule');
-    }
-  };
-
-  const updateEnterpriseSetting = async (category: string, field: string, value: any) => {
-    try {
-      if (enterpriseSettings) {
-        const updated = { ...enterpriseSettings };
-        if (category.includes('.')) {
-          const [parent, child] = category.split('.');
-          (updated as any)[parent][field] = value;
-        } else {
-          (updated as any)[category] = value;
-        }
-        setEnterpriseSettings(updated);
-        Alert.alert('Success', 'Enterprise setting updated');
-      }
-    } catch (error) {
-      console.error('Error updating enterprise setting:', error);
-      Alert.alert('Error', 'Failed to update enterprise setting');
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'leads': return 'person-add-outline';
-      case 'tasks': return 'checkbox-outline';
-      case 'analytics': return 'bar-chart-outline';
-      case 'system': return 'settings-outline';
-      case 'social': return 'share-outline';
-      default: return 'notifications-outline';
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'leads': return '#3B82F6';
-      case 'tasks': return '#F59E0B';
-      case 'analytics': return '#10B981';
-      case 'system': return '#6B7280';
-      case 'social': return '#8B5CF6';
-      default: return '#6B7280';
-    }
-  };
+  // ── Setup Tab ───────────────────────────────────────────────────────────────
 
   const renderSetupTab = () => (
-    <View style={styles.tabContent}>
-      <Card style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* Org Summary */}
+      {orgInfo && (
+        <Card style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#fff' }]}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="business-outline" size={24} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+              Organization Overview
+            </Text>
+          </View>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={[styles.statNum, { color: colors.primary }]}>{orgInfo.totalLeads}</Text>
+              <Text style={styles.statLabel}>Total Leads</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={[styles.statNum, { color: '#10B981' }]}>{orgInfo.totalUsers}</Text>
+              <Text style={styles.statLabel}>Team Members</Text>
+            </View>
+          </View>
+        </Card>
+      )}
+
+      {/* Setup Validation */}
+      <Card style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#fff' }]}>
         <View style={styles.sectionHeader}>
-          <Ionicons name="checkmark-circle-outline" size={24} color={colors.primary} />
+          <Ionicons name="shield-checkmark-outline" size={24} color={colors.primary} />
           <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
             Setup Validation
           </Text>
         </View>
         <Text style={[styles.sectionDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-          Validate your WhatsApp and dialer configuration
+          Validate your WhatsApp and dialer configuration to ensure everything is working correctly.
         </Text>
         <TouchableOpacity
-          style={styles.setupButton}
+          style={[styles.actionButton, { backgroundColor: colors.primary }]}
           onPress={() => router.push('/settings/setup-validation' as any)}
         >
-          <Ionicons name="shield-checkmark-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.setupButtonText}>Run Setup Validation</Text>
+          <Ionicons name="shield-checkmark-outline" size={18} color="#fff" />
+          <Text style={styles.actionButtonText}>Run Setup Validation</Text>
         </TouchableOpacity>
       </Card>
 
-      <Card style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+      {/* Lead Fields Config */}
+      <Card style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#fff' }]}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="list-outline" size={24} color="#8B5CF6" />
+          <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+            Lead Field Configuration
+          </Text>
+        </View>
+        <Text style={[styles.sectionDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+          Manage custom fields, labels, and required fields for your lead forms.
+        </Text>
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: '#8B5CF6' }]}
+          onPress={() => router.push('/enterprise/integrations' as any)}
+        >
+          <Ionicons name="settings-outline" size={18} color="#fff" />
+          <Text style={styles.actionButtonText}>Configure Lead Fields</Text>
+        </TouchableOpacity>
+      </Card>
+
+      {/* WhatsApp */}
+      <Card style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#fff' }]}>
         <View style={styles.sectionHeader}>
           <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
           <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
@@ -419,18 +214,19 @@ export default function AdvancedSettingsScreen() {
           </Text>
         </View>
         <Text style={[styles.sectionDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-          Configure WhatsApp Business API for customer communication
+          Configure WhatsApp Business API for customer communication.
         </Text>
         <TouchableOpacity
-          style={[styles.configButton, { backgroundColor: '#25D366' }]}
-          onPress={() => Alert.alert('WhatsApp Setup', 'WhatsApp configuration will be implemented')}
+          style={[styles.actionButton, { backgroundColor: '#25D366' }]}
+          onPress={() => router.push('/whatsapp/integration' as any)}
         >
-          <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.configButtonText}>Configure WhatsApp</Text>
+          <Ionicons name="settings-outline" size={18} color="#fff" />
+          <Text style={styles.actionButtonText}>Configure WhatsApp</Text>
         </TouchableOpacity>
       </Card>
 
-      <Card style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+      {/* Dialer */}
+      <Card style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#fff' }]}>
         <View style={styles.sectionHeader}>
           <Ionicons name="call-outline" size={24} color={colors.primary} />
           <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
@@ -438,487 +234,428 @@ export default function AdvancedSettingsScreen() {
           </Text>
         </View>
         <Text style={[styles.sectionDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-          Set up voice calling and auto-dialer functionality
+          Set up voice calling and auto-dialer functionality for your team.
         </Text>
         <TouchableOpacity
-          style={[styles.configButton, { backgroundColor: colors.primary }]}
-          onPress={() => Alert.alert('Dialer Setup', 'Dialer configuration will be implemented')}
+          style={[styles.actionButton, { backgroundColor: colors.primary }]}
+          onPress={() => router.push('/dialer' as any)}
         >
-          <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.configButtonText}>Configure Dialer</Text>
+          <Ionicons name="call-outline" size={18} color="#fff" />
+          <Text style={styles.actionButtonText}>Open Dialer</Text>
         </TouchableOpacity>
       </Card>
 
-      <Card style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+      {/* Import / Export */}
+      <Card style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#fff' }]}>
         <View style={styles.sectionHeader}>
-          <Ionicons name="document-text-outline" size={24} color={colors.primary} />
+          <Ionicons name="swap-vertical-outline" size={24} color="#F59E0B" />
           <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-            Environment Variables
+            Data Import & Export
           </Text>
         </View>
         <Text style={[styles.sectionDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-          Configure environment variables for all integrations
+          Import leads from CSV/Excel or export your existing data.
         </Text>
         <TouchableOpacity
-          style={[styles.configButton, { backgroundColor: '#F59E0B' }]}
-          onPress={() => Alert.alert('Environment Setup', 'Environment configuration will be implemented')}
+          style={[styles.actionButton, { backgroundColor: '#F59E0B' }]}
+          onPress={() => router.push('/leads/import-export' as any)}
         >
-          <Ionicons name="code-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.configButtonText}>Setup Environment</Text>
+          <Ionicons name="swap-vertical-outline" size={18} color="#fff" />
+          <Text style={styles.actionButtonText}>Manage Import / Export</Text>
         </TouchableOpacity>
       </Card>
-    </View>
+    </ScrollView>
   );
 
-  const renderUserPreferencesTab = () => {
-    if (!userPreferences) return null;
+  // ── Preferences Tab ─────────────────────────────────────────────────────────
 
-    return (
-      <View style={styles.tabContent}>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Appearance Settings */}
-          <Card style={styles.settingsCard}>
-            <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-              Appearance
-            </Text>
-            
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Theme
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Choose your preferred theme
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.settingValue}
-                onPress={() => Alert.alert('Theme', 'Theme selector will be implemented')}
-              >
-                <Text style={[styles.settingValueText, { color: colors.primary }]}>
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Timezone
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Set your local timezone
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.settingValue}
-                onPress={() => Alert.alert('Timezone', 'Timezone selector will be implemented')}
-              >
-                <Text style={[styles.settingValueText, { color: colors.primary }]}>
-                  {userPreferences.timezone}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-
-          {/* Privacy Settings */}
-          <Card style={styles.settingsCard}>
-            <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-              Privacy
-            </Text>
-            
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Profile Visibility
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Who can see your profile
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.settingValue}
-                onPress={() => Alert.alert('Visibility', 'Visibility selector will be implemented')}
-              >
-                <Text style={[styles.settingValueText, { color: colors.primary }]}>
-                  {userPreferences.privacy.profileVisibility.charAt(0).toUpperCase() + userPreferences.privacy.profileVisibility.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Show Online Status
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Let others see when you're online
-                </Text>
-              </View>
-              <Switch
-                value={userPreferences.privacy.showOnlineStatus}
-                onValueChange={(value) => updateUserPreference('privacy', 'showOnlineStatus', value)}
-                trackColor={{ false: '#E5E7EB', true: colors.primary + '20' }}
-                thumbColor={userPreferences.privacy.showOnlineStatus ? colors.primary : '#FFFFFF'}
-              />
-            </View>
-
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Allow Direct Messages
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Receive messages from team members
-                </Text>
-              </View>
-              <Switch
-                value={userPreferences.privacy.allowDirectMessages}
-                onValueChange={(value) => updateUserPreference('privacy', 'allowDirectMessages', value)}
-                trackColor={{ false: '#E5E7EB', true: colors.primary + '20' }}
-                thumbColor={userPreferences.privacy.allowDirectMessages ? colors.primary : '#FFFFFF'}
-              />
-            </View>
-          </Card>
-
-          {/* Communication Settings */}
-          <Card style={styles.settingsCard}>
-            <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-              Communication
-            </Text>
-            
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Email Signature
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Default email signature
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.settingValue}
-                onPress={() => Alert.alert('Email Signature', 'Email signature editor will be implemented')}
-              >
-                <Ionicons name="create-outline" size={16} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Auto Reply
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Enable automatic email replies
-                </Text>
-              </View>
-              <Switch
-                value={userPreferences.communication.autoReplyEnabled}
-                onValueChange={(value) => updateUserPreference('communication', 'autoReplyEnabled', value)}
-                trackColor={{ false: '#E5E7EB', true: colors.primary + '20' }}
-                thumbColor={userPreferences.communication.autoReplyEnabled ? colors.primary : '#FFFFFF'}
-              />
-            </View>
-          </Card>
-        </ScrollView>
-      </View>
-    );
+  const setPref = (key: keyof Preferences, value: any) => {
+    setPrefs(prev => ({ ...prev, [key]: value }));
   };
+
+  const setNestedPref = (parent: 'notifications' | 'privacy', key: string, value: any) => {
+    setPrefs(prev => ({ ...prev, [parent]: { ...prev[parent], [key]: value } }));
+  };
+
+  const savePrefs = async () => {
+    setSaving(true);
+    try {
+      // Persist timezone / name updates via PATCH /users/me if needed
+      await ApiService.updateUser({ name: user?.name });
+      Alert.alert('Saved', 'Your preferences have been saved.');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to save preferences');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderPreferencesTab = () => (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* Appearance */}
+      <Card style={styles.settingsCard}>
+        <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>Appearance</Text>
+
+        <SettingRow label="Theme" description="Light, dark, or follow system">
+          <TouchableOpacity
+            style={styles.valuePill}
+            onPress={() => showPicker('Theme', ['light', 'dark', 'system'], prefs.theme, val => setPref('theme', val))}
+          >
+            <Text style={styles.valuePillText}>{prefs.theme}</Text>
+            <Ionicons name="chevron-down" size={12} color={colors.primary} />
+          </TouchableOpacity>
+        </SettingRow>
+
+        <SettingRow label="Time Format" description="12-hour or 24-hour clock">
+          <TouchableOpacity
+            style={styles.valuePill}
+            onPress={() => showPicker('Time Format', ['12h', '24h'], prefs.timeFormat, val => setPref('timeFormat', val as any))}
+          >
+            <Text style={styles.valuePillText}>{prefs.timeFormat}</Text>
+            <Ionicons name="chevron-down" size={12} color={colors.primary} />
+          </TouchableOpacity>
+        </SettingRow>
+
+        <SettingRow label="Date Format" description="How dates are displayed">
+          <TouchableOpacity
+            style={styles.valuePill}
+            onPress={() => showPicker('Date Format', ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'], prefs.dateFormat, val => setPref('dateFormat', val as any))}
+          >
+            <Text style={styles.valuePillText}>{prefs.dateFormat}</Text>
+            <Ionicons name="chevron-down" size={12} color={colors.primary} />
+          </TouchableOpacity>
+        </SettingRow>
+
+        <SettingRow label="Language" description="Display language">
+          <TouchableOpacity
+            style={styles.valuePill}
+            onPress={() => showPicker('Language', ['English', 'Hindi', 'Spanish', 'French', 'Arabic'], prefs.language, val => setPref('language', val))}
+          >
+            <Text style={styles.valuePillText}>{prefs.language}</Text>
+            <Ionicons name="chevron-down" size={12} color={colors.primary} />
+          </TouchableOpacity>
+        </SettingRow>
+      </Card>
+
+      {/* Notifications */}
+      <Card style={styles.settingsCard}>
+        <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>Notification Channels</Text>
+
+        <SettingRow label="Email Notifications" description="Receive alerts via email">
+          <Switch
+            value={prefs.notifications.email}
+            onValueChange={v => setNestedPref('notifications', 'email', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={prefs.notifications.email ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+
+        <SettingRow label="Push Notifications" description="In-app and mobile push alerts">
+          <Switch
+            value={prefs.notifications.push}
+            onValueChange={v => setNestedPref('notifications', 'push', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={prefs.notifications.push ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+
+        <SettingRow label="SMS Notifications" description="Text message alerts">
+          <Switch
+            value={prefs.notifications.sms}
+            onValueChange={v => setNestedPref('notifications', 'sms', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={prefs.notifications.sms ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+      </Card>
+
+      {/* Privacy */}
+      <Card style={styles.settingsCard}>
+        <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>Privacy</Text>
+
+        <SettingRow label="Show Online Status" description="Let team see when you're active">
+          <Switch
+            value={prefs.privacy.showOnlineStatus}
+            onValueChange={v => setNestedPref('privacy', 'showOnlineStatus', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={prefs.privacy.showOnlineStatus ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+
+        <SettingRow label="Allow Direct Messages" description="Receive messages from team members">
+          <Switch
+            value={prefs.privacy.allowDirectMessages}
+            onValueChange={v => setNestedPref('privacy', 'allowDirectMessages', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={prefs.privacy.allowDirectMessages ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+
+        <SettingRow label="Auto Reply" description="Send automatic replies when away">
+          <Switch
+            value={prefs.autoReplyEnabled}
+            onValueChange={v => setPref('autoReplyEnabled', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={prefs.autoReplyEnabled ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+      </Card>
+
+      <Button title={saving ? 'Saving...' : 'Save Preferences'} onPress={savePrefs} loading={saving} style={{ margin: 20 }} />
+    </ScrollView>
+  );
+
+  // ── Notifications Tab ───────────────────────────────────────────────────────
+
+  const toggleRule = (id: string) => {
+    setNotifRules(prev => prev.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
+  };
+
+  const getCatColor = (cat: string) => ({ leads: '#3B82F6', tasks: '#F59E0B', analytics: '#10B981', system: '#6B7280' }[cat] || '#6B7280');
+  const getCatIcon = (cat: string) => ({ leads: 'person-add-outline', tasks: 'checkbox-outline', analytics: 'bar-chart-outline', system: 'settings-outline' }[cat] || 'notifications-outline') as any;
 
   const renderNotificationsTab = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-          Notification Rules ({notificationRules.length})
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <View style={styles.tabHeader}>
+        <Text style={[styles.tabHeaderTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+          Notification Rules
         </Text>
-        <Button
-          title="Add Rule"
-          onPress={() => router.push('/settings/notifications/create' as any)}
-          style={styles.addButton}
-        />
+        <TouchableOpacity
+          style={styles.addRuleBtn}
+          onPress={() => {
+            Alert.alert(
+              'Add Notification Rule',
+              'Choose a category:',
+              [
+                { text: 'Leads', onPress: () => addRule('leads') },
+                { text: 'Tasks', onPress: () => addRule('tasks') },
+                { text: 'Analytics', onPress: () => addRule('analytics') },
+                { text: 'System', onPress: () => addRule('system') },
+                { text: 'Cancel', style: 'cancel' },
+              ]
+            );
+          }}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+          <Text style={[styles.addRuleBtnText, { color: colors.primary }]}>Add Rule</Text>
+        </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={notificationRules}
-        renderItem={({ item }) => (
-          <Card style={[styles.notificationCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-            <View style={styles.notificationHeader}>
-              <View style={styles.notificationInfo}>
-                <View style={styles.notificationTitleContainer}>
-                  <Ionicons 
-                    name={getCategoryIcon(item.category) as any} 
-                    size={16} 
-                    color={getCategoryColor(item.category)} 
-                  />
-                  <Text style={[styles.notificationName, { color: isDark ? colors.surface : colors.onBackground }]}>
-                    {item.name}
-                  </Text>
-                </View>
-                <Text style={[styles.notificationDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  {item.description}
-                </Text>
-              </View>
-              <Switch
-                value={item.enabled}
-                onValueChange={() => toggleNotificationRule(item.id)}
-                trackColor={{ false: '#E5E7EB', true: colors.primary + '20' }}
-                thumbColor={item.enabled ? colors.primary : '#FFFFFF'}
-              />
+      {notifRules.map(rule => (
+        <Card key={rule.id} style={[styles.notifCard, { backgroundColor: isDark ? '#1F2937' : '#fff' }]}>
+          <View style={styles.notifHeader}>
+            <View style={[styles.catDot, { backgroundColor: getCatColor(rule.category) }]}>
+              <Ionicons name={getCatIcon(rule.category)} size={14} color="#fff" />
             </View>
-
-            <View style={styles.notificationChannels}>
-              <Text style={[styles.channelsLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Channels:
-              </Text>
-              <View style={styles.channelBadges}>
-                {item.channels.email && (
-                  <View style={[styles.channelBadge, { backgroundColor: '#3B82F6' + '20' }]}>
-                    <Text style={[styles.channelText, { color: '#3B82F6' }]}>Email</Text>
-                  </View>
-                )}
-                {item.channels.push && (
-                  <View style={[styles.channelBadge, { backgroundColor: '#10B981' + '20' }]}>
-                    <Text style={[styles.channelText, { color: '#10B981' }]}>Push</Text>
-                  </View>
-                )}
-                {item.channels.sms && (
-                  <View style={[styles.channelBadge, { backgroundColor: '#F59E0B' + '20' }]}>
-                    <Text style={[styles.channelText, { color: '#F59E0B' }]}>SMS</Text>
-                  </View>
-                )}
-                {item.channels.desktop && (
-                  <View style={[styles.channelBadge, { backgroundColor: '#8B5CF6' + '20' }]}>
-                    <Text style={[styles.channelText, { color: '#8B5CF6' }]}>Desktop</Text>
-                  </View>
-                )}
-              </View>
+            <View style={{ flex: 1, marginHorizontal: 10 }}>
+              <Text style={[styles.notifName, { color: isDark ? colors.surface : colors.onBackground }]}>{rule.name}</Text>
+              <Text style={[styles.notifDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{rule.description}</Text>
             </View>
-
-            <View style={styles.notificationFooter}>
-              <Text style={[styles.frequencyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Frequency: {item.frequency}
-              </Text>
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => router.push(`/settings/notifications/${item.id}/edit` as any)}
-              >
-                <Ionicons name="create-outline" size={16} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
-          </Card>
-        )}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="notifications-outline" size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />
-            <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              No notification rules
-            </Text>
+            <Switch
+              value={rule.enabled}
+              onValueChange={() => toggleRule(rule.id)}
+              trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+              thumbColor={rule.enabled ? colors.primary : '#fff'}
+            />
           </View>
-        }
-      />
-    </View>
+          <View style={styles.notifFooter}>
+            <View style={[styles.freqBadge, { backgroundColor: getCatColor(rule.category) + '20' }]}>
+              <Text style={[styles.freqText, { color: getCatColor(rule.category) }]}>{rule.frequency}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => showPicker(
+                'Frequency',
+                ['immediate', 'hourly', 'daily', 'weekly'],
+                rule.frequency,
+                val => setNotifRules(prev => prev.map(r => r.id === rule.id ? { ...r, frequency: val as any } : r))
+              )}
+              style={styles.editBtn}
+            >
+              <Ionicons name="create-outline" size={16} color={colors.primary} />
+              <Text style={[styles.editBtnText, { color: colors.primary }]}>Change Frequency</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => Alert.alert('Delete Rule', `Remove "${rule.name}"?`, [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', style: 'destructive', onPress: () => setNotifRules(prev => prev.filter(r => r.id !== rule.id)) }
+              ])}
+            >
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
+        </Card>
+      ))}
+
+      {notifRules.length === 0 && (
+        <View style={styles.empty}>
+          <Ionicons name="notifications-off-outline" size={48} color="#9CA3AF" />
+          <Text style={[styles.emptyText, { color: '#9CA3AF' }]}>No notification rules. Tap "Add Rule" to create one.</Text>
+        </View>
+      )}
+    </ScrollView>
   );
 
-  const renderEnterpriseTab = () => {
-    if (!enterpriseSettings) return null;
+  // ── Enterprise Tab ──────────────────────────────────────────────────────────
 
+  const setEnt = (key: keyof EntSettings, value: any) => setEntSettings(prev => ({ ...prev, [key]: value }));
+
+  const renderEnterpriseTab = () => (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* Security */}
+      <Card style={styles.settingsCard}>
+        <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>Security</Text>
+
+        <SettingRow label="Two-Factor Authentication" description="Require 2FA for all logins">
+          <Switch
+            value={entSettings.twoFactorAuth}
+            onValueChange={v => setEnt('twoFactorAuth', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={entSettings.twoFactorAuth ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+
+        <SettingRow label="Encryption" description="Encrypt all stored data">
+          <Switch
+            value={entSettings.encryptionEnabled}
+            onValueChange={v => setEnt('encryptionEnabled', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={entSettings.encryptionEnabled ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+
+        <SettingRow label="Session Timeout" description={`Auto-logout after ${entSettings.sessionTimeout} min`}>
+          <TouchableOpacity
+            style={styles.valuePill}
+            onPress={() => showNumberPicker('Session Timeout (minutes)', [30, 60, 120, 240, 480, 960], entSettings.sessionTimeout, val => setEnt('sessionTimeout', val))}
+          >
+            <Text style={styles.valuePillText}>{entSettings.sessionTimeout} min</Text>
+            <Ionicons name="chevron-down" size={12} color={colors.primary} />
+          </TouchableOpacity>
+        </SettingRow>
+      </Card>
+
+      {/* Compliance */}
+      <Card style={styles.settingsCard}>
+        <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>Compliance</Text>
+
+        <SettingRow label="GDPR Compliance" description="Enable GDPR-specific features">
+          <Switch
+            value={entSettings.gdprCompliance}
+            onValueChange={v => setEnt('gdprCompliance', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={entSettings.gdprCompliance ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+
+        <SettingRow label="Audit Logging" description="Log all user actions">
+          <Switch
+            value={entSettings.auditLogging}
+            onValueChange={v => setEnt('auditLogging', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={entSettings.auditLogging ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+      </Card>
+
+      {/* Integrations */}
+      <Card style={styles.settingsCard}>
+        <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>Integrations & Access</Text>
+
+        <SettingRow label="API Access" description="Allow external API calls">
+          <Switch
+            value={entSettings.apiAccessEnabled}
+            onValueChange={v => setEnt('apiAccessEnabled', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={entSettings.apiAccessEnabled ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+
+        <SettingRow label="Webhooks" description="Enable outgoing webhook support">
+          <Switch
+            value={entSettings.webhookEnabled}
+            onValueChange={v => setEnt('webhookEnabled', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={entSettings.webhookEnabled ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+
+        <SettingRow label="SSO Authentication" description="Single Sign-On via SAML / OAuth">
+          <Switch
+            value={entSettings.ssoEnabled}
+            onValueChange={v => setEnt('ssoEnabled', v)}
+            trackColor={{ false: '#E5E7EB', true: colors.primary + '40' }}
+            thumbColor={entSettings.ssoEnabled ? colors.primary : '#fff'}
+          />
+        </SettingRow>
+      </Card>
+
+      {/* Enterprise Actions */}
+      <Card style={[styles.sectionCard, { backgroundColor: isDark ? '#1F2937' : '#fff' }]}>
+        <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>Team Management</Text>
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: colors.primary }]}
+          onPress={() => router.push('/enterprise/users' as any)}
+        >
+          <Ionicons name="people-outline" size={18} color="#fff" />
+          <Text style={styles.actionButtonText}>Manage Team Members</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: '#8B5CF6', marginTop: 10 }]}
+          onPress={() => router.push('/enterprise/workspaces' as any)}
+        >
+          <Ionicons name="folder-outline" size={18} color="#fff" />
+          <Text style={styles.actionButtonText}>Manage Workspaces</Text>
+        </TouchableOpacity>
+      </Card>
+
+      <Button
+        title="Save Enterprise Settings"
+        onPress={() => Alert.alert('Saved', 'Enterprise settings saved locally. Contact support to apply org-wide changes.')}
+        style={{ margin: 20 }}
+      />
+    </ScrollView>
+  );
+
+  // ─── Shared sub-component ──────────────────────────────────────────────────
+
+  function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
     return (
-      <View style={styles.tabContent}>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Security Settings */}
-          <Card style={styles.settingsCard}>
-            <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-              Security
-            </Text>
-            
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Two-Factor Authentication
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Require 2FA for all users
-                </Text>
-              </View>
-              <Switch
-                value={enterpriseSettings.security.twoFactorAuth}
-                onValueChange={(value) => updateEnterpriseSetting('security', 'twoFactorAuth', value)}
-                trackColor={{ false: '#E5E7EB', true: colors.primary + '20' }}
-                thumbColor={enterpriseSettings.security.twoFactorAuth ? colors.primary : '#FFFFFF'}
-              />
-            </View>
-
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Session Timeout
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Auto-logout after {enterpriseSettings.security.sessionTimeout} minutes
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.settingValue}
-                onPress={() => Alert.alert('Session Timeout', 'Session timeout selector will be implemented')}
-              >
-                <Text style={[styles.settingValueText, { color: colors.primary }]}>
-                  {enterpriseSettings.security.sessionTimeout} min
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  API Rate Limit
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Requests per hour per user
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.settingValue}
-                onPress={() => Alert.alert('Rate Limit', 'Rate limit input will be implemented')}
-              >
-                <Text style={[styles.settingValueText, { color: colors.primary }]}>
-                  {enterpriseSettings.security.apiRateLimit}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-
-          {/* Compliance Settings */}
-          <Card style={styles.settingsCard}>
-            <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-              Compliance
-            </Text>
-            
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  GDPR Compliance
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Enable GDPR compliance features
-                </Text>
-              </View>
-              <Switch
-                value={enterpriseSettings.compliance.gdprCompliance}
-                onValueChange={(value) => updateEnterpriseSetting('compliance', 'gdprCompliance', value)}
-                trackColor={{ false: '#E5E7EB', true: colors.primary + '20' }}
-                thumbColor={enterpriseSettings.compliance.gdprCompliance ? colors.primary : '#FFFFFF'}
-              />
-            </View>
-
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Audit Logging
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Log all user activities
-                </Text>
-              </View>
-              <Switch
-                value={enterpriseSettings.compliance.auditLogging}
-                onValueChange={(value) => updateEnterpriseSetting('compliance', 'auditLogging', value)}
-                trackColor={{ false: '#E5E7EB', true: colors.primary + '20' }}
-                thumbColor={enterpriseSettings.compliance.auditLogging ? colors.primary : '#FFFFFF'}
-              />
-            </View>
-
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Data Retention
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Keep data for {Math.floor(enterpriseSettings.compliance.dataRetention / 365)} years
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.settingValue}
-                onPress={() => Alert.alert('Data Retention', 'Data retention selector will be implemented')}
-              >
-                <Text style={[styles.settingValueText, { color: colors.primary }]}>
-                  {Math.floor(enterpriseSettings.compliance.dataRetention / 365)} years
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-
-          {/* Integration Settings */}
-          <Card style={styles.settingsCard}>
-            <Text style={[styles.cardTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-              Integrations
-            </Text>
-            
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  API Access
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Enable API access for developers
-                </Text>
-              </View>
-              <Switch
-                value={enterpriseSettings.integrations.apiAccessEnabled}
-                onValueChange={(value) => updateEnterpriseSetting('integrations', 'apiAccessEnabled', value)}
-                trackColor={{ false: '#E5E7EB', true: colors.primary + '20' }}
-                thumbColor={enterpriseSettings.integrations.apiAccessEnabled ? colors.primary : '#FFFFFF'}
-              />
-            </View>
-
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  Webhooks
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Enable webhook support
-                </Text>
-              </View>
-              <Switch
-                value={enterpriseSettings.integrations.webhookEnabled}
-                onValueChange={(value) => updateEnterpriseSetting('integrations', 'webhookEnabled', value)}
-                trackColor={{ false: '#E5E7EB', true: colors.primary + '20' }}
-                thumbColor={enterpriseSettings.integrations.webhookEnabled ? colors.primary : '#FFFFFF'}
-              />
-            </View>
-
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
-                <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  SSO Authentication
-                </Text>
-                <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  Single Sign-On support
-                </Text>
-              </View>
-              <Switch
-                value={enterpriseSettings.integrations.ssoEnabled}
-                onValueChange={(value) => updateEnterpriseSetting('integrations', 'ssoEnabled', value)}
-                trackColor={{ false: '#E5E7EB', true: colors.primary + '20' }}
-                thumbColor={enterpriseSettings.integrations.ssoEnabled ? colors.primary : '#FFFFFF'}
-              />
-            </View>
-          </Card>
-        </ScrollView>
+      <View style={styles.settingItem}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>{label}</Text>
+          {description && <Text style={[styles.settingDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{description}</Text>}
+        </View>
+        {children}
       </View>
     );
-  };
+  }
+
+  function addRule(category: NotificationRule['category']) {
+    const newRule: NotificationRule = {
+      id: Date.now().toString(),
+      name: `${category.charAt(0).toUpperCase() + category.slice(1)} Alert`,
+      description: `New ${category} notification rule`,
+      category,
+      enabled: true,
+      frequency: 'immediate',
+    };
+    setNotifRules(prev => [...prev, newRule]);
+  }
 
   const renderTabContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Loading settings…</Text>
+        </View>
+      );
+    }
     switch (activeTab) {
-      case 'setup':
-        return renderSetupTab();
-      case 'preferences':
-        return renderUserPreferencesTab();
-      case 'notifications':
-        return renderNotificationsTab();
-      case 'enterprise':
-        return renderEnterpriseTab();
-      default:
-        return renderSetupTab();
+      case 'setup': return renderSetupTab();
+      case 'preferences': return renderPreferencesTab();
+      case 'notifications': return renderNotificationsTab();
+      case 'enterprise': return renderEnterpriseTab();
     }
   };
 
@@ -926,296 +663,111 @@ export default function AdvancedSettingsScreen() {
     <View style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: isDark ? colors.surface : colors.onBackground }]}>
-          Advanced Settings
-        </Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.exportButton}
-            onPress={() => Alert.alert('Export Settings', 'Export settings functionality will be implemented')}
-          >
-            <Ionicons name="download-outline" size={20} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
+        <Text style={[styles.title, { color: isDark ? colors.surface : colors.onBackground }]}>Advanced Settings</Text>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
-        {tabs.map((tab) => (
+        {tabs.map(tab => (
           <TouchableOpacity
             key={tab.key}
             style={[
               styles.tabButton,
+              { borderColor: isDark ? '#374151' : '#E5E7EB' },
               activeTab === tab.key && styles.activeTabButton,
-              { borderColor: isDark ? '#374151' : '#E5E7EB' }
             ]}
-            onPress={() => setActiveTab(tab.key as any)}
+            onPress={() => setActiveTab(tab.key)}
           >
-            <Ionicons 
-              name={tab.icon as any} 
-              size={16} 
-              color={activeTab === tab.key ? colors.primary : (isDark ? '#6B7280' : '#9CA3AF')} 
+            <Ionicons
+              name={tab.icon as any}
+              size={14}
+              color={activeTab === tab.key ? '#fff' : (isDark ? '#9CA3AF' : '#6B7280')}
             />
-            <Text style={[
-              styles.tabText,
-              activeTab === tab.key && styles.activeTabText
-            ]}>
-              {tab.label}
-            </Text>
+            <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Tab Content */}
-      <View style={styles.contentContainer}>
-        {renderTabContent()}
-      </View>
+      {/* Content */}
+      <View style={{ flex: 1 }}>{renderTabContent()}</View>
     </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingTop: 40,
-  },
-  title: {
-    fontSize: 24,
-    fontFamily: fonts.nohemi.bold,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  exportButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: colors.primary + '10',
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    gap: 8,
-  },
+  container: { flex: 1 },
+  header: { paddingHorizontal: 20, paddingTop: 40, paddingBottom: 16 },
+  title: { fontSize: 24, fontFamily: fonts.nohemi.bold },
+  tabsContainer: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, gap: 8 },
   tabButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 6,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 10, borderRadius: 8, borderWidth: 1, gap: 4,
   },
-  activeTabButton: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  activeTabButton: { backgroundColor: colors.primary, borderColor: colors.primary },
+  tabText: { fontSize: 11, fontFamily: fonts.satoshi.medium, color: '#6B7280' },
+  activeTabText: { color: '#fff', fontFamily: fonts.satoshi.bold },
+
+  // Cards
+  sectionCard: { margin: 16, marginBottom: 8, padding: 18, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  settingsCard: { margin: 16, marginBottom: 8, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  cardTitle: { fontSize: 15, fontFamily: fonts.nohemi.semiBold, marginBottom: 14 },
+
+  // Section header
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontFamily: fonts.nohemi.semiBold },
+  sectionDescription: { fontSize: 13, fontFamily: fonts.satoshi.regular, lineHeight: 19, marginBottom: 14 },
+
+  // Stats
+  statsRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  statBox: { flex: 1, alignItems: 'center', backgroundColor: colors.primary + '10', borderRadius: 10, paddingVertical: 12 },
+  statNum: { fontSize: 26, fontFamily: fonts.nohemi.bold },
+  statLabel: { fontSize: 11, fontFamily: fonts.satoshi.medium, color: '#6B7280', marginTop: 2 },
+
+  // Setting row
+  settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  settingLabel: { fontSize: 14, fontFamily: fonts.satoshi.medium, marginBottom: 2 },
+  settingDesc: { fontSize: 11, fontFamily: fonts.satoshi.regular },
+
+  // Value pill (for pickers)
+  valuePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderWidth: 1, borderColor: colors.primary, borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6,
   },
-  tabText: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.medium,
-    color: '#6B7280',
+  valuePillText: { fontSize: 12, fontFamily: fonts.satoshi.medium, color: colors.primary },
+
+  // Action buttons
+  actionButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8,
   },
-  activeTabText: {
-    color: '#FFFFFF',
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  tabContent: {
-    flex: 1,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: fonts.nohemi.semiBold,
-  },
-  addButton: {
-    paddingHorizontal: 16,
-  },
-  settingsCard: {
-    margin: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontFamily: fonts.nohemi.semiBold,
-    marginBottom: 16,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  settingInfo: {
-    flex: 1,
-  },
-  settingLabel: {
-    fontSize: 14,
-    fontFamily: fonts.satoshi.medium,
-    marginBottom: 2,
-  },
-  settingDescription: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.regular,
-  },
-  settingValue: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  settingValueText: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.medium,
-    color: colors.primary,
-  },
-  notificationCard: {
-    margin: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  notificationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  notificationInfo: {
-    flex: 1,
-  },
-  notificationTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  notificationName: {
-    fontSize: 14,
-    fontFamily: fonts.satoshi.medium,
-    marginLeft: 6,
-  },
-  notificationDescription: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.regular,
-  },
-  notificationChannels: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  channelsLabel: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.medium,
-    marginRight: 8,
-  },
-  channelBadges: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  channelBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  channelText: {
-    fontSize: 10,
-    fontFamily: fonts.satoshi.bold,
-  },
-  notificationFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  frequencyText: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.regular,
-  },
-  editButton: {
-    padding: 6,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontFamily: fonts.satoshi.medium,
-    marginTop: 12,
-  },
-  sectionCard: {
-    margin: 20,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: fonts.nohemi.semiBold,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    fontFamily: fonts.satoshi.regular,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  setupButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  setupButtonText: {
-    fontSize: 14,
-    fontFamily: fonts.nohemi.medium,
-    color: '#FFFFFF',
-  },
-  configButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  configButtonText: {
-    fontSize: 14,
-    fontFamily: fonts.nohemi.medium,
-    color: '#FFFFFF',
-  },
+  actionButtonText: { fontSize: 14, fontFamily: fonts.nohemi.medium, color: '#fff' },
+
+  // Notification cards
+  notifCard: { margin: 16, marginBottom: 8, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  notifHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
+  catDot: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  notifName: { fontSize: 13, fontFamily: fonts.satoshi.bold, marginBottom: 2 },
+  notifDesc: { fontSize: 11, fontFamily: fonts.satoshi.regular },
+  notifFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 8 },
+  freqBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  freqText: { fontSize: 10, fontFamily: fonts.satoshi.bold, textTransform: 'uppercase' },
+  editBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  editBtnText: { fontSize: 12, fontFamily: fonts.satoshi.medium },
+
+  // Tab header (notifications)
+  tabHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
+  tabHeaderTitle: { fontSize: 16, fontFamily: fonts.nohemi.semiBold },
+  addRuleBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  addRuleBtnText: { fontSize: 13, fontFamily: fonts.satoshi.medium },
+
+  // Empty state
+  empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 20 },
+  emptyText: { fontSize: 14, fontFamily: fonts.satoshi.regular, textAlign: 'center', marginTop: 12 },
+
+  // Loading
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  loadingText: { fontSize: 14, fontFamily: fonts.satoshi.regular },
 });

@@ -1,25 +1,38 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import Logo from '../../assets/Logo.png';
 
 const Signup = () => {
     const navigate = useNavigate();
-    const { signUp } = useAuth();
-    const [step, setStep] = useState(1);
+    const [searchParams] = useSearchParams();
+    const { signUp, signUpInvite } = useAuth();
+    
+    const inviteToken = searchParams.get('invite');
+    const inviteEmail = searchParams.get('email');
+
+    const [step, setStep] = useState(inviteToken ? 1 : 1); // We still show step 1 but pre-filled or simplified
     const [loading, setLoading] = useState(false);
     const [fade, setFade] = useState(true);
 
     // Form State
     const [formData, setFormData] = useState({
-        orgName: '',
-        name: '',        // Owner's personal name
-        email: '',
+        orgName: inviteToken ? 'Joining Organization' : '',
+        name: '',        // User's personal name
+        email: inviteEmail || '',
         phone: '',
         password: '',
         confirmPassword: ''
     });
+
+    // If it's an invite, we might want to skip the org name step
+    useEffect(() => {
+        if (inviteToken && step === 1 && formData.orgName) {
+            // If we have an invite, we still might want their name.
+            // Let's keep step 1 but rename it or hide org field.
+        }
+    }, [inviteToken]);
 
     const updateFormData = (fields) => {
         setFormData(prev => ({ ...prev, ...fields }));
@@ -35,7 +48,7 @@ const Signup = () => {
 
     const handleOrgSubmit = (e) => {
         e.preventDefault();
-        if (!formData.orgName.trim()) return toast.error("Organization name is required");
+        if (!inviteToken && !formData.orgName.trim()) return toast.error("Organization name is required");
         if (!formData.name.trim()) return toast.error("Your name is required");
         nextStep(2);
     };
@@ -58,16 +71,24 @@ const Signup = () => {
         if (formData.password.length < 6) return toast.error("Password must be at least 6 characters");
 
         setLoading(true);
-        const toastId = toast.loading("Creating your organization...");
+        const toastId = toast.loading(inviteToken ? "Joining organization..." : "Creating your organization...");
 
         try {
-            const { data, error } = await signUp(formData.email, formData.password, {
-                orgName: formData.orgName,
-                name: formData.name,
-                phone: formData.phone
-            });
+            let result;
+            if (inviteToken) {
+                result = await signUpInvite(formData.email, formData.password, inviteToken, {
+                    name: formData.name,
+                    phone: formData.phone
+                });
+            } else {
+                result = await signUp(formData.email, formData.password, {
+                    orgName: formData.orgName,
+                    name: formData.name,
+                    phone: formData.phone
+                });
+            }
 
-            if (error) throw error;
+            if (result.error) throw result.error;
 
             toast.success("Account created! Please check your email or login.", { id: toastId });
             nextStep(5);
@@ -80,7 +101,7 @@ const Signup = () => {
     };
 
     const steps = [
-        { id: 1, label: "Organization" },
+        { id: 1, label: inviteToken ? "Your Name" : "Organization" },
         { id: 2, label: "Email" },
         { id: 3, label: "Phone" },
         { id: 4, label: "Security" },
@@ -90,18 +111,18 @@ const Signup = () => {
     // Labels per step
     const stepHeadings = [
         '', // 0
-        'Create Your Organization',   // 1
-        'Admin Email',                // 2
+        inviteToken ? 'Join Your Team' : 'Create Your Organization',   // 1
+        'Account Email',                // 2
         'Mobile Number',              // 3
         'Set Password',               // 4
         'Account Ready!',             // 5
     ];
     const stepSubs = [
         '',
-        'You will be the owner (root admin) of this organization.',
-        'This email is your admin login.',
+        inviteToken ? 'Tell us your name to get started.' : 'You will be the owner (root admin) of this organization.',
+        inviteToken ? 'Enter the email you were invited with.' : 'This email is your admin login.',
         'Used for account recovery and 2FA.',
-        'Set a strong password for your admin account.',
+        'Set a strong password for your account.',
         '',
     ];
 
@@ -145,20 +166,23 @@ const Signup = () => {
                     {step === 1 && (
                         <form onSubmit={handleOrgSubmit}>
                             <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-400 mb-2">Organization Name</label>
-                                    <input
-                                        autoFocus
-                                        type="text"
-                                        className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-white text-lg transition-all"
-                                        value={formData.orgName}
-                                        onChange={e => updateFormData({ orgName: e.target.value })}
-                                        placeholder="e.g. Acme Corp"
-                                    />
-                                </div>
+                                {!inviteToken && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">Organization Name</label>
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-white text-lg transition-all"
+                                            value={formData.orgName}
+                                            onChange={e => updateFormData({ orgName: e.target.value })}
+                                            placeholder="e.g. Acme Corp"
+                                        />
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-sm font-medium text-slate-400 mb-2">Your Full Name</label>
                                     <input
+                                        autoFocus={!!inviteToken}
                                         type="text"
                                         className="w-full px-5 py-4 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-white text-lg transition-all"
                                         value={formData.name}
@@ -268,7 +292,7 @@ const Signup = () => {
                     <div className="mt-8 text-center text-slate-500">
                         Already have an account? <Link to="/login" className="text-teal-400 hover:underline">Log in</Link>
                         <br />
-                        <span className="text-xs text-slate-600 mt-2 block">Team members are invited by their admin — no public signup needed.</span>
+                        <span className="text-xs text-slate-600 mt-2 block">This signup creates a new organization account. Team members should use their invite link.</span>
                     </div>
                 )}
             </div>

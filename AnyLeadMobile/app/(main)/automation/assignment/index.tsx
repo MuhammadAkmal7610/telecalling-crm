@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { ApiService } from '../../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface AssignmentRule {
@@ -45,7 +45,7 @@ interface TeamMember {
 export default function AutoAssignmentScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
   
   const [rules, setRules] = useState<AssignmentRule[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -509,10 +509,9 @@ export default function AutoAssignmentScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.rulesListContainer}
           showsVerticalScrollIndicator={false}
-          refreshControl={{
-            refreshing,
-            onRefresh,
-          }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="git-branch-outline" size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />

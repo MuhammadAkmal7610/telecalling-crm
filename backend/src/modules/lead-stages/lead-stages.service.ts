@@ -40,7 +40,32 @@ export class LeadStagesService {
         return data;
     }
 
+    private mapDbToDto(db: any) {
+        if (!db) return null;
+        const {
+            organization_id,
+            workspace_id,
+            is_default,
+            created_at,
+            updated_at,
+            ...rest
+        } = db;
+
+        return {
+            ...rest,
+            organizationId: organization_id,
+            workspaceId: workspace_id,
+            isDefault: is_default,
+            createdAt: created_at,
+            updatedAt: updated_at,
+        };
+    }
+
     async findAll(organizationId: string, workspaceId: string) {
+        if (!workspaceId || workspaceId === 'null' || workspaceId === 'undefined') {
+            return [];
+        }
+
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase
             .from(this.TABLE)
@@ -50,7 +75,7 @@ export class LeadStagesService {
             .order('position', { ascending: true });
 
         if (error) throw new BadRequestException(error.message);
-        return data;
+        return data?.map(stage => this.mapDbToDto(stage)) || [];
     }
 
     async findOne(id: string, organizationId: string, workspaceId: string) {
@@ -64,7 +89,7 @@ export class LeadStagesService {
             .single();
 
         if (error || !data) throw new NotFoundException(`Stage ${id} not found in your workspace`);
-        return data;
+        return this.mapDbToDto(data);
     }
 
     async update(id: string, dto: UpdateLeadStageDto, organizationId: string, workspaceId: string) {

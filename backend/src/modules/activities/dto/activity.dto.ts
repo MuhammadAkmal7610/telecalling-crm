@@ -30,7 +30,7 @@ export class CreateActivityDto {
     @ApiPropertyOptional({ example: 'Discussed project requirements and timeline.' })
     @IsOptional()
     @IsString()
-    description?: string;
+    details?: string;
 
     @ApiPropertyOptional({ example: '4m 32s' })
     @IsOptional()

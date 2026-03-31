@@ -18,12 +18,15 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
         const jwksUri = `${supabaseUrl.replace(/\/$/, '')}/auth/v1/.well-known/jwks.json`;
         const secret =
             configService.get<string>('SUPABASE_JWT_SECRET') ||
-            configService.get<string>('JWT_SECRET') ||
-            'fallback-secret-please-set-env';
+            configService.get<string>('JWT_SECRET');
+
+        if (!secret) {
+            throw new Error('SUPABASE_JWT_SECRET or JWT_SECRET must be set');
+        }
 
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-            ignoreExpiration: true, // TEMPORARY: for demo
+            ignoreExpiration: false,
             passReqToCallback: true, // needed to access x-workspace-id header
             secretOrKeyProvider: (request, rawJwtToken, done) => {
                 try {
@@ -34,7 +37,10 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
                     const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());
                     this.logger.debug(`Incoming token algorithm: ${header.alg}`);
                     if (header.alg === 'HS256') {
-                        return done(null, secret);
+                        // Supabase JWT secrets are usually base64 encoded.
+                        // We need to decode them to a buffer for HS256 to work correctly.
+                        const decodedSecret = Buffer.from(secret, 'base64');
+                        return done(null, decodedSecret);
                     }
 
                     if (header.alg === 'ES256') {
@@ -115,7 +121,9 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
             role: finalRole,             // Highest role found
             orgRole: userRecord?.role,   // always the org-level role
             organizationId,
+            organization_id: organizationId, // for backward compatibility
             workspaceId,
+            workspace_id: workspaceId,       // for backward compatibility
             status: userRecord?.status,
         };
 

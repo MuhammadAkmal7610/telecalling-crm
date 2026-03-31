@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, LeadStatusBadge, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { ApiService } from '../../../src/services/ApiService';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { Lead } from '../../../src/lib/supabase';
+import { Card, LeadStatusBadge, Button } from '@/src/components/common/Card';
+import { colors, fonts, spacing } from '@/src/theme/theme';
+import { ApiService } from '@/src/services/ApiService';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { EmptyWorkspaceState } from '@/src/components/common/EmptyWorkspaceState';
+import { Lead } from '@/src/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import { useToast } from '@/src/contexts/ToastContext';
+import { usePopupMessages } from '@/src/hooks/usePopupMessages';
 
 export default function LeadsScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { showToast } = useToast();
+  const { showConfirmation, showError, showSuccess } = usePopupMessages();
   const isDark = useColorScheme() === 'dark';
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,11 +23,11 @@ export default function LeadsScreen() {
 
   const loadLeads = async () => {
     try {
-      const { data } = await ApiService.getLeads(user?.workspace_id);
+      const { data, error } = await ApiService.getLeads(user?.workspace_id);
+      if (error) throw error;
       setLeads(data || []);
-    } catch (error) {
-      console.error('Error loading leads:', error);
-      Alert.alert('Error', 'Failed to load leads');
+    } catch (error: any) {
+      showToast({ message: error.message || 'Failed to load leads', type: 'error' });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -30,33 +35,37 @@ export default function LeadsScreen() {
   };
 
   useEffect(() => {
-    loadLeads();
+    if (user?.workspace_id) {
+      loadLeads();
+    } else {
+      setLoading(false);
+    }
   }, [user]);
 
   const onRefresh = () => {
-    setRefreshing(true);
-    loadLeads();
+    if (user?.workspace_id) {
+      setRefreshing(true);
+      loadLeads();
+    }
   };
 
   const handleDeleteLead = (leadId: string) => {
-    Alert.alert(
+    showConfirmation(
       'Delete Lead',
-      'Are you sure you want to delete this lead?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await ApiService.deleteLead(leadId);
-              loadLeads();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete lead');
-            }
-          },
-        },
-      ]
+      'Are you sure you want to delete this lead? This action cannot be undone.',
+      async () => {
+        try {
+          const { error } = await ApiService.deleteLead(leadId);
+          if (error) throw error;
+          showSuccess('Lead deleted successfully');
+          loadLeads();
+        } catch (error: any) {
+          showError(error.message || 'Failed to delete lead');
+        }
+      },
+      undefined,
+      'Delete',
+      'Cancel'
     );
   };
 
@@ -70,6 +79,11 @@ export default function LeadsScreen() {
           <Text style={[styles.leadName, { color: isDark ? colors.surface : colors.onBackground }]}>
             {item.name}
           </Text>
+          {item.company && (
+            <Text style={[styles.leadCompany, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              {item.company}
+            </Text>
+          )}
           {item.email && (
             <Text style={[styles.leadEmail, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
               {item.email}
@@ -92,15 +106,22 @@ export default function LeadsScreen() {
         </View>
       </View>
       <View style={styles.leadFooter}>
-        <Text style={[styles.leadSource, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-          Source: {item.source}
-        </Text>
-        <Text style={[styles.leadDate, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+        <View style={styles.sourceTag}>
+          <Ionicons name="funnel-outline" size={12} color={isDark ? colors.darkMuted : colors.muted} />
+          <Text style={[styles.leadSource, { color: isDark ? colors.darkMuted : colors.muted }]}>
+            {item.source}
+          </Text>
+        </View>
+        <Text style={[styles.leadDate, { color: isDark ? colors.darkMuted : colors.muted }]}>
           {new Date(item.created_at).toLocaleDateString()}
         </Text>
       </View>
     </Card>
   );
+
+  if (!loading && (!user || !user.workspace_id)) {
+    return <EmptyWorkspaceState />;
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}>
@@ -152,19 +173,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 40,
+    padding: spacing.lg,
+    paddingTop: 60,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontFamily: fonts.nohemi.bold,
   },
   listContainer: {
-    padding: 20,
+    padding: spacing.lg,
     paddingTop: 0,
   },
   leadCard: {
-    marginBottom: 12,
+    marginBottom: spacing.md,
+    padding: spacing.md,
   },
   leadHeader: {
     flexDirection: 'row',
@@ -178,6 +200,11 @@ const styles = StyleSheet.create({
   leadName: {
     fontSize: 16,
     fontFamily: fonts.nohemi.semiBold,
+    marginBottom: 2,
+  },
+  leadCompany: {
+    fontSize: 13,
+    fontFamily: fonts.satoshi.medium,
     marginBottom: 2,
   },
   leadEmail: {
@@ -201,10 +228,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB30',
+  },
+  sourceTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   leadSource: {
     fontSize: 12,
     fontFamily: fonts.satoshi.medium,
+    textTransform: 'capitalize',
   },
   leadDate: {
     fontSize: 12,

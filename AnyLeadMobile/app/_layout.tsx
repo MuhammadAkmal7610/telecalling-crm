@@ -4,8 +4,12 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
-import { AuthProvider } from '../src/contexts/AuthContext';
-import { WorkspaceProvider } from '../src/contexts/WorkspaceContext';
+import { AuthProvider } from '@/src/contexts/AuthContext';
+import { WorkspaceProvider } from '@/src/contexts/WorkspaceContext';
+import { ToastProvider } from '@/src/contexts/ToastContext';
+import { PopupProvider } from '@/src/contexts/PopupContext';
+import { Toast } from '@/src/components/common/Toast';
+import { Popup } from '@/src/components/common/Popup';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -26,16 +30,21 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <WorkspaceProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(main)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </WorkspaceProvider>
+      <ToastProvider>
+        <PopupProvider>
+          <WorkspaceProvider>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <Stack>
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen name="(main)" options={{ headerShown: false }} />
+                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+              </Stack>
+              <StatusBar style="auto" />
+              <Toast />
+            </ThemeProvider>
+          </WorkspaceProvider>
+        </PopupProvider>
+      </ToastProvider>
     </AuthProvider>
   );
 }

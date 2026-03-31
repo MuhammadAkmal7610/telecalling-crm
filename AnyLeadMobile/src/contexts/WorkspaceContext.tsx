@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { ApiService } from '../services/ApiService';
 import { useAuth } from './AuthContext';
 
 interface Workspace {
@@ -36,22 +36,19 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       // Fetch workspaces where the user is a member
-      const { data, error } = await supabase
-        .from('workspace_members')
-        .select('workspace:workspaces(*)')
-        .eq('user_id', user.id);
+      const { data, error } = await ApiService.getMyWorkspaces();
 
       if (error) throw error;
 
-      const ws: Workspace[] = (data || [])
-        .map((row: any) => row.workspace)
-        .filter(Boolean);
+      const ws: Workspace[] = data || [];
 
       setWorkspaces(ws);
+      setLoading(false);
 
       // Persist selected workspace or default to first
-      if (ws.length > 0 && !currentWorkspace) {
-        setCurrentWorkspace(ws[0]);
+      if (ws.length > 0) {
+        const activeWs = ws.find(w => w.id === user.workspace_id) || ws[0];
+        setCurrentWorkspace(activeWs);
       }
     } catch (err) {
       console.error('WorkspaceContext: failed to fetch workspaces', err);
@@ -62,7 +59,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchWorkspaces();
-  }, [user?.id]);
+  }, [user?.id, user?.workspace_id]);
 
   return (
     <WorkspaceContext.Provider

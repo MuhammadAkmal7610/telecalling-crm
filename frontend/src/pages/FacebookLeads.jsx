@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import WorkspaceGuard from '../components/WorkspaceGuard';
+import { useApi } from '../hooks/useApi';
+import { useWorkspace } from '../context/WorkspaceContext';
 import {
     MagnifyingGlassIcon,
     FunnelIcon,
@@ -23,25 +25,74 @@ import {
     HandThumbUpIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { toast } from 'react-hot-toast';
 
 export default function FacebookLeads() {
+    const { apiFetch } = useApi();
+    const { currentWorkspace } = useWorkspace();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [selectedLeadId, setSelectedLeadId] = useState(1);
+    const [selectedLeadId, setSelectedLeadId] = useState(null);
     const [activeTab, setActiveTab] = useState('Activity History');
     const [isReportColumnOpen, setIsReportColumnOpen] = useState(true);
+    const [leads, setLeads] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [activities, setActivities] = useState([]);
 
-    // Mock Data - Facebook Specific
-    const leads = [
-        { id: 1, name: 'Sarah Jenkins', phone: '923130000001', status: 'Fresh', rating: 1, time: '2m', ad: 'Summer Sale Promo' },
-        { id: 2, name: 'Mike Ross', phone: '923400000002', status: 'Fresh', rating: 0, time: '8m', ad: 'Lead Gen Form B' },
-        { id: 3, name: 'Jessica Pearson', phone: '923200000003', status: 'Re-Engaged', rating: 2, time: '15m', ad: 'Consultation Offer' },
-        { id: 4, name: 'Harvey Specter', phone: '923300000004', status: 'Not Sure', rating: 1, time: '45m', ad: 'VIP Sourcing' },
-        { id: 5, name: 'Louis Litt', phone: '923000000005', status: 'Fresh', rating: 0, time: '1h', ad: 'Summer Sale Promo' },
-        { id: 6, name: 'Donna Paulsen', phone: '937000000006', status: 'Fresh', rating: 3, time: '2h', ad: 'Webinar Signup' },
-        { id: 7, name: 'Rachel Zane', phone: '923000000007', status: 'Fresh', rating: 0, time: '3h', ad: 'Lead Gen Form B' },
-    ];
+    useEffect(() => {
+        fetchFacebookLeads();
+    }, [currentWorkspace]);
 
-    const selectedLead = leads.find(l => l.id === selectedLeadId) || leads[0];
+    useEffect(() => {
+        if (selectedLeadId) {
+            fetchLeadActivities(selectedLeadId);
+        }
+    }, [selectedLeadId]);
+
+    const fetchFacebookLeads = async () => {
+        setLoading(true);
+        try {
+            const res = await apiFetch('/leads?source=Facebook&limit=100');
+            const result = await res.json();
+            const leadData = result.data?.data || result.data || result;
+            const finalLeads = Array.isArray(leadData) ? leadData : [];
+            setLeads(finalLeads);
+            if (finalLeads.length > 0 && !selectedLeadId) setSelectedLeadId(finalLeads[0].id);
+        } catch (error) {
+            console.error('Error fetching facebook leads:', error);
+            toast.error('Failed to load facebook leads');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchLeadActivities = async (leadId) => {
+        try {
+            const res = await apiFetch(`/activities?leadId=${leadId}`);
+            const result = await res.json();
+            const activityData = result.data || result;
+            setActivities(Array.isArray(activityData) ? activityData : []);
+        } catch (error) {
+            console.error('Error fetching lead activities:', error);
+        }
+    };
+
+    const selectedLead = leads.find(l => l.id === selectedLeadId) || (leads.length > 0 ? leads[0] : null);
+
+    const getTimeAgo = (date) => {
+        if (!date) return 'N/A';
+        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + "y";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + "mo";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + "d";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + "h";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + "m";
+        return Math.floor(seconds) + "s";
+    };
 
     return (
         <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans">
@@ -134,6 +185,9 @@ export default function FacebookLeads() {
                             </div>
 
                             <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                {leads.length === 0 && !loading && (
+                                    <div className="py-20 text-center text-gray-400 italic text-sm">No facebook leads found</div>
+                                )}
                                 {leads.map((lead) => (
                                     <div
                                         key={lead.id}
@@ -142,15 +196,15 @@ export default function FacebookLeads() {
                                     >
                                         <div className="flex justify-between items-start mb-1.5">
                                             <h3 className={`font-semibold text-sm truncate pr-2 ${selectedLeadId === lead.id ? 'text-[#08A698]' : 'text-gray-800'}`}>{lead.name}</h3>
-                                            <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap bg-gray-100 px-1.5 py-0.5 rounded">{lead.time}</span>
+                                            <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap bg-gray-100 px-1.5 py-0.5 rounded">{getTimeAgo(lead.created_at)}</span>
                                         </div>
-                                        <div className="text-xs text-blue-600 mb-1 font-medium">{lead.ad}</div>
+                                        <div className="text-xs text-blue-600 mb-1 font-medium">{lead.facebookAd || lead.ad || 'Facebook Ad'}</div>
                                         <div className="text-xs text-gray-500 mb-3 font-mono tracking-tight">{lead.phone}</div>
                                         <div className="flex items-center justify-between">
                                             <StatusBadge status={lead.status} />
                                             <div className="flex gap-0.5 opacity-50 group-hover:opacity-100 transition-opacity">
                                                 {[...Array(5)].map((_, i) => (
-                                                    <StarIcon key={i} className={`w-3.5 h-3.5 ${i < lead.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`} />
+                                                    <StarIcon key={i} className={`w-3.5 h-3.5 ${i < (lead.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`} />
                                                 ))}
                                             </div>
                                         </div>
@@ -161,110 +215,108 @@ export default function FacebookLeads() {
 
                         {/* RIGHT COLUMN: Lead Details */}
                         <div className="flex-1 bg-[#F8F9FA] flex flex-col overflow-hidden relative">
-                            <div className="bg-white/80 backdrop-blur-md p-6 border-b border-gray-200 shadow-sm z-20 sticky top-0">
-                                <div className="flex justify-between items-start mb-5">
-                                    <div>
-                                        <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-                                            {selectedLead.name}
-                                            <div className="flex gap-1.5 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Tooltip text="Chat on WhatsApp">
-                                                    <button className="p-1.5 rounded-full bg-green-50 text-green-600 hover:bg-green-100 border border-green-100 transition-colors"><ChatBubbleOvalLeftEllipsisIcon className="w-4 h-4" /></button>
-                                                </Tooltip>
-                                                <Tooltip text="Call Now">
-                                                    <button className="p-1.5 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100 transition-colors"><PhoneIcon className="w-4 h-4" /></button>
-                                                </Tooltip>
+                            {selectedLead ? (
+                                <>
+                                    <div className="bg-white/80 backdrop-blur-md p-6 border-b border-gray-200 shadow-sm z-20 sticky top-0">
+                                        <div className="flex justify-between items-start mb-5">
+                                            <div>
+                                                <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                                                    {selectedLead.name}
+                                                    <div className="flex gap-1.5 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Tooltip text="Chat on WhatsApp">
+                                                            <button className="p-1.5 rounded-full bg-green-50 text-green-600 hover:bg-green-100 border border-green-100 transition-colors"><ChatBubbleOvalLeftEllipsisIcon className="w-4 h-4" /></button>
+                                                        </Tooltip>
+                                                        <Tooltip text="Call Now">
+                                                            <button className="p-1.5 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100 transition-colors"><PhoneIcon className="w-4 h-4" /></button>
+                                                        </Tooltip>
+                                                    </div>
+                                                </h1>
+                                                <div className="flex items-center gap-3">
+                                                    <StatusBadge status={selectedLead.status} />
+                                                    <div className="h-4 w-px bg-gray-300"></div>
+                                                    <div className="flex gap-0.5">
+                                                        {[...Array(5)].map((_, i) => (
+                                                            <StarIcon key={i} className="w-4 h-4 text-gray-300 hover:text-amber-400 cursor-pointer transition-colors" />
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </h1>
-                                        <div className="flex items-center gap-3">
-                                            <StatusBadge status={selectedLead.status} />
-                                            <div className="h-4 w-px bg-gray-300"></div>
-                                            <div className="flex gap-0.5">
-                                                {[...Array(5)].map((_, i) => (
-                                                    <StarIcon key={i} className="w-4 h-4 text-gray-300 hover:text-amber-400 cursor-pointer transition-colors" />
-                                                ))}
+                                            <div className="text-right">
+                                                <div className="flex items-center justify-end gap-2 mb-1 p-1 pr-2 bg-white border border-gray-200 rounded-full shadow-sm">
+                                                    <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[10px] font-bold ring-2 ring-white">AI</span>
+                                                    <span className="text-xs font-semibold text-gray-600">{selectedLead.assignee?.name || 'Aiman'}</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="flex items-center justify-end gap-2 mb-1 p-1 pr-2 bg-white border border-gray-200 rounded-full shadow-sm">
-                                            <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[10px] font-bold ring-2 ring-white">AI</span>
-                                            <span className="text-xs font-semibold text-gray-600">Aiman</span>
+
+                                        <div className="grid grid-cols-2 gap-y-5 gap-x-12 mb-6">
+                                            <div className="space-y-5">
+                                                <InfoField label="Interest" value={selectedLead.company || 'Luxury Goods'} icon={HashtagIcon} editable />
+                                                <InfoField label="Source" value="Facebook Ads" icon={MegaphoneIcon} editable />
+                                                <InfoField label="Campaign" value={selectedLead.facebookCampaign || selectedLead.ad || 'Summer Sale Promo'} icon={MegaphoneIcon} editable />
+                                            </div>
+                                            <div className="space-y-5">
+                                                <InfoField label="Phone" value={selectedLead.phone} icon={PhoneIcon} flag editable />
+                                                <InfoField label="Lead ID" value={selectedLead.facebookLeadId || `FB-${selectedLead.id}`} icon={HashtagIcon} editable />
+                                                <InfoField label="Location" value={selectedLead.city || 'Karachi, PK'} icon={MapPinIcon} editable />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-center -mb-3">
+                                            <button className="text-xs font-medium text-gray-400 hover:text-[#08A698] flex items-center gap-1 bg-gray-50 px-3 py-1 rounded-full border border-gray-100 hover:border-teal-100 transition-all">
+                                                Show more <ChevronDownIcon className="w-3 h-3" />
+                                            </button>
+                                        </div>
+
+                                        <div className="grid grid-cols-5 gap-3 mt-6 pt-5 border-t border-gray-100">
+                                            <ActionButton icon={PhoneIcon} label="CALL" />
+                                            <ActionButton icon={ClockIcon} label="CALL LATER" />
+                                            <ActionButton icon={ChatBubbleLeftIcon} label="WHATSAPP" />
+                                            <ActionButton icon={ChatBubbleOvalLeftEllipsisIcon} label="SMS" />
+                                            <ActionButton icon={EllipsisVerticalIcon} label="ADD NOTE" />
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="grid grid-cols-2 gap-y-5 gap-x-12 mb-6">
-                                    <div className="space-y-5">
-                                        <InfoField label="Interest" value="Luxury Goods" icon={HashtagIcon} editable />
-                                        <InfoField label="Source" value="Facebook Ads" icon={MegaphoneIcon} editable />
-                                        <InfoField label="Campaign" value={selectedLead.ad} icon={MegaphoneIcon} editable />
+                                    <div className="bg-white flex border-b border-gray-200 px-6 sticky top-[300px] z-10 shadow-sm">
+                                        <TabButton label="Activity History" active={activeTab === 'Activity History'} onClick={() => setActiveTab('Activity History')} />
+                                        <TabButton label="Task" active={activeTab === 'Task'} onClick={() => setActiveTab('Task')} />
+                                        <div className="flex-1 flex justify-end items-center gap-2 py-2">
+                                            <button className="px-3 py-1.5 text-xs font-bold text-[#08A698] border border-[#08A698] rounded-md hover:bg-[#08A698] hover:text-white transition-all flex items-center gap-1">
+                                                <PlusIconMini /> Action
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="space-y-5">
-                                        <InfoField label="Phone" value={selectedLead.phone} icon={PhoneIcon} flag editable />
-                                        <InfoField label="Lead ID" value={`FB-${selectedLead.id}9928`} icon={HashtagIcon} editable />
-                                        <InfoField label="Location" value="Karachi, PK" icon={MapPinIcon} editable />
+
+                                    {/* Timeline */}
+                                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-gray-50/50">
+                                        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+                                            <FilterPill label="All Actions" active />
+                                            <FilterPill label="Time" />
+                                            <FilterPill label="Team" />
+                                        </div>
+
+                                        <div className="relative pl-2 space-y-0">
+                                            <div className="absolute left-[19px] top-2 bottom-4 w-0.5 bg-gray-200"></div>
+
+                                            {activities.length === 0 ? (
+                                                <div className="py-8 text-center text-gray-400 italic text-xs">No activity recorded for this lead</div>
+                                            ) : (
+                                                activities.map((act, idx) => (
+                                                    <TimelineItem
+                                                        key={act.id}
+                                                        icon={<ArrowPathIcon className="w-3.5 h-3.5 text-teal-600" />}
+                                                        bg="bg-teal-100 border-teal-200"
+                                                        text={act.type + ": " + (typeof act.details === 'string' ? act.details : JSON.stringify(act.details))}
+                                                        time={getTimeAgo(act.created_at)}
+                                                        isLast={idx === activities.length - 1}
+                                                    />
+                                                ))
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex justify-center -mb-3">
-                                    <button className="text-xs font-medium text-gray-400 hover:text-[#08A698] flex items-center gap-1 bg-gray-50 px-3 py-1 rounded-full border border-gray-100 hover:border-teal-100 transition-all">
-                                        Show more <ChevronDownIcon className="w-3 h-3" />
-                                    </button>
-                                </div>
-
-                                <div className="grid grid-cols-5 gap-3 mt-6 pt-5 border-t border-gray-100">
-                                    <ActionButton icon={PhoneIcon} label="CALL" />
-                                    <ActionButton icon={ClockIcon} label="CALL LATER" />
-                                    <ActionButton icon={ChatBubbleLeftIcon} label="WHATSAPP" />
-                                    <ActionButton icon={ChatBubbleOvalLeftEllipsisIcon} label="SMS" />
-                                    <ActionButton icon={EllipsisVerticalIcon} label="ADD NOTE" />
-                                </div>
-                            </div>
-
-                            <div className="bg-white flex border-b border-gray-200 px-6 sticky top-[300px] z-10 shadow-sm">
-                                <TabButton label="Activity History" active={activeTab === 'Activity History'} onClick={() => setActiveTab('Activity History')} />
-                                <TabButton label="Task" active={activeTab === 'Task'} onClick={() => setActiveTab('Task')} />
-                                <div className="flex-1 flex justify-end items-center gap-2 py-2">
-                                    <button className="px-3 py-1.5 text-xs font-bold text-[#08A698] border border-[#08A698] rounded-md hover:bg-[#08A698] hover:text-white transition-all flex items-center gap-1">
-                                        <PlusIconMini /> Action
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Timeline */}
-                            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-gray-50/50">
-                                <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-                                    <FilterPill label="All Actions" active />
-                                    <FilterPill label="Time" />
-                                    <FilterPill label="Team" />
-                                </div>
-
-                                <div className="relative pl-2 space-y-0">
-                                    <div className="absolute left-[19px] top-2 bottom-4 w-0.5 bg-gray-200"></div>
-
-                                    <TimelineItem
-                                        icon={<MegaphoneIcon className="w-3.5 h-3.5 text-blue-600" />}
-                                        bg="bg-blue-100 border-blue-200"
-                                        text={`Lead captured from Facebook Ad: ${selectedLead.ad}`}
-                                        time="2m ago"
-                                        isLast={false}
-                                    />
-                                    <TimelineItem
-                                        icon={<ArrowPathIcon className="w-3.5 h-3.5 text-amber-600" />}
-                                        bg="bg-amber-100 border-amber-200"
-                                        text="System assigned to Aiman"
-                                        time="2m ago"
-                                        isLast={false}
-                                    />
-                                    <TimelineItem
-                                        icon={<UserIcon className="w-3.5 h-3.5 text-purple-600" />}
-                                        bg="bg-purple-100 border-purple-200"
-                                        text="Auto-responder SMS sent"
-                                        time="1m ago"
-                                        isLast={true}
-                                    />
-                                </div>
-                            </div>
-
+                                </>
+                            ) : (
+                                <div className="flex-1 flex items-center justify-center text-gray-400 italic">Select a lead to view details</div>
+                            )}
                         </div>
                     </WorkspaceGuard>
                 </main>

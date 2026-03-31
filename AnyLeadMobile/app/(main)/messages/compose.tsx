@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, useColorScheme, TouchableOpacity, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { ApiService } from '../../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 
@@ -66,7 +66,7 @@ export default function MessageComposerScreen() {
       
       // Set lead if provided
       if (params.leadId) {
-        const leadData = leadsData.data?.find(lead => lead.id === params.leadId);
+        const leadData = leadsData.data?.find((lead: Lead) => lead.id === params.leadId);
         if (leadData) {
           setSelectedLead(leadData);
         }

@@ -9,31 +9,42 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('integrations')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('integrations')
-@Roles('admin', 'root')
 export class IntegrationsController {
     constructor(private readonly integrationsService: IntegrationsService) { }
 
     @ApiOperation({ summary: 'Get all integrations' })
     @Get()
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('admin', 'root')
     async findAll(@CurrentUser() user: any) {
-        // Use workspace_id here, but we need to ensure the user has access to this workspace
-        // For simplicity, we'll use organizationId for now if workspaceId is not provided
-        const workspaceId = user.currentWorkspaceId; // Assuming this is present in the token
+        // Use workspaceId here from the validated user object
+        const workspaceId = user.workspaceId; 
         return { data: await this.integrationsService.findAll(workspaceId) };
     }
 
     @ApiOperation({ summary: 'Get Google Auth URL' })
     @Get('auth/google')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('admin', 'root')
     getGoogleAuthUrl(@CurrentUser() user: any) {
-        return { url: this.integrationsService.getGoogleAuthUrl(user.currentWorkspaceId) };
+        return { url: this.integrationsService.getGoogleAuthUrl(user.workspaceId) };
+    }
+
+    @ApiOperation({ summary: 'Get Gmail Auth URL' })
+    @Get('auth/gmail')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('admin', 'root')
+    getGmailAuthUrl(@CurrentUser() user: any) {
+        return { url: this.integrationsService.getGoogleAuthUrl(user.workspaceId) };
     }
 
     @ApiOperation({ summary: 'Get Outlook Auth URL' })
     @Get('auth/outlook')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('admin', 'root')
     getOutlookAuthUrl(@CurrentUser() user: any) {
-        return { url: this.integrationsService.getOutlookAuthUrl(user.currentWorkspaceId) };
+        return { url: this.integrationsService.getOutlookAuthUrl(user.workspaceId) };
     }
 
     @ApiOperation({ summary: 'Google OAuth Callback' })

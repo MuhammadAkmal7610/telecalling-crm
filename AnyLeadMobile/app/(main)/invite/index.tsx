@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, useColorScheme, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card, Button } from '../../../src/components/common/Card';
 import { colors, fonts } from '../../../src/theme/theme';
@@ -58,7 +58,7 @@ interface InviteLink {
 export default function UserInviteScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
   
   const [invitations, setInvitations] = useState<UserInvitation[]>([]);
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
@@ -735,7 +735,7 @@ export default function UserInviteScreen() {
             <Text style={[styles.settingLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
               Allow Public Links
             </Text>
-            <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]>
+            <Text style={[styles.settingDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
               Enable creation of public invitation links
             </Text>
           </View>
@@ -807,10 +807,9 @@ export default function UserInviteScreen() {
           renderItem={renderInvitationItem}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          refreshControl={{
-            refreshing,
-            onRefresh,
-          }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="mail-outline" size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />

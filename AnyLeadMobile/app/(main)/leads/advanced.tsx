@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, TextInput, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button, LeadStatusBadge } from '../../src/components/common/Card';
-import { colors, fonts } from '../../src/theme/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { ApiService } from '../../src/services/ApiService';
-import { Lead } from '../../src/lib/supabase';
+import { Card, Button, LeadStatusBadge } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
+import { Lead } from '@/src/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 
 interface LeadFilters {
@@ -403,10 +403,9 @@ export default function AdvancedLeadsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
-        refreshControl={{
-          refreshing,
-          onRefresh,
-        }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />

@@ -3,9 +3,14 @@ import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import ConfirmModal from '../components/ConfirmModal';
+import { useApi } from '../hooks/useApi';
+import { useWorkspace } from '../context/WorkspaceContext';
 import { PlusIcon, DocumentTextIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
 
 export default function CallScripts() {
+    const { apiFetch } = useApi();
+    const { currentWorkspace } = useWorkspace();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [scripts, setScripts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -18,22 +23,22 @@ export default function CallScripts() {
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [itemToDelete, setItemToDelete] = useState(null);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
-
     useEffect(() => {
-        fetchScripts();
-    }, []);
+        if (currentWorkspace?.id) {
+            fetchScripts();
+        }
+    }, [currentWorkspace?.id]);
 
     const fetchScripts = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            const res = await fetch(`${API_URL}/scripts`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await apiFetch('/scripts');
             if (res.ok) {
-                const data = await res.json();
-                setScripts(data);
+                const result = await res.json();
+                const dataArray = result.data || result;
+                setScripts(Array.isArray(dataArray) ? dataArray : []);
+            } else if (res.status === 401) {
+                console.error('Unauthorized access to scripts');
             }
         } catch (error) {
             console.error('Error fetching scripts:', error);
@@ -57,25 +62,25 @@ export default function CallScripts() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            const url = modalMode === 'edit' ? `${API_URL}/scripts/${currentScript.id}` : `${API_URL}/scripts`;
+            const path = modalMode === 'edit' ? `/scripts/${currentScript.id}` : '/scripts';
             const method = modalMode === 'edit' ? 'PATCH' : 'POST';
 
-            const res = await fetch(url, {
+            const res = await apiFetch(path, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
                 body: JSON.stringify(formData)
             });
 
             if (res.ok) {
+                toast.success(modalMode === 'edit' ? 'Script updated' : 'Script created');
                 fetchScripts();
                 handleCloseModal();
+            } else {
+                const errData = await res.json();
+                toast.error(errData.message || 'Failed to save script');
             }
         } catch (error) {
             console.error('Failed to save script:', error);
+            toast.error('Failed to save script');
         }
     };
 
@@ -88,16 +93,18 @@ export default function CallScripts() {
         const id = itemToDelete;
         setIsConfirmOpen(false);
         try {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            const res = await fetch(`${API_URL}/scripts/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+            const res = await apiFetch(`/scripts/${id}`, {
+                method: 'DELETE'
             });
             if (res.ok) {
+                toast.success('Script deleted');
                 fetchScripts();
+            } else {
+                toast.error('Failed to delete script');
             }
         } catch (error) {
             console.error("Failed to delete script", error);
+            toast.error('Failed to delete script');
         } finally {
             setItemToDelete(null);
         }

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, useColorScheme, ScrollView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { ApiService } from '../../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface InvitationDetails {
@@ -34,7 +34,7 @@ export default function InviteAcceptanceScreen() {
   const router = useRouter();
   const { token } = useLocalSearchParams();
   const { user, signIn } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
   
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -408,7 +408,7 @@ export default function InviteAcceptanceScreen() {
   );
 }
 
-import { ScrollView } from 'react-native';
+
 
 const styles = StyleSheet.create({
   container: {

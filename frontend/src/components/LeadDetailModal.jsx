@@ -28,7 +28,10 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
     const [tasks, setTasks] = useState([]);
     const [loadingStages, setLoadingStages] = useState(false);
     const [loadingTimeline, setLoadingTimeline] = useState(false);
+    const [loadingUsers, setLoadingUsers] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [users, setUsers] = useState([]);
+    const [selectedAssignee, setSelectedAssignee] = useState('');
 
     const quickRemarks = [
         "Busy/Not picking up",
@@ -43,8 +46,10 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
         if (isOpen && lead?.id) {
             fetchTimeline();
             fetchStages();
+            fetchUsers();
             setSelectedStatus(lead.status || 'Fresh');
-            setSelectedStage(lead.stage_id || '');
+            setSelectedStage(lead.stageId || '');
+            setSelectedAssignee(lead.assigneeId || '');
         }
     }, [isOpen, lead]);
 
@@ -63,6 +68,22 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
         }
     };
 
+    const fetchUsers = async () => {
+        setLoadingUsers(true);
+        try {
+            const res = await apiFetch('/users');
+            if (res.ok) {
+                const result = await res.json();
+                const data = result.data?.data || result.data || result || [];
+                const validUsers = (Array.isArray(data) ? data : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
+                setUsers(validUsers);
+            }
+        } catch (error) {
+            console.error("Failed to load users", error);
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
     const fetchTimeline = async () => {
         setLoadingTimeline(true);
         try {
@@ -118,11 +139,15 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
                 });
             }
 
-            // 2. Update Lead Status/Stage if changed
-            if (selectedStatus !== lead.status || selectedStage !== lead.stage_id) {
+            // 2. Update Lead Status/Stage/Assignee if changed
+            if (selectedStatus !== lead.status || selectedStage !== lead.stageId || selectedAssignee !== lead.assigneeId) {
                 await apiFetch(`/leads/${lead.id}`, {
                     method: 'PATCH',
-                    body: JSON.stringify({ status: selectedStatus, stageId: selectedStage })
+                    body: JSON.stringify({ 
+                        status: selectedStatus, 
+                        stageId: selectedStage,
+                        assigneeId: selectedAssignee
+                    })
                 });
                 toast.success('Lead updated!');
             }
@@ -182,7 +207,7 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
                                                     ID: {lead.id?.substring(0, 8)}...
                                                 </span>
                                                 <span className="flex items-center gap-1">
-                                                    <ClockIcon className="w-3.5 h-3.5" /> Updated {new Date(lead.updated_at || Date.now()).toLocaleDateString()}
+                                                    <ClockIcon className="w-3.5 h-3.5" /> Updated {new Date(lead.updatedAt || Date.now()).toLocaleDateString()}
                                                 </span>
                                             </div>
                                         </div>
@@ -243,6 +268,19 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
                                                             <option>Follow-up</option>
                                                             <option>Won</option>
                                                             <option>Lost</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <label className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Assignee</label>
+                                                        <select
+                                                            value={selectedAssignee}
+                                                            onChange={(e) => setSelectedAssignee(e.target.value)}
+                                                            className="w-full text-[11px] font-bold text-gray-600 border border-gray-200 bg-white rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-teal-500/20"
+                                                        >
+                                                            <option value="">Unassigned</option>
+                                                            {users.map(u => (
+                                                                <option key={u.id} value={u.id}>{u.name}</option>
+                                                            ))}
                                                         </select>
                                                     </div>
                                                 </div>
@@ -330,7 +368,7 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
                                     {/* Details Grid */}
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:bg-white hover:border-teal-100 transition-all">
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Phone Contact</label>
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 whitespace-nowrap">Phone Contact</label>
                                             <div className="flex items-center justify-between">
                                                 <p className="text-sm font-bold text-gray-800 tracking-tight">{lead.phone}</p>
                                                 <button
@@ -342,9 +380,25 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
                                             </div>
                                         </div>
                                         <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:bg-white hover:border-teal-100 transition-all">
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Acquisition Source</label>
-                                            <p className="text-sm font-bold text-gray-800 capitalize leading-relaxed">{lead.source?.replace('_', ' ') || 'Organic/Manual'}</p>
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 whitespace-nowrap">Email Address</label>
+                                            <p className="text-sm font-bold text-gray-800 tracking-tight truncate">{lead.email || 'N/A'}</p>
                                         </div>
+                                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:bg-white hover:border-teal-100 transition-all">
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 whitespace-nowrap">Alternate Phone</label>
+                                            <p className="text-sm font-bold text-gray-800 tracking-tight">{lead.altPhone || 'N/A'}</p>
+                                        </div>
+                                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:bg-white hover:border-teal-100 transition-all">
+                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 whitespace-nowrap">Acquisition Source</label>
+                                            <p className="text-sm font-bold text-gray-800 capitalize leading-relaxed truncate">{lead.source?.replace('_', ' ') || 'Organic/Manual'}</p>
+                                        </div>
+
+                                        {/* Dynamic Custom Fields */}
+                                        {lead.customFields && Object.entries(lead.customFields).map(([key, value]) => (
+                                            <div key={key} className="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:bg-white hover:border-teal-100 transition-all col-span-2 sm:col-span-1">
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 whitespace-nowrap">{key.replace('_', ' ')}</label>
+                                                <p className="text-sm font-bold text-gray-800 tracking-tight">{value?.toString() || 'N/A'}</p>
+                                            </div>
+                                        ))}
                                     </div>
 
                                     {/* Timeline */}

@@ -43,7 +43,7 @@ const PipelineAnalytics = ({ isOpen, onClose }) => {
 
             // Calculate funnel data
             const funnelData = stages.map(stage => {
-                const stageLeads = leads.filter(l => l.stage_id === stage.id);
+                const stageLeads = leads.filter(l => l.stageId === stage.id);
                 const conversionRate = stageLeads.length > 0 ? 
                     (stageLeads.filter(l => l.status === 'won').length / stageLeads.length * 100) : 0;
                 
@@ -55,7 +55,7 @@ const PipelineAnalytics = ({ isOpen, onClose }) => {
                     conversionRate: conversionRate.toFixed(1),
                     avgDays: stageLeads.length > 0 ? 
                         Math.round(stageLeads.reduce((sum, lead) => {
-                            const days = Math.floor((new Date() - new Date(lead.created_at)) / (1000 * 60 * 60 * 24));
+                            const days = Math.floor((new Date() - new Date(lead.createdAt)) / (1000 * 60 * 60 * 24));
                             return sum + days;
                         }, 0) / stageLeads.length) : 0
                 };

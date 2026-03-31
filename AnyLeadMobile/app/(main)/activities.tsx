@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, useColorScheme } from 'react-native';
-import { Card } from '../../src/components/common/Card';
-import { colors, fonts } from '../../src/theme/theme';
-import { ApiService } from '../../src/services/ApiService';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { Activity } from '../../src/lib/supabase';
+import { Card } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { ApiService } from '@/src/services/ApiService';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { Activity } from '@/src/lib/supabase';
+import { EmptyWorkspaceState } from '@/src/components/common/EmptyWorkspaceState';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 
@@ -28,12 +29,18 @@ export default function ActivitiesScreen() {
   };
 
   useEffect(() => {
-    loadActivities();
+    if (user?.workspace_id) {
+      loadActivities();
+    } else {
+      setLoading(false);
+    }
   }, [user]);
 
   const onRefresh = () => {
-    setRefreshing(true);
-    loadActivities();
+    if (user?.workspace_id) {
+      setRefreshing(true);
+      loadActivities();
+    }
   };
 
   const getActivityIcon = (type: string) => {
@@ -86,10 +93,10 @@ export default function ActivitiesScreen() {
         </View>
         <View style={styles.activityInfo}>
           <Text style={[styles.activityType, { color: isDark ? colors.surface : colors.onBackground }]}>
-            {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+            {(item.type || 'Activity').charAt(0).toUpperCase() + (item.type || 'Activity').slice(1)}
           </Text>
           <Text style={[styles.activityDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            {item.description}
+            {item.details || 'No details available'}
           </Text>
           {item.user?.name && (
             <Text style={[styles.activityUser, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
@@ -103,6 +110,10 @@ export default function ActivitiesScreen() {
       </Text>
     </Card>
   );
+
+  if (!loading && (!user || !user.workspace_id)) {
+    return <EmptyWorkspaceState />;
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}>

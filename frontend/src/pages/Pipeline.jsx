@@ -84,10 +84,10 @@ export default function Pipeline() {
             stages.forEach(stage => {
                 const filteredLeads = searchTerm 
                     ? leads.filter(l => 
-                        l.stage_id === stage.id && 
+                        l.stageId === stage.id && 
                         (l.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          l.phone?.includes(searchTerm)))
-                    : leads.filter(l => l.stage_id === stage.id);
+                    : leads.filter(l => l.stageId === stage.id);
                     
                 cols[stage.id] = {
                     ...stage,
@@ -97,7 +97,7 @@ export default function Pipeline() {
                         phone: l.phone || 'N/A',
                         assigneeInitials: l.assignee?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'UN',
                         assigneeName: l.assignee?.name || 'Unassigned',
-                        time: getTimeAgo(l.updated_at),
+                        time: getTimeAgo(l.updatedAt),
                         original: l
                     }))
                 };
@@ -122,7 +122,8 @@ export default function Pipeline() {
         const handleLeadUpdate = (event) => {
             const { lead, action } = event.detail;
             if (action === 'stage_changed' || action === 'updated') {
-                fetchPipelineData();
+                // fetchPipelineData(); // Disabled auto-refresh as requested
+                console.log('Real-time update received:', action, lead.id);
             }
         };
 
@@ -210,13 +211,8 @@ export default function Pipeline() {
         }
 
         try {
-            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            const response = await fetch(`${API_URL}/leads/${leadId}/stage`, {
+            const response = await apiFetch(`/leads/${leadId}/stage`, {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
                 body: JSON.stringify({ stage_id: newStageId })
             });
 

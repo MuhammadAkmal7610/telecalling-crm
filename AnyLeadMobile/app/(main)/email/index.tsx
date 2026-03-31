@@ -46,9 +46,10 @@ import {
   Filter,
   MoreVertical,
 } from 'lucide-react-native';
-import { useApi } from '../../../hooks/useApi';
-import { useWorkspace } from '../../../src/contexts/WorkspaceContext';
-import { colors } from '../../../src/theme/theme';
+import { useApi } from '@/hooks/useApi';
+import { useWorkspace } from '@/src/contexts/WorkspaceContext';
+import { EmptyWorkspaceState } from '@/src/components/common/EmptyWorkspaceState';
+import { colors } from '@/src/theme/theme';
 
 const PRIMARY = '#08A698';
 
@@ -129,7 +130,7 @@ export default function EmailCampaignsScreen() {
 
   // ── Data fetching ────────────────────────────────────────────────────────────
 
-  const workspaceHeader = currentWorkspace
+  const workspaceHeader: Record<string, string> = currentWorkspace
     ? { 'x-workspace-id': currentWorkspace.id }
     : {};
 
@@ -178,12 +179,20 @@ export default function EmailCampaignsScreen() {
     setLoading(false);
   };
 
-  React.useEffect(() => { loadData(); }, [activeTab, currentWorkspace]);
+  React.useEffect(() => { 
+    if (currentWorkspace) {
+      loadData(); 
+    } else {
+      setLoading(false);
+    }
+  }, [activeTab, currentWorkspace]);
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
+    if (currentWorkspace) {
+      setRefreshing(true);
+      await loadData();
+      setRefreshing(false);
+    }
   };
 
   // ── Create Campaign ──────────────────────────────────────────────────────────
@@ -480,6 +489,10 @@ export default function EmailCampaignsScreen() {
   // ── Main Render ──────────────────────────────────────────────────────────────
 
   const bg = isDark ? '#111827' : '#F9FAFB';
+
+  if (!loading && !currentWorkspace) {
+    return <EmptyWorkspaceState />;
+  }
 
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>

@@ -25,6 +25,9 @@ import {
 import { useApi } from '../hooks/useApi';
 import { useWorkspace } from '../context/WorkspaceContext';
 import WorkspaceGuard from '../components/WorkspaceGuard';
+import Sidebar from '../components/Sidebar';
+import Header from '../components/Header';
+import toast from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
@@ -38,122 +41,103 @@ export default function UserInvitations() {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Mock data - in real app, fetch from API
-  const [invitations, setInvitations] = useState([
-    {
-      id: '1',
-      email: 'john.doe@example.com',
-      name: 'John Doe',
-      role: 'sales',
-      status: 'pending',
-      invitedBy: 'Admin User',
-      invitedAt: '2024-01-15T10:30:00Z',
-      expiresAt: '2024-01-22T10:30:00Z',
-      message: 'Join our sales team to help grow the business!',
-      workspace: 'Main Workspace',
-      permissions: {
-        canManageUsers: false,
-        canManageSettings: false,
-        canViewReports: true,
-        canManageLeads: true,
-        canManageCampaigns: false
-      }
-    },
-    {
-      id: '2',
-      email: 'jane.smith@example.com',
-      name: 'Jane Smith',
-      role: 'manager',
-      status: 'accepted',
-      invitedBy: 'Admin User',
-      invitedAt: '2024-01-10T14:20:00Z',
-      acceptedAt: '2024-01-11T09:15:00Z',
-      workspace: 'Main Workspace',
-      permissions: {
-        canManageUsers: true,
-        canManageSettings: false,
-        canViewReports: true,
-        canManageLeads: true,
-        canManageCampaigns: true
-      }
-    },
-    {
-      id: '3',
-      email: 'mike.wilson@example.com',
-      name: 'Mike Wilson',
-      role: 'agent',
-      status: 'expired',
-      invitedBy: 'Admin User',
-      invitedAt: '2024-01-05T11:00:00Z',
-      expiresAt: '2024-01-12T11:00:00Z',
-      workspace: 'Main Workspace',
-      permissions: {
-        canManageUsers: false,
-        canManageSettings: false,
-        canViewReports: false,
-        canManageLeads: true,
-        canManageCampaigns: false
-      }
-    }
-  ]);
-
-  const [inviteLinks, setInviteLinks] = useState([
-    {
-      id: '1',
-      name: 'Sales Team Invitation',
-      role: 'sales',
-      workspace: 'Main Workspace',
-      link: 'https://your-crm.app/invite/abc123def456',
-      isActive: true,
-      uses: 5,
-      maxUses: 10,
-      expiresAt: '2024-02-15T23:59:59Z',
-      createdAt: '2024-01-15T10:30:00Z',
-      createdBy: 'Admin User'
-    },
-    {
-      id: '2',
-      name: 'Manager Access Link',
-      role: 'manager',
-      workspace: 'Main Workspace',
-      link: 'https://your-crm.app/invite/xyz789uvw012',
-      isActive: false,
-      uses: 2,
-      maxUses: 5,
-      expiresAt: '2024-01-31T23:59:59Z',
-      createdAt: '2024-01-10T14:20:00Z',
-      createdBy: 'Admin User'
-    }
-  ]);
+  const [invitations, setInvitations] = useState([]);
+  const [inviteLinks, setInviteLinks] = useState([]); // Placeholder for link-based invites if needed later
+  const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [inviteForm, setInviteForm] = useState({
     email: '',
     name: '',
-    role: 'sales',
-    message: '',
-    workspace: currentWorkspace?.id || '',
-    permissions: {
-      canManageUsers: false,
-      canManageSettings: false,
-      canViewReports: true,
-      canManageLeads: true,
-      canManageCampaigns: false
-    }
+    role: 'caller',
+    workspaceId: currentWorkspace?.id || '',
   });
+
+  const fetchInvitations = async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/invitations/pending');
+      const data = await res.json();
+      setInvitations(data.data || data || []);
+    } catch (error) {
+      console.error('Error fetching invitations:', error);
+      toast.error('Failed to load invitations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInvitations();
+  }, []);
+
+  const handleSendInvitation = async () => {
+    if (!inviteForm.email) {
+      toast.error('Email is required');
+      return;
+    }
+
+    try {
+      const res = await apiFetch('/invitations', {
+        method: 'POST',
+        body: JSON.stringify(inviteForm),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to send invitation');
+      }
+
+      const result = await res.json();
+      setInvitations([result, ...invitations]);
+      setShowInviteModal(false);
+      setInviteForm({
+        email: '',
+        name: '',
+        role: 'caller',
+        workspaceId: currentWorkspace?.id || '',
+      });
+
+      toast.success('Invitation sent successfully!');
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      toast.error(error.message || 'Failed to send invitation');
+    }
+  };
+
+  const deleteInvitation = async (id) => {
+    if (!window.confirm('Are you sure you want to cancel this invitation?')) return;
+
+    try {
+      const res = await apiFetch(`/invitations/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setInvitations(invitations.filter(inv => inv.id !== id));
+        toast.success('Invitation cancelled');
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.message || 'Failed to cancel invitation');
+      }
+    } catch (error) {
+      console.error('Error cancelling invitation:', error);
+      toast.error('Failed to cancel invitation');
+    }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    setCopiedLink(true);
+    toast.success('Link copied to clipboard');
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
 
   const [linkForm, setLinkForm] = useState({
     name: '',
-    role: 'sales',
-    workspace: currentWorkspace?.id || '',
+    role: 'caller',
+    workspaceId: currentWorkspace?.id || '',
     maxUses: 10,
     expiresAt: '',
-    permissions: {
-      canManageUsers: false,
-      canManageSettings: false,
-      canViewReports: true,
-      canManageLeads: true,
-      canManageCampaigns: false
-    }
   });
 
   const tabs = [
@@ -165,90 +149,13 @@ export default function UserInvitations() {
   const roles = [
     { value: 'admin', label: 'Admin', description: 'Full access to all features' },
     { value: 'manager', label: 'Manager', description: 'Manage team and view reports' },
-    { value: 'sales', label: 'Sales', description: 'Manage leads and campaigns' },
+    { value: 'caller', label: 'Caller', description: 'Standard telecaller access' },
     { value: 'agent', label: 'Agent', description: 'Basic lead management' },
     { value: 'viewer', label: 'Viewer', description: 'View-only access' }
   ];
 
-  const handleSendInvitation = async () => {
-    try {
-      // API call to send invitation
-      const newInvitation = {
-        id: Date.now().toString(),
-        ...inviteForm,
-        status: 'pending',
-        invitedBy: 'Current User',
-        invitedAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        workspace: currentWorkspace?.name || 'Main Workspace'
-      };
-
-      setInvitations([...invitations, newInvitation]);
-      setShowInviteModal(false);
-      setInviteForm({
-        email: '',
-        name: '',
-        role: 'sales',
-        message: '',
-        workspace: currentWorkspace?.id || '',
-        permissions: {
-          canManageUsers: false,
-          canManageSettings: false,
-          canViewReports: true,
-          canManageLeads: true,
-          canManageCampaigns: false
-        }
-      });
-
-      // Show success message
-      alert('Invitation sent successfully!');
-    } catch (error) {
-      console.error('Error sending invitation:', error);
-      alert('Failed to send invitation');
-    }
-  };
-
-  const handleCreateInviteLink = async () => {
-    try {
-      const token = Math.random().toString(36).substring(2, 15);
-      const newLink = {
-        id: Date.now().toString(),
-        ...linkForm,
-        link: `https://your-crm.app/invite/${token}`,
-        isActive: true,
-        uses: 0,
-        createdAt: new Date().toISOString(),
-        createdBy: 'Current User'
-      };
-
-      setInviteLinks([...inviteLinks, newLink]);
-      setShowLinkModal(false);
-      setLinkForm({
-        name: '',
-        role: 'sales',
-        workspace: currentWorkspace?.id || '',
-        maxUses: 10,
-        expiresAt: '',
-        permissions: {
-          canManageUsers: false,
-          canManageSettings: false,
-          canViewReports: true,
-          canManageLeads: true,
-          canManageCampaigns: false
-        }
-      });
-
-      alert('Invite link created successfully!');
-    } catch (error) {
-      console.error('Error creating invite link:', error);
-      alert('Failed to create invite link');
-    }
-  };
-
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
+  const handleCreateInviteLink = () => {
+    toast.error('Invite links are coming soon!');
   };
 
   const toggleLinkStatus = (linkId) => {
@@ -257,21 +164,9 @@ export default function UserInvitations() {
     ));
   };
 
-  const deleteInvitation = (id) => {
-    if (confirm('Are you sure you want to delete this invitation?')) {
-      setInvitations(invitations.filter(inv => inv.id !== id));
-    }
-  };
-
-  const deleteLink = (id) => {
-    if (confirm('Are you sure you want to delete this invite link?')) {
-      setInviteLinks(inviteLinks.filter(link => link.id !== id));
-    }
-  };
-
   const resendInvitation = (id) => {
     // API call to resend invitation
-    alert('Invitation resent successfully!');
+    toast.success('Invitation resent successfully!');
   };
 
   const getStatusBadge = (status) => {
@@ -625,76 +520,58 @@ export default function UserInvitations() {
   };
 
   return (
-    <WorkspaceGuard>
-      <div className="flex h-screen bg-gray-50">
-        {/* Sidebar */}
-        <div className="w-64 bg-white border-r border-gray-200">
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Users className="w-8 h-8 text-blue-500" />
-              User Invitations
-            </h1>
-          </div>
+    <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased overflow-hidden">
+      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+      <div className="flex flex-1 flex-col h-full min-w-0">
+        <Header setIsSidebarOpen={setSidebarOpen} />
+        <main className="flex-1 overflow-hidden">
+          <WorkspaceGuard>
+            <div className="flex h-full bg-gray-50">
+              {/* Inner Management Sidebar */}
+              <div className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
+                <div className="p-6">
+                  <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Users className="w-6 h-6 text-blue-500" />
+                    Invitations
+                  </h1>
+                </div>
 
-          <nav className="px-4 pb-6">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 mb-1 rounded-lg transition-colors ${activeTab === tab.id
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium">{tab.label}</span>
-                  </div>
-                  {tab.count > 0 && (
-                    <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="bg-white border-b border-gray-200 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {tabs.find(tab => tab.id === activeTab)?.label}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Manage team invitations and access control
-                </p>
+                <nav className="px-4 pb-6 flex-1">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`w-full flex items-center justify-between px-4 py-3 mb-1 rounded-xl transition-all ${activeTab === tab.id
+                          ? 'bg-blue-50 text-blue-600 font-semibold shadow-sm shadow-blue-100/50'
+                          : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className="w-4.5 h-4.5" />
+                          <span className="text-sm">{tab.label}</span>
+                        </div>
+                        {tab.count > 0 && (
+                          <span className="bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            {tab.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </nav>
               </div>
 
-              <div className="flex items-center gap-3">
-                <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4" />
-                  Refresh
-                </button>
-                <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-                  <Settings className="w-4 h-4" />
-                  Settings
-                </button>
+              {/* Main Content Area */}
+              <div className="flex-1 flex flex-col h-full overflow-hidden">
+                <div className="flex-1 overflow-y-auto">
+                  {renderTabContent()}
+                </div>
               </div>
             </div>
-          </header>
-
-          {/* Tab Content */}
-          <main className="flex-1 overflow-y-auto">
-            {renderTabContent()}
-          </main>
-        </div>
+          </WorkspaceGuard>
+        </main>
       </div>
 
       {/* Invite Modal */}
@@ -843,6 +720,6 @@ export default function UserInvitations() {
           </div>
         </div>
       )}
-    </WorkspaceGuard>
+    </div>
   );
 }

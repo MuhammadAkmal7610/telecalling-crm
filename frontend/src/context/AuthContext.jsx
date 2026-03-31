@@ -64,10 +64,34 @@ export const AuthProvider = ({ children }) => {
             const result = await res.json();
             if (!res.ok) throw new Error(result.message || 'Signup failed');
 
-            // Signup usually requires email verification depending on Supabase settings
             return { data: result, error: null };
         } catch (error) {
             console.error('Signup error:', error);
+            return { data: null, error };
+        }
+    };
+
+    const signUpInvite = async (email, password, token, extraData = {}) => {
+        try {
+            const res = await fetch(`${API_URL}/auth/signup-invite`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    signupDto: {
+                        email,
+                        password,
+                        name: extraData.name || '',
+                        phone: extraData.phone || ''
+                    },
+                    token
+                })
+            });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.message || 'Signup failed');
+
+            return { data: result, error: null };
+        } catch (error) {
+            console.error('Invite signup error:', error);
             return { data: null, error };
         }
     };
@@ -148,6 +172,7 @@ export const AuthProvider = ({ children }) => {
 
     const value = {
         signUp,
+        signUpInvite,
         signIn,
         signOut,
         forgotPassword,

@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
-import { CreateTaskDto, UpdateTaskDto, TaskQueryDto } from './dto/task.dto';
+import { CreateTaskDto, UpdateTaskDto, TaskQueryDto, TaskStatus } from './dto/task.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -37,23 +37,20 @@ export class TasksService {
 
         if (error) throw new BadRequestException(error.message);
 
-        // ---added by akmal--Emit Notification for Assigned Tasks
-        const finalAssigneeId = taskData.assignee_id;
-        if (finalAssigneeId !== userId) {
-            await this.notificationsService.create(
-                finalAssigneeId,
+        // ---Standardized Persistent Notification---
+        if (taskData.assignee_id && taskData.assignee_id !== userId) {
+            await this.notificationsService.triggerTaskNotification(
                 organizationId,
-                'New Task Assigned',
-                `A new ${dto.type === 'CallFollowup' ? 'call followup' : 'task'} "${dto.description}" has been assigned to you.`,
-                'info'
+                taskData.assignee_id,
+                dto.description,
+                'assigned'
             );
         } else if (dto.type === 'CallFollowup') {
-            await this.notificationsService.create(
-                finalAssigneeId,
+            await this.notificationsService.triggerTaskNotification(
                 organizationId,
-                'Followup Scheduled',
-                `You scheduled a followup: "${dto.description}".`,
-                'info'
+                userId,
+                dto.description,
+                'assigned' // Using assigned as a generic 'created/scheduled' trigger for self
             );
         }
 
@@ -61,6 +58,10 @@ export class TasksService {
     }
 
     async findAll(query: TaskQueryDto, workspaceId: string) {
+        if (!workspaceId || workspaceId === 'null') {
+            throw new BadRequestException('Workspace ID is required to fetch tasks.');
+        }
+
         const supabase = this.supabaseService.getAdminClient();
         const { page = 1, limit = 20, type, status, priority, assigneeId, leadId, due } = query;
         const from = (page - 1) * limit;
@@ -73,11 +74,11 @@ export class TasksService {
             .order('due_date', { ascending: true })
             .range(from, to);
 
-        if (type) q = q.eq('type', type);
-        if (status) q = q.eq('status', status);
-        if (priority) q = q.eq('priority', priority);
-        if (assigneeId) q = q.eq('assignee_id', assigneeId);
-        if (leadId) q = q.eq('lead_id', leadId);
+        if (type && (type as any) !== 'null') q = q.eq('type', type);
+        if (status && (status as any) !== 'null') q = q.eq('status', status);
+        if (priority && (priority as any) !== 'null') q = q.eq('priority', priority);
+        if (assigneeId && assigneeId !== 'null') q = q.eq('assignee_id', assigneeId);
+        if (leadId && leadId !== 'null') q = q.eq('lead_id', leadId);
 
         // ---added by akmal--Due date shorthand filter
         if (due) {
@@ -139,6 +140,17 @@ export class TasksService {
             .single();
 
         if (error) throw new BadRequestException(error.message);
+
+        // Trigger Notification for completion
+        if (dto.status === TaskStatus.DONE && data.assignee_id) {
+            this.notificationsService.triggerTaskNotification(
+                data.organization_id,
+                data.assignee_id,
+                data.description,
+                'completed'
+            ).catch(err => this.logger.error(`Failed to trigger task notification: ${err.message}`));
+        }
+
         return data;
     }
 

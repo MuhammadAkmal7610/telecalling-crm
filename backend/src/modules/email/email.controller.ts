@@ -65,22 +65,22 @@ export class EmailController {
     return this.emailService.getCampaignAnalytics(id, req.user);
   }
 
-  // ==================== AUTOMATION ====================
+  // ==================== AUTOMATIONS ====================
 
-  @Post('automation')
+  @Post('automations')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Create email automation' })
   async createAutomation(@Body() automationData: any, @Req() req: any) {
     return this.emailService.createAutomation(automationData, req.user);
   }
 
-  @Get('automation')
+  @Get('automations')
   @ApiOperation({ summary: 'Get email automations' })
   async getAutomations(@Req() req: any) {
     return this.emailService.getAutomations(req.user);
   }
 
-  @Post('automation/:id/trigger')
+  @Post('automations/:id/trigger')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Trigger email automation' })
   async triggerAutomation(@Param('id') id: string, @Body() triggerData: any, @Req() req: any) {

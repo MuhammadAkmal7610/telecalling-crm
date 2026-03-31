@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, RefreshControl, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { ApiService } from '../../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface LeaderboardUser {
@@ -35,7 +35,7 @@ interface TimeRange {
 export default function LeaderboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
   
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,116 +67,35 @@ export default function LeaderboardScreen() {
   const loadLeaderboardData = async () => {
     try {
       setLoading(true);
-      // For now, use mock data. In future, fetch from API
-      const mockData: LeaderboardUser[] = [
-        {
-          id: '1',
-          name: 'Sarah Johnson',
-          email: 'sarah@example.com',
-          avatar: 'SJ',
-          role: 'Sales Manager',
+      const { data, error } = await ApiService.getAgentPerformance(selectedTimeRange);
+      
+      if (error) throw error;
+
+      if (data && Array.isArray(data)) {
+        const formattedData: LeaderboardUser[] = data.map((agent: any, index: number) => ({
+          id: agent.id,
+          name: agent.name,
+          email: agent.email,
+          avatar: agent.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2),
+          role: agent.role || 'Sales Representative',
           metrics: {
-            leadsConverted: 45,
-            totalRevenue: 125000,
-            callsMade: 280,
-            meetingsScheduled: 65,
-            conversionRate: 16.1,
-            activitiesCompleted: 420
+            leadsConverted: agent.metrics?.leads?.won || 0,
+            totalRevenue: agent.metrics?.revenue?.total || 0,
+            callsMade: agent.metrics?.calls?.total || 0,
+            meetingsScheduled: agent.metrics?.activities?.meetings || 0,
+            conversionRate: agent.metrics?.leads?.conversionRate || 0,
+            activitiesCompleted: agent.metrics?.activities?.total || 0,
           },
-          rank: 1,
-          previousRank: 2,
-          trend: 'up'
-        },
-        {
-          id: '2',
-          name: 'Michael Chen',
-          email: 'michael@example.com',
-          avatar: 'MC',
-          role: 'Sales Executive',
-          metrics: {
-            leadsConverted: 42,
-            totalRevenue: 118000,
-            callsMade: 265,
-            meetingsScheduled: 58,
-            conversionRate: 15.8,
-            activitiesCompleted: 395
-          },
-          rank: 2,
-          previousRank: 1,
-          trend: 'down'
-        },
-        {
-          id: '3',
-          name: 'Emily Davis',
-          email: 'emily@example.com',
-          avatar: 'ED',
-          role: 'Sales Executive',
-          metrics: {
-            leadsConverted: 38,
-            totalRevenue: 95000,
-            callsMade: 240,
-            meetingsScheduled: 52,
-            conversionRate: 15.8,
-            activitiesCompleted: 360
-          },
-          rank: 3,
-          previousRank: 4,
-          trend: 'up'
-        },
-        {
-          id: '4',
-          name: 'James Wilson',
-          email: 'james@example.com',
-          avatar: 'JW',
-          role: 'Sales Representative',
-          metrics: {
-            leadsConverted: 35,
-            totalRevenue: 87000,
-            callsMade: 220,
-            meetingsScheduled: 48,
-            conversionRate: 15.9,
-            activitiesCompleted: 340
-          },
-          rank: 4,
-          previousRank: 3,
-          trend: 'down'
-        },
-        {
-          id: '5',
-          name: 'Lisa Anderson',
-          email: 'lisa@example.com',
-          avatar: 'LA',
-          role: 'Sales Representative',
-          metrics: {
-            leadsConverted: 32,
-            totalRevenue: 78000,
-            callsMade: 200,
-            meetingsScheduled: 44,
-            conversionRate: 16.0,
-            activitiesCompleted: 310
-          },
-          rank: 5,
-          previousRank: 5,
+          rank: index + 1,
+          previousRank: index + 1, // Mock trend for now
           trend: 'same'
-        }
-      ];
-      
-      // Sort by selected metric
-      const sortedData = [...mockData].sort((a, b) => {
-        const aValue = a.metrics[selectedMetric as keyof typeof a.metrics];
-        const bValue = b.metrics[selectedMetric as keyof typeof b.metrics];
-        return typeof aValue === 'number' && typeof bValue === 'number' ? bValue - aValue : 0;
-      });
-      
-      // Update ranks
-      sortedData.forEach((user, index) => {
-        user.rank = index + 1;
-      });
-      
-      setLeaderboardData(sortedData);
-    } catch (error) {
+        }));
+        
+        setLeaderboardData(formattedData);
+      }
+    } catch (error: any) {
       console.error('Error loading leaderboard data:', error);
-      Alert.alert('Error', 'Failed to load leaderboard data');
+      Alert.alert('Error', error.message || 'Failed to load leaderboard data');
     } finally {
       setLoading(false);
     }
@@ -256,7 +175,7 @@ export default function LeaderboardScreen() {
         </View>
       </View>
 
-      <View style={styles.metricContainer}>
+      <View style={styles.userMetricContainer}>
         <Text style={[styles.metricValue, { color: isDark ? colors.surface : colors.onBackground }]}>
           {getMetricValue(item)}
         </Text>
@@ -406,10 +325,9 @@ export default function LeaderboardScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
-        refreshControl={{
-          refreshing,
-          onRefresh,
-        }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="podium-outline" size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />
@@ -601,7 +519,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.satoshi.regular,
   },
-  metricContainer: {
+  userMetricContainer: {
     alignItems: 'center',
     marginRight: 12,
   },

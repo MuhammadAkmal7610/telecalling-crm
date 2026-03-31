@@ -228,7 +228,7 @@ const ManageWorkspaces = () => {
                 onConfirm={confirmDelete}
                 loading={deleting}
                 title="Delete Workspace?"
-                message={`Are you sure you want to delete "${workspaceToDelete?.name}"? This will remove all associated data and cannot be undone.`}
+                message={`Are you sure you want to delete "${workspaceToDelete?.name}"? Note that only empty workspaces (with no leads, tasks, or campaigns) can be deleted. This action cannot be undone.`}
                 confirmText="Delete Workspace"
                 type="danger"
             />

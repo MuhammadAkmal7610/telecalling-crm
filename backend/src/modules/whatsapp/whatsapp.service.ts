@@ -359,16 +359,18 @@ export class WhatsAppService {
   }
 
   async verifyWebhook(mode: string, token: string, challenge: string) {
-    const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || '3B5KlEMHYI5RqCxe1YyP3gnavTN_2k7antr5xSVhSrwqT9Awc';
-    
-    this.logger.log(`Verifying Webhook - Mode: ${mode}, Token: ${token}, VerifyToken: ${verifyToken}`);
+    const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+    if (!verifyToken) {
+      this.logger.error('WHATSAPP_VERIFY_TOKEN is not configured');
+      throw new BadRequestException('Webhook verification is not configured');
+    }
 
     if (mode === 'subscribe' && token === verifyToken) {
       this.logger.log('WhatsApp Webhook Verified Successfully');
       return challenge;
     }
     
-    this.logger.error(`Webhook verification failed. Expected ${verifyToken} but got ${token}`);
+    this.logger.warn('WhatsApp webhook verification failed');
     throw new BadRequestException('Invalid verification token');
   }
 

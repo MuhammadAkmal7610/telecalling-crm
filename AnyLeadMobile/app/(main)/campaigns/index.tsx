@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { Campaign } from '../../../src/lib/supabase';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { EmptyWorkspaceState } from '@/src/components/common/EmptyWorkspaceState';
+import { Campaign } from '@/src/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
-import { ApiService } from '../../../src/services/ApiService';
+import { ApiService } from '@/src/services/ApiService';
 export default function CampaignsScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -29,12 +30,18 @@ export default function CampaignsScreen() {
   };
 
   useEffect(() => {
-    loadCampaigns();
+    if (user?.workspace_id) {
+      loadCampaigns();
+    } else {
+      setLoading(false);
+    }
   }, [user]);
 
   const onRefresh = () => {
-    setRefreshing(true);
-    loadCampaigns();
+    if (user?.workspace_id) {
+      setRefreshing(true);
+      loadCampaigns();
+    }
   };
 
   const handleDeleteCampaign = (campaignId: string) => {
@@ -131,6 +138,10 @@ export default function CampaignsScreen() {
       </View>
     </Card>
   );
+
+  if (!loading && (!user || !user.workspace_id)) {
+    return <EmptyWorkspaceState />;
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}>

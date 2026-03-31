@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../src/components/common/Card';
-import { colors, fonts } from '../../src/theme/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { ApiService } from '../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface CallScript {

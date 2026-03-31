@@ -6,6 +6,7 @@ import { colors, fonts } from '../../../src/theme/theme';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { ApiService } from '../../../src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 
 interface CallFeedbackParams {
   phoneNumber: string;
@@ -26,6 +27,7 @@ export default function CallFeedbackScreen() {
   const [followUpDate, setFollowUpDate] = useState('');
   const [nextAction, setNextAction] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
 
   const callOutcomes = [
     { value: 'answered', label: 'Answered', icon: 'call-outline', color: '#10B981' },
@@ -50,6 +52,14 @@ export default function CallFeedbackScreen() {
     const duration = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     setCallDuration(duration);
   }, []);
+
+  const showDatePicker = () => setDatePickerVisibility(true);
+  const hideDatePicker = () => setDatePickerVisibility(false);
+
+  const handleConfirm = (date: Date) => {
+    setFollowUpDate(date.toLocaleDateString());
+    hideDatePicker();
+  };
 
   const handleSubmitFeedback = async () => {
     if (!callOutcome) {
@@ -207,15 +217,19 @@ export default function CallFeedbackScreen() {
               </Text>
               <TouchableOpacity
                 style={[styles.inputContainer, { borderColor: isDark ? '#374151' : '#E5E7EB' }]}
-                onPress={() => {
-                  // TODO: Implement date picker
-                  Alert.alert('Info', 'Date picker will be implemented');
-                }}
+                onPress={showDatePicker}
               >
-                <Text style={[styles.inputText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                <Text style={[styles.inputText, { color: followUpDate ? (isDark ? colors.surface : colors.onBackground) : (isDark ? '#9CA3AF' : '#6B7280') }]}>
                   {followUpDate || 'Select date'}
                 </Text>
               </TouchableOpacity>
+              <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                onConfirm={handleConfirm}
+                onCancel={hideDatePicker}
+                minimumDate={new Date()}
+              />
             </View>
 
             <View style={styles.inputGroup}>

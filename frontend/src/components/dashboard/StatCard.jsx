@@ -10,7 +10,7 @@ const StatCard = ({ icon: Icon, label, value, sub, color = 'teal', trend }) => {
         rose: 'bg-rose-50 text-rose-600',
     };
     return (
-        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all h-full">
+        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all h-full min-h-[135px] flex flex-col justify-between">
             <div className="flex items-start justify-between">
                 <div className={`p-2.5 rounded-xl ${colorMap[color]}`}>
                     <Icon className="w-5 h-5" />

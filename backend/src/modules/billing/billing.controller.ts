@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BillingService } from './billing.service';
 import { StripeService } from './stripe.service';
@@ -40,5 +40,17 @@ export class BillingController {
     @ApiOperation({ summary: 'Create Stripe checkout session' })
     createCheckout(@Body() body: { plan: string }, @CurrentUser() user: any) {
         return this.stripeService.createCheckoutSession(user.organizationId, body.plan, user.email);
+    }
+
+    @Get('info')
+    @ApiOperation({ summary: 'Get organization billing details' })
+    getBillingInfo(@CurrentUser() user: any) {
+        return this.billingService.getBillingInfo(user.organizationId);
+    }
+
+    @Patch('info')
+    @ApiOperation({ summary: 'Update organization billing details' })
+    updateBillingInfo(@Body() body: any, @CurrentUser() user: any) {
+        return this.billingService.updateBillingInfo(user.organizationId, body);
     }
 }

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, useColorScheme, TextInput, FlatList, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../src/components/common/Card';
-import { colors, fonts } from '../../src/theme/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { ApiService } from '../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
 import * as Linking from 'expo-linking';
+import CommunicationService from '@/src/services/CommunicationService';
 
 interface CallList {
   id: string;
@@ -68,7 +69,7 @@ interface CallActivity {
 export default function DialerScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
   
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedLead, setSelectedLead] = useState<any>(null);
@@ -128,135 +129,33 @@ export default function DialerScreen() {
   };
 
   const loadCallLists = async () => {
-    // Mock call lists
-    const mockLists: CallList[] = [
-      {
-        id: '1',
-        name: 'Today\'s Hot Leads',
-        leads: [
-          {
-            id: '1',
-            name: 'Rahul Sharma',
-            phone: '+919876543210',
-            status: 'new',
-            priority: 'high',
-            callAttempts: 0,
-            notes: 'Interested in CRM solution'
-          },
-          {
-            id: '2',
-            name: 'Priya Patel',
-            phone: '+919876543211',
-            status: 'contacted',
-            priority: 'medium',
-            callAttempts: 2,
-            lastCallDate: new Date(Date.now() - 86400000).toISOString(),
-            notes: 'Asked for pricing'
-          }
-        ],
-        filters: {
-          priority: ['high', 'medium'],
-          status: ['new', 'contacted']
-        },
-        assignedTo: user?.id,
-        isActive: true,
-        createdAt: new Date(Date.now() - 86400000).toISOString()
-      },
-      {
-        id: '2',
-        name: 'Follow Up Required',
-        leads: [
-          {
-            id: '3',
-            name: 'Amit Kumar',
-            phone: '+919876543212',
-            status: 'follow_up',
-            priority: 'high',
-            callAttempts: 3,
-            lastCallDate: new Date(Date.now() - 172800000).toISOString(),
-            notes: 'Promised to call back today'
-          }
-        ],
-        filters: {
-          status: ['follow_up']
-        },
-        isActive: true,
-        createdAt: new Date(Date.now() - 172800000).toISOString()
-      }
-    ];
-    setCallLists(mockLists);
+    if (!user?.organization_id) return;
+    try {
+      const lists = await CommunicationService.getCallLists(user.organization_id);
+      setCallLists(lists);
+    } catch (error) {
+      console.error('Error loading call lists:', error);
+    }
   };
 
   const loadCallScripts = async () => {
-    // Mock call scripts
-    const mockScripts: CallScript[] = [
-      {
-        id: '1',
-        name: 'New Lead Introduction',
-        leadStatus: 'new',
-        script: 'Hello [Name], this is [Your Name] from [Company]. I\'m calling because you showed interest in our CRM solution. Do you have a few minutes to discuss how we can help your business?',
-        keyPoints: ['Introduction', 'Qualification', 'Appointment Setting'],
-        objections: [
-          {
-            objection: 'Not interested',
-            response: 'I understand. May I ask what your current process is for managing customer relationships?'
-          },
-          {
-            objection: 'Too busy',
-            response: 'I appreciate that. When would be a better time for a quick 5-minute conversation?'
-          }
-        ],
-        isActive: true
-      },
-      {
-        id: '2',
-        name: 'Follow Up Call',
-        leadStatus: 'follow_up',
-        script: 'Hello [Name], this is [Your Name] following up on our previous conversation about [Previous Topic]. Have you had a chance to think about it?',
-        keyPoints: ['Reference previous conversation', 'Address concerns', 'Next steps'],
-        objections: [
-          {
-            objection: 'Still thinking',
-            response: 'That\'s completely fine. What specific questions can I help answer to make your decision easier?'
-          }
-        ],
-        isActive: true
-      }
-    ];
-    setCallScripts(mockScripts);
+    if (!user?.organization_id) return;
+    try {
+      const scripts = await CommunicationService.getCallScripts(user.organization_id);
+      setCallScripts(scripts);
+    } catch (error) {
+      console.error('Error loading call scripts:', error);
+    }
   };
 
   const loadCallHistory = async () => {
-    // Mock call history
-    const mockHistory: CallActivity[] = [
-      {
-        id: '1',
-        leadId: '1',
-        leadName: 'Rahul Sharma',
-        phone: '+919876543210',
-        duration: 245,
-        status: 'completed',
-        notes: 'Good conversation, interested in demo',
-        outcome: 'interested',
-        nextFollowUp: new Date(Date.now() + 86400000).toISOString(),
-        userId: user?.id || '1',
-        timestamp: new Date(Date.now() - 3600000).toISOString()
-      },
-      {
-        id: '2',
-        leadId: '2',
-        leadName: 'Priya Patel',
-        phone: '+919876543211',
-        duration: 180,
-        status: 'completed',
-        notes: 'Discussed pricing, needs enterprise plan',
-        outcome: 'follow_up',
-        nextFollowUp: new Date(Date.now() + 172800000).toISOString(),
-        userId: user?.id || '1',
-        timestamp: new Date(Date.now() - 7200000).toISOString()
-      }
-    ];
-    setCallHistory(mockHistory);
+    if (!user?.organization_id) return;
+    try {
+      const history = await CommunicationService.getCallHistory(user.organization_id);
+      setCallHistory(history);
+    } catch (error) {
+      console.error('Error loading call history:', error);
+    }
   };
 
   const handleNumberPress = (number: string) => {
@@ -282,7 +181,7 @@ export default function DialerScreen() {
       if (selectedLead) {
         await ApiService.createActivity({
           type: 'call',
-          description: `Called ${selectedLead.name} at ${phoneToCall}`,
+          details: `Called ${selectedLead.name} at ${phoneToCall}`,
           lead_id: selectedLead.id,
           user_id: user?.id,
           organization_id: user?.organization_id,
@@ -449,7 +348,7 @@ export default function DialerScreen() {
                        selectedLead.priority === 'high' ? '#F59E0B' :
                        selectedLead.priority === 'medium' ? '#3B82F6' : '#10B981'
               }]}>
-                {selectedLead.priority.toUpperCase()}
+                {(selectedLead.priority || 'Medium').toUpperCase()}
               </Text>
             </View>
           </View>
@@ -777,7 +676,7 @@ export default function DialerScreen() {
                 <Text style={[styles.outcomeBadgeText, { 
                   color: outcomes.find(o => o.value === item.outcome)?.color || '#6B7280'
                 }]}>
-                  {item.outcome.replace('_', ' ').toUpperCase()}
+                  {(item.outcome || 'Unknown').replace('_', ' ').toUpperCase()}
                 </Text>
               </View>
             </View>

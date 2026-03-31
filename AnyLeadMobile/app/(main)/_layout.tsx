@@ -1,12 +1,23 @@
 import { Drawer } from 'expo-router/drawer';
 import { useColorScheme } from 'react-native';
-import { colors } from '../../src/theme/theme';
+import { colors } from '@/src/theme/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/contexts/AuthContext';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 
 export default function MainLayout() {
     const isDark = useColorScheme() === 'dark';
-    const { user, signOut } = useAuth();
+    const { user, signOut, loading } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!loading && !user) {
+            router.replace('/(auth)/login');
+        }
+    }, [user, loading]);
+
+    if (!user) return null;
 
     return (
         <Drawer
@@ -44,6 +55,30 @@ export default function MainLayout() {
                     drawerIcon: ({ color, size }) => (
                         <Ionicons name="people-outline" size={size} color={color} />
                     ),
+                }}
+            />
+            <Drawer.Screen
+                name="leads/create"
+                options={{
+                    drawerLabel: () => null,
+                    title: 'Create Lead',
+                    drawerItemStyle: { display: 'none' },
+                }}
+            />
+            <Drawer.Screen
+                name="leads/[id]/index"
+                options={{
+                    drawerLabel: () => null,
+                    title: 'Lead Details',
+                    drawerItemStyle: { display: 'none' },
+                }}
+            />
+            <Drawer.Screen
+                name="leads/[id]/edit"
+                options={{
+                    drawerLabel: () => null,
+                    title: 'Edit Lead',
+                    drawerItemStyle: { display: 'none' },
                 }}
             />
             <Drawer.Screen

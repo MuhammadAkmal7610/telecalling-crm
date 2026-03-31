@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import toast from 'react-hot-toast';
+import { useApi } from '../hooks/useApi';
 
 const UserPreferences = () => {
     // State for Desktop Preferences
@@ -16,8 +18,77 @@ const UserPreferences = () => {
         callReminder: true,
     });
 
+    const { apiFetch } = useApi();
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [dirty, setDirty] = useState(false);
+
     const toggleNotification = (key) => {
         setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
+        setDirty(true);
+    };
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                setLoading(true);
+                const res = await apiFetch('/users/me/settings');
+                if (!res.ok) {
+                    toast.error('Failed to load preferences');
+                    return;
+                }
+
+                const json = await res.json();
+                const settings = json?.settings || json || {};
+
+                if (settings.emailHandler) setEmailHandler(settings.emailHandler);
+                if (settings.whatsappHandler) setWhatsappHandler(settings.whatsappHandler);
+
+                const serverNotifications = settings.notifications || {};
+                setNotifications(prev => ({
+                    ...prev,
+                    ...serverNotifications,
+                }));
+            } catch (e) {
+                console.error('Failed to load user settings', e);
+                toast.error('Failed to load preferences');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSettings();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+            const payload = {
+                emailHandler,
+                whatsappHandler,
+                notifications,
+            };
+
+            const res = await apiFetch('/users/me/settings', {
+                method: 'PATCH',
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                const errJson = await res.json().catch(() => null);
+                toast.error(errJson?.message || 'Failed to save preferences');
+                return;
+            }
+
+            toast.success('Preferences saved');
+            setDirty(false);
+        } catch (e) {
+            console.error('Failed to save user settings', e);
+            toast.error('Failed to save preferences');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -48,7 +119,10 @@ const UserPreferences = () => {
                                                 name="email"
                                                 value="web"
                                                 checked={emailHandler === 'web'}
-                                                onChange={() => setEmailHandler('web')}
+                                                onChange={() => {
+                                                    setEmailHandler('web');
+                                                    setDirty(true);
+                                                }}
                                                 className="hidden"
                                             />
                                             <span className="text-sm text-gray-600 group-hover:text-gray-800">Web</span>
@@ -97,7 +171,10 @@ const UserPreferences = () => {
                                                 name="whatsapp"
                                                 value="mobile"
                                                 checked={whatsappHandler === 'mobile'}
-                                                onChange={() => setWhatsappHandler('mobile')}
+                                                onChange={() => {
+                                                    setWhatsappHandler('mobile');
+                                                    setDirty(true);
+                                                }}
                                                 className="hidden"
                                             />
                                             <span className="text-sm text-gray-600 group-hover:text-gray-800">Send to Mobile</span>
@@ -132,6 +209,16 @@ const UserPreferences = () => {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+
+                        <div className="pt-2 flex items-center justify-end">
+                            <button
+                                onClick={handleSave}
+                                disabled={loading || saving || !dirty}
+                                className="px-5 py-2.5 rounded-lg bg-[#08A698] hover:bg-[#079186] text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                {saving ? 'Saving...' : 'Save Preferences'}
+                            </button>
                         </div>
                     </div>
                 </main>

@@ -48,16 +48,13 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Get agent performance metrics' })
   async getAgentPerformance(
     @Req() req: any,
-    @Query('timeRange') timeRange?: string,
-    @Query('agentId') agentId?: string
+    @Query('timeRange') timeRange?: string
   ) {
     const range = this.parseTimeRange(timeRange);
-    const dashboard = await this.analyticsService.getDashboardData(
-      req.user.organization_id,
+    return this.analyticsService.getAgentPerformance(
       req.user.workspace_id,
       range
     );
-    return dashboard.metrics.leads;
   }
 
   @Post('custom-report')

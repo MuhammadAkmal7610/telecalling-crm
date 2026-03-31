@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, RefreshControl, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { ApiService } from '../../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Integration {
@@ -325,7 +325,9 @@ export default function IntegrationsScreen() {
 
   const connectIntegration = async (integrationId: string) => {
     const integration = integrations.find(i => i.id === integrationId);
-    if (integration?.setupRequired) {
+    if (!integration) return;
+
+    if (integration.setupRequired) {
       router.push(`/enterprise/integrations/${integrationId}/setup` as any);
     } else {
       try {
@@ -643,10 +645,9 @@ export default function IntegrationsScreen() {
         renderItem={renderIntegrationItem}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        refreshControl={{
-          refreshing,
-          onRefresh,
-        }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="link-outline" size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />

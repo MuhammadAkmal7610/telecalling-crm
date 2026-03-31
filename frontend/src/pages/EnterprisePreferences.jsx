@@ -1,6 +1,9 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useRef, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import toast from 'react-hot-toast';
+import { useApi } from '../hooks/useApi';
 import {
     Cog6ToothIcon,
     GlobeAltIcon,
@@ -155,8 +158,94 @@ export default function EnterprisePreferences() {
         salesGroup: false
     });
 
+    const { apiFetch } = useApi();
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [dirty, setDirty] = useState(false);
+
     const handleToggle = (key) => {
         setToggles(prev => ({ ...prev, [key]: !prev[key] }));
+        setDirty(true);
+    };
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                setLoading(true);
+                const res = await apiFetch('/workspaces/my/settings');
+                if (!res.ok) {
+                    toast.error('Failed to load advanced settings');
+                    return;
+                }
+                const json = await res.json();
+                const settings = json?.settings || json || {};
+
+                setCountryCode(settings.countryCode ?? '92');
+                setTimezone(settings.timezone ?? 'Asia/Karachi');
+                setCurrency(settings.currency ?? 'PKR');
+                setMinDuration(
+                    settings.minDuration !== undefined && settings.minDuration !== null
+                        ? String(settings.minDuration)
+                        : '2'
+                );
+                setSessionTimeout(settings.sessionTimeout ?? 'Never');
+
+                if (settings.toggles) {
+                    setToggles(prev => ({
+                        ...prev,
+                        ...settings.toggles,
+                    }));
+                }
+
+                setDirty(false);
+            } catch (e) {
+                console.error('Failed to load workspace settings', e);
+                toast.error('Failed to load advanced settings');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSettings();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+            const parsedMinDuration = Number(minDuration);
+            if (!Number.isFinite(parsedMinDuration)) {
+                toast.error('Connected Call Minimum Duration must be a number');
+                return;
+            }
+            const payload = {
+                countryCode,
+                timezone,
+                currency,
+                minDuration: parsedMinDuration,
+                sessionTimeout,
+                toggles,
+            };
+
+            const res = await apiFetch('/workspaces/my/settings', {
+                method: 'PATCH',
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                const errJson = await res.json().catch(() => null);
+                toast.error(errJson?.message || 'Failed to save advanced settings');
+                return;
+            }
+
+            toast.success('Advanced settings saved');
+            setDirty(false);
+        } catch (e) {
+            console.error('Failed to save advanced settings', e);
+            toast.error('Failed to save advanced settings');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -193,7 +282,10 @@ export default function EnterprisePreferences() {
                                     <input
                                         type="text"
                                         value={countryCode}
-                                        onChange={(e) => setCountryCode(e.target.value)}
+                                        onChange={(e) => {
+                                            setCountryCode(e.target.value);
+                                            setDirty(true);
+                                        }}
                                         className="block w-full pl-10 pr-3 py-2.5 text-right border-gray-300 rounded-lg text-sm focus:ring-[#08A698] focus:border-[#08A698] shadow-sm bg-gray-50 border transition-all duration-200"
                                     />
                                 </div>
@@ -202,7 +294,10 @@ export default function EnterprisePreferences() {
                             <SettingRow icon={ClockIcon} label="Default Timezone">
                                 <CustomSelect
                                     value={timezone}
-                                    onChange={(e) => setTimezone(e.target.value)}
+                                    onChange={(e) => {
+                                        setTimezone(e.target.value);
+                                        setDirty(true);
+                                    }}
                                     options={['Asia/Karachi', 'Asia/Dubai', 'Europe/London', 'America/New_York']}
                                 />
                             </SettingRow>
@@ -210,7 +305,10 @@ export default function EnterprisePreferences() {
                             <SettingRow icon={CurrencyDollarIcon} label="Default Currency">
                                 <CustomSelect
                                     value={currency}
-                                    onChange={(e) => setCurrency(e.target.value)}
+                                    onChange={(e) => {
+                                        setCurrency(e.target.value);
+                                        setDirty(true);
+                                    }}
                                     options={['PKR', 'USD', 'EUR', 'AED']}
                                 />
                             </SettingRow>
@@ -219,7 +317,10 @@ export default function EnterprisePreferences() {
                                 <input
                                     type="number"
                                     value={minDuration}
-                                    onChange={(e) => setMinDuration(e.target.value)}
+                                    onChange={(e) => {
+                                        setMinDuration(e.target.value);
+                                        setDirty(true);
+                                    }}
                                     className="block w-full py-2.5 px-3 text-right border border-gray-300 rounded-lg text-sm focus:ring-[#08A698] focus:border-[#08A698] shadow-sm transition-all duration-200"
                                 />
                             </SettingRow>
@@ -227,7 +328,10 @@ export default function EnterprisePreferences() {
                             <SettingRow icon={PowerIcon} label="Session Timeout">
                                 <CustomSelect
                                     value={sessionTimeout}
-                                    onChange={(e) => setSessionTimeout(e.target.value)}
+                                    onChange={(e) => {
+                                        setSessionTimeout(e.target.value);
+                                        setDirty(true);
+                                    }}
                                     options={['Never', '30 Minutes', '1 Hour', '4 Hours']}
                                 />
                             </SettingRow>
@@ -280,6 +384,16 @@ export default function EnterprisePreferences() {
                                 onChange={() => handleToggle('salesGroup')}
                             />
                         </Section>
+
+                        <div className="pt-2 flex items-center justify-end">
+                            <button
+                                onClick={handleSave}
+                                disabled={loading || saving || !dirty}
+                                className="px-5 py-2.5 rounded-lg bg-[#08A698] hover:bg-[#079186] text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                {saving ? 'Saving...' : 'Save Advanced Settings'}
+                            </button>
+                        </div>
 
                     </div>
                 </main>

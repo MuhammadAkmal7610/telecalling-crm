@@ -65,4 +65,48 @@ export class BillingService {
         if (error) throw new BadRequestException(error.message);
         return data;
     }
+
+    async getBillingInfo(organizationId: string) {
+        const supabase = this.supabaseService.getAdminClient();
+        const { data, error } = await supabase
+            .from('organization_billing_info')
+            .select('*')
+            .eq('organization_id', organizationId)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw new BadRequestException(error.message);
+        
+        return data || {
+            organization_id: organizationId,
+            company_name: '',
+            email: '',
+            phone: '',
+            address_line1: '',
+            address_line2: '',
+            city: '',
+            state: '',
+            country: '',
+            pincode: '',
+            tax_id: ''
+        };
+    }
+
+    async updateBillingInfo(organizationId: string, billingInfo: any) {
+        const supabase = this.supabaseService.getAdminClient();
+        
+        const { id, created_at, updated_at, ...updateData } = billingInfo;
+
+        const { data, error } = await supabase
+            .from('organization_billing_info')
+            .upsert({
+                ...updateData,
+                organization_id: organizationId,
+                updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) throw new BadRequestException(error.message);
+        return data;
+    }
 }

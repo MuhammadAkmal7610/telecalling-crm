@@ -1,37 +1,69 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, useColorScheme, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useColorScheme, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
+import { Card, Button, Input } from '../../../src/components/common/Card';
+import { colors, fonts, spacing } from '../../../src/theme/theme';
 import { ApiService } from '../../../src/services/ApiService';
 import { useAuth } from '../../../src/contexts/AuthContext';
+import { usePopupMessages } from '../../../src/hooks/usePopupMessages';
 import { Lead } from '../../../src/lib/supabase';
 
 interface LeadFormData {
   name: string;
   email: string;
   phone: string;
+  alt_phone: string;
+  company: string;
   status: string;
   source: string;
-  description?: string;
+  assignee_id?: string;
 }
 
-const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'converted', 'lost'];
-const LEAD_SOURCES = ['manual', 'website', 'facebook', 'instagram', 'whatsapp', 'referral', 'other'];
+const LEAD_STATUSES = ['Fresh', 'Active', 'Interested', 'Hot', 'Scheduled', 'Won', 'Lost', 'Cold', 'Archive', 'Trash'];
+const LEAD_SOURCES = ['Facebook', 'Website', 'WhatsApp', 'Referral', 'Manual', 'Import', 'IndiaMART', 'Justdial', 'Google Ads'];
 
 export default function CreateLeadScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { showSuccess, showError, showValidation } = usePopupMessages();
   const isDark = useColorScheme() === 'dark';
+  
   const [formData, setFormData] = useState<LeadFormData>({
     name: '',
     email: '',
     phone: '',
-    status: 'new',
-    source: 'manual',
-    description: '',
+    alt_phone: '',
+    company: '',
+    status: 'Fresh',
+    source: 'Manual',
+    assignee_id: '',
   });
+  
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  React.useEffect(() => {
+    if (user?.role === 'manager' || user?.role === 'admin' || user?.role === 'root') {
+      fetchUsers();
+    }
+  }, [user]);
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const { data, error } = await ApiService.getUsers();
+      if (!error && data) {
+        // /users returns a paginated shape: { data: [...], total, page, limit }
+        const usersArray: any[] = Array.isArray(data) ? data : (data.data ?? []);
+        setUsers(usersArray.filter((u: any) => u.role !== 'root'));
+      }
+    } catch (e) {
+      console.error('Failed to fetch users:', e);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   const handleInputChange = (field: keyof LeadFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -39,11 +71,15 @@ export default function CreateLeadScreen() {
 
   const validateForm = () => {
     if (!formData.name.trim()) {
-      Alert.alert('Error', 'Lead name is required');
+      showValidation('Lead name is required');
+      return false;
+    }
+    if (!formData.phone.trim()) {
+      showValidation('Phone number is required');
       return false;
     }
     if (formData.email && !formData.email.includes('@')) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      showValidation('Please enter a valid email address');
       return false;
     }
     return true;
@@ -54,13 +90,15 @@ export default function CreateLeadScreen() {
 
     setLoading(true);
     try {
-      const leadData: Partial<Lead> = {
+      const leadData: any = {
         name: formData.name.trim(),
         email: formData.email.trim() || undefined,
         phone: formData.phone.trim() || undefined,
+        alt_phone: formData.alt_phone.trim() || undefined,
+        company: formData.company.trim() || undefined,
         status: formData.status,
         source: formData.source,
-        organization_id: user?.organization_id || '',
+        assignee_id: formData.assignee_id || undefined,
         workspace_id: user?.workspace_id,
       };
 
@@ -69,46 +107,17 @@ export default function CreateLeadScreen() {
         throw error;
       }
 
-      Alert.alert('Success', 'Lead created successfully', [
-        {
-          text: 'OK',
-          onPress: () => router.back(),
-        },
-      ]);
-    } catch (error) {
+      showSuccess('Lead created successfully');
+      router.back();
+    } catch (error: any) {
       console.error('Error creating lead:', error);
-      Alert.alert('Error', 'Failed to create lead');
+      showError(error.message || 'Failed to create lead. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const renderInput = (
-    label: string,
-    value: string,
-    onChangeText: (text: string) => void,
-    placeholder?: string,
-    keyboardType?: any
-  ) => (
-    <View style={styles.inputGroup}>
-      <Text style={[styles.inputLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-        {label}
-      </Text>
-      <View style={[styles.inputContainer, { borderColor: isDark ? '#374151' : '#E5E7EB' }]}>
-        <TextInput
-          style={[
-            styles.input,
-            { color: isDark ? colors.surface : colors.onBackground },
-          ]}
-          onChangeText={onChangeText}
-          value={value}
-          placeholder={placeholder}
-          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-          keyboardType={keyboardType}
-        />
-      </View>
-    </View>
-  );
+// Removed local renderInput in favor of Common Input component
 
   const renderPicker = (
     label: string,
@@ -164,32 +173,53 @@ export default function CreateLeadScreen() {
           Create New Lead
         </Text>
 
-        {renderInput('Lead Name *', formData.name, (value) => handleInputChange('name', value), 'Enter lead name')}
-        {renderInput('Email', formData.email, (value) => handleInputChange('email', value), 'Enter email address', 'email-address')}
-        {renderInput('Phone', formData.phone, (value) => handleInputChange('phone', value), 'Enter phone number', 'phone-pad')}
+        <Input 
+          label="Lead Name *" 
+          value={formData.name} 
+          onChangeText={(value) => handleInputChange('name', value)} 
+          placeholder="Enter lead name" 
+        />
+        <Input 
+          label="Email" 
+          value={formData.email} 
+          onChangeText={(value) => handleInputChange('email', value)} 
+          placeholder="Enter email address" 
+          keyboardType="email-address" 
+        />
+        <Input 
+          label="Phone *" 
+          value={formData.phone} 
+          onChangeText={(value) => handleInputChange('phone', value)} 
+          placeholder="Enter phone number" 
+          keyboardType="phone-pad" 
+        />
+        <Input 
+          label="Alternate Phone" 
+          value={formData.alt_phone} 
+          onChangeText={(value) => handleInputChange('alt_phone', value)} 
+          placeholder="Enter alternate phone number" 
+          keyboardType="phone-pad" 
+        />
+        <Input 
+          label="Company" 
+          value={formData.company} 
+          onChangeText={(value) => handleInputChange('company', value)} 
+          placeholder="Enter company name" 
+        />
         
         {renderPicker('Status', formData.status, (value) => handleInputChange('status', value), LEAD_STATUSES)}
         {renderPicker('Source', formData.source, (value) => handleInputChange('source', value), LEAD_SOURCES)}
 
-        <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, { color: isDark ? colors.surface : colors.onBackground }]}>
-            Description
-          </Text>
-          <View style={[styles.textAreaContainer, { borderColor: isDark ? '#374151' : '#E5E7EB' }]}>
-            <TextInput
-              style={[
-                styles.textArea,
-                { color: isDark ? colors.surface : colors.onBackground },
-              ]}
-              onChangeText={(value) => handleInputChange('description', value)}
-              value={formData.description}
-              placeholder="Enter additional notes about this lead"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-              multiline
-              textAlignVertical="top"
-            />
-          </View>
-        </View>
+        {users.length > 0 && renderPicker(
+          'Assignee', 
+          users.find(u => u.id === formData.assignee_id)?.name || 'Unassigned', 
+          (value) => {
+            const selectedUser = users.find(u => u.name === value);
+            handleInputChange('assignee_id', selectedUser?.id || '');
+          }, 
+          ['Unassigned', ...users.map(u => u.name)]
+        )}
+
 
         <View style={styles.buttonContainer}>
           <Button

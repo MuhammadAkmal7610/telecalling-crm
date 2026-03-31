@@ -1,25 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, useColorScheme, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button, LeadStatusBadge } from '../../src/components/common/Card';
-import { colors, fonts } from '../../src/theme/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { ApiService } from '../../src/services/ApiService';
-import { Lead } from '../../src/lib/supabase';
+import { Card } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
+
+interface Lead {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  status: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  source: string;
+  assignedTo: string;
+  assignedToName: string;
+  lastContacted: string;
+  nextFollowUp: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface PipelineStage {
   id: string;
   name: string;
-  status: string;
-  color: string;
   leads: Lead[];
-}
-
-interface DragItem {
-  lead: Lead;
-  fromStage: string;
-  toStage: string;
+  color: string;
+  order: number;
 }
 
 export default function LeadPipelineScreen() {
@@ -27,42 +37,73 @@ export default function LeadPipelineScreen() {
   const { user } = useAuth();
   const isDark = useColorScheme() === 'dark';
   
-  const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [pipeline, setPipeline] = useState<PipelineStage[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [showStats, setShowStats] = useState(true);
-
-  const defaultStages: Omit<PipelineStage, 'leads'>[] = [
-    { id: '1', name: 'New Leads', status: 'new', color: '#10B981' },
-    { id: '2', name: 'Contacted', status: 'contacted', color: '#3B82F6' },
-    { id: '3', name: 'Qualified', status: 'qualified', color: '#8B5CF6' },
-    { id: '4', name: 'Proposal', status: 'proposal', color: '#F59E0B' },
-    { id: '5', name: 'Converted', status: 'converted', color: '#059669' },
-    { id: '6', name: 'Lost', status: 'lost', color: '#EF4444' }
-  ];
 
   useEffect(() => {
-    loadPipelineData();
+    loadPipeline();
   }, []);
 
-  const loadPipelineData = async () => {
+  const loadPipeline = async () => {
     try {
       setLoading(true);
-      const response = await ApiService.getLeads(user?.workspace_id);
-      const allLeads = response.data || [];
+      if (!user?.organization_id) return;
+
+      // Get leads and organize them into pipeline stages
+      const response = await ApiService.get('/leads');
+      const leads = response.data || [];
       
-      // Group leads by status
-      const pipelineStages = defaultStages.map(stage => ({
-        ...stage,
-        leads: allLeads.filter(lead => lead.status === stage.status)
-      }));
-      
-      setStages(pipelineStages);
+      // Define pipeline stages
+      const stages: PipelineStage[] = [
+        {
+          id: 'fresh',
+          name: 'Fresh Leads',
+          leads: leads.filter((l: Lead) => l.status.toLowerCase() === 'fresh'),
+          color: '#3B82F6',
+          order: 1,
+        },
+        {
+          id: 'contacted',
+          name: 'Contacted',
+          leads: leads.filter((l: Lead) => l.status.toLowerCase() === 'contacted'),
+          color: '#F59E0B',
+          order: 2,
+        },
+        {
+          id: 'qualified',
+          name: 'Qualified',
+          leads: leads.filter((l: Lead) => l.status.toLowerCase() === 'qualified'),
+          color: '#10B981',
+          order: 3,
+        },
+        {
+          id: 'proposal',
+          name: 'Proposal Sent',
+          leads: leads.filter((l: Lead) => l.status.toLowerCase() === 'proposal'),
+          color: '#8B5CF6',
+          order: 4,
+        },
+        {
+          id: 'negotiation',
+          name: 'Negotiation',
+          leads: leads.filter((l: Lead) => l.status.toLowerCase() === 'negotiation'),
+          color: '#EF4444',
+          order: 5,
+        },
+        {
+          id: 'converted',
+          name: 'Converted',
+          leads: leads.filter((l: Lead) => l.status.toLowerCase() === 'converted'),
+          color: '#22C55E',
+          order: 6,
+        },
+      ];
+
+      setPipeline(stages);
     } catch (error) {
-      console.error('Error loading pipeline data:', error);
-      Alert.alert('Error', 'Failed to load pipeline data');
+      console.error('Error loading pipeline:', error);
+      Alert.alert('Error', 'Failed to load lead pipeline');
     } finally {
       setLoading(false);
     }
@@ -70,271 +111,239 @@ export default function LeadPipelineScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadPipelineData();
+    await loadPipeline();
     setRefreshing(false);
   };
 
-  const moveLeadToStage = async (lead: Lead, fromStatus: string, toStatus: string) => {
-    try {
-      // Update lead status in backend
-      await ApiService.updateLead(lead.id, { status: toStatus });
-      
-      // Update local state
-      setStages(prevStages => {
-        return prevStages.map(stage => {
-          if (stage.status === fromStatus) {
-            return {
-              ...stage,
-              leads: stage.leads.filter(l => l.id !== lead.id)
-            };
-          } else if (stage.status === toStatus) {
-            return {
-              ...stage,
-              leads: [...stage.leads, { ...lead, status: toStatus }]
-            };
-          }
-          return stage;
-        });
-      });
-
-      // Log activity
-      await ApiService.createActivity({
-        type: 'status_change',
-        description: `Moved ${lead.name} from ${fromStatus} to ${toStatus}`,
-        lead_id: lead.id,
-        user_id: user?.id,
-        organization_id: user?.organization_id,
-        workspace_id: user?.workspace_id
-      });
-
-    } catch (error) {
-      console.error('Error moving lead:', error);
-      Alert.alert('Error', 'Failed to move lead');
-      // Revert the change
-      await loadPipelineData();
+  const getPriorityColor = (priority: string) => {
+    if (!priority) return '#6B7280';
+    switch (priority.toLowerCase()) {
+      case 'urgent': return '#EF4444';
+      case 'high': return '#F59E0B';
+      case 'medium': return '#3B82F6';
+      case 'low': return '#10B981';
+      default: return '#6B7280';
     }
   };
 
-  const handleLeadPress = (lead: Lead) => {
-    setSelectedLead(lead);
-    router.push(`/leads/${lead.id}` as any);
+  const getPriorityIcon = (priority: string) => {
+    if (!priority) return 'help-circle';
+    switch (priority.toLowerCase()) {
+      case 'urgent': return 'alert-circle';
+      case 'high': return 'warning';
+      case 'medium': return 'information-circle';
+      case 'low': return 'checkmark-circle';
+      default: return 'help-circle';
+    }
   };
 
-  const handleLeadLongPress = (lead: Lead) => {
-    Alert.alert(
-      'Lead Actions',
-      `Actions for ${lead.name}`,
-      [
-        { text: 'View Details', onPress: () => router.push(`/leads/${lead.id}` as any) },
-        { text: 'Edit', onPress: () => router.push(`/leads/${lead.id}/edit` as any) },
-        { text: 'Call', onPress: () => router.push({ pathname: '/dialer', params: { leadId: lead.id } } as any) },
-        { text: 'Message', onPress: () => router.push({ pathname: '/messages/compose', params: { leadId: lead.id } } as any) },
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
-  const renderStageHeader = (stage: PipelineStage) => (
-    <View style={[styles.stageHeader, { backgroundColor: stage.color + '10' }]}>
-      <View style={styles.stageHeaderLeft}>
-        <View style={[styles.stageIndicator, { backgroundColor: stage.color }]} />
-        <Text style={[styles.stageName, { color: isDark ? colors.surface : colors.onBackground }]}>
-          {stage.name}
-        </Text>
-      </View>
-      <View style={styles.stageHeaderRight}>
-        <Text style={[styles.leadCount, { color: stage.color }]}>
-          {stage.leads.length}
-        </Text>
-        <TouchableOpacity
-          style={styles.addLeadButton}
-          onPress={() => router.push(`/leads/create?status=${stage.status}` as any)}
-        >
-          <Ionicons name="add" size={16} color={stage.color} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  const getEstimatedValue = (lead: Lead) => {
+    // Simple estimation based on priority and stage
+    const baseValues: Record<string, number> = {
+      'urgent': 50000,
+      'high': 25000,
+      'medium': 10000,
+      'low': 5000,
+    };
+    const priority = (lead.priority || 'medium').toLowerCase();
+    return baseValues[priority] || 5000;
+  };
 
-  const renderLeadCard = (lead: Lead, stage: PipelineStage) => (
-    <TouchableOpacity
-      key={lead.id}
-      style={[styles.leadCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}
-      onPress={() => handleLeadPress(lead)}
-      onLongPress={() => handleLeadLongPress(lead)}
-      delayLongPress={500}
-    >
-      <View style={styles.leadHeader}>
-        <View style={styles.leadInfo}>
-          <Text style={[styles.leadName, { color: isDark ? colors.surface : colors.onBackground }]}>
-            {lead.name}
-          </Text>
-          {lead.email && (
-            <Text style={[styles.leadEmail, { color: isDark ? '#9CA3AF' : '#6B7280' }]} numberOfLines={1}>
-              {lead.email}
-            </Text>
-          )}
-          {lead.phone && (
-            <Text style={[styles.leadPhone, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              {lead.phone}
-            </Text>
-          )}
-        </View>
-        <TouchableOpacity
-          style={styles.quickActions}
-          onPress={() => {
-            Alert.alert(
-              'Move Lead',
-              `Move ${lead.name} to another stage`,
-              stages
-                .filter(s => s.status !== stage.status)
-                .map(s => ({
-                  text: s.name,
-                  onPress: () => moveLeadToStage(lead, stage.status, s.status)
-                }))
-            );
-          }}
-        >
-          <Ionicons name="ellipsis-vertical" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.leadFooter}>
-        <Text style={[styles.createdDate, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
-          {new Date(lead.created_at).toLocaleDateString()}
-        </Text>
-        <View style={styles.leadTags}>
-          {lead.source && (
-            <View style={[styles.tag, { backgroundColor: stage.color + '20' }]}>
-              <Text style={[styles.tagText, { color: stage.color }]}>
-                {lead.source}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+  const getTotalPipelineValue = () => {
+    return pipeline.reduce((total, stage) => {
+      const stageValue = stage.leads.reduce((stageTotal, lead) => {
+        return stageTotal + getEstimatedValue(lead);
+      }, 0);
+      return total + stageValue;
+    }, 0);
+  };
 
-  const renderStage = (stage: PipelineStage) => (
-    <View key={stage.id} style={styles.stage}>
-      {renderStageHeader(stage)}
-      <ScrollView
-        style={styles.leadsContainer}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.leadsContent}
-      >
-        {stage.leads.map(lead => renderLeadCard(lead, stage))}
-        {stage.leads.length === 0 && (
-          <View style={styles.emptyStage}>
-            <Ionicons name="person-outline" size={32} color={isDark ? '#4B5563' : '#9CA3AF'} />
-            <Text style={[styles.emptyStageText, { color: isDark ? '#4B5563' : '#9CA3AF' }]}>
-              No leads in this stage
-            </Text>
-            <TouchableOpacity
-              style={[styles.addFirstLead, { borderColor: stage.color }]}
-              onPress={() => router.push(`/leads/create?status=${stage.status}` as any)}
-            >
-              <Text style={[styles.addFirstLeadText, { color: stage.color }]}>
-                Add Lead
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
-    </View>
-  );
+  const getConversionRate = () => {
+    const totalLeads = pipeline.reduce((total, stage) => total + stage.leads.length, 0);
+    const convertedLeads = pipeline.find(stage => stage.id === 'converted')?.leads.length || 0;
+    return totalLeads > 0 ? ((convertedLeads / totalLeads) * 100).toFixed(1) : '0';
+  };
 
-  const renderPipelineStats = () => {
-    const totalLeads = stages.reduce((sum, stage) => sum + stage.leads.length, 0);
-    const convertedLeads = stages.find(s => s.status === 'converted')?.leads.length || 0;
-    const conversionRate = totalLeads > 0 ? ((convertedLeads / totalLeads) * 100).toFixed(1) : '0';
-
+  if (loading) {
     return (
-      <Card style={styles.statsCard}>
-        <View style={styles.statsHeader}>
-          <Text style={[styles.statsTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-            Pipeline Overview
+      <View style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="analytics-outline" size={48} color={colors.primary} />
+          <Text style={[styles.loadingText, { color: isDark ? colors.surface : colors.onBackground }]}>
+            Loading Pipeline...
           </Text>
-          <TouchableOpacity onPress={() => setShowStats(!showStats)}>
-            <Ionicons
-              name={showStats ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={isDark ? '#6B7280' : '#9CA3AF'}
-            />
-          </TouchableOpacity>
         </View>
-        
-        {showStats && (
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.primary }]}>
-                {totalLeads}
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Total Leads
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: '#10B981' }]}>
-                {convertedLeads}
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Converted
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: '#8B5CF6' }]}>
-                {conversionRate}%
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Conversion Rate
-              </Text>
-            </View>
-          </View>
-        )}
-      </Card>
+      </View>
     );
-  };
+  }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: isDark ? colors.surface : colors.onBackground }]}>
           Lead Pipeline
         </Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={onRefresh}
-          >
-            <Ionicons name="refresh" size={20} color={colors.primary} />
-          </TouchableOpacity>
-          <Button
-            title="Add Lead"
-            onPress={() => router.push('/leads/create' as any)}
-            style={styles.addButton}
-          />
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Total Value</Text>
+            <Text style={[styles.statValue, { color: isDark ? colors.surface : colors.onBackground }]}>
+              {formatCurrency(getTotalPipelineValue())}
+            </Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Conversion Rate</Text>
+            <Text style={[styles.statValue, { color: isDark ? colors.surface : colors.onBackground }]}>
+              {getConversionRate()}%
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Pipeline Stats */}
-      {renderPipelineStats()}
-
       {/* Pipeline Stages */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.pipelineContainer}
-        refreshControl={{
-          refreshing,
-          onRefresh,
-        }}
-      >
-        {stages.map(renderStage)}
-      </ScrollView>
-    </View>
+      <View style={styles.pipelineContainer}>
+        {pipeline.map((stage) => (
+          <Card
+            key={stage.id}
+            style={[
+              styles.stageCard,
+              { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }
+            ]}
+          >
+            <View style={styles.stageHeader}>
+              <View style={[styles.stageIndicator, { backgroundColor: stage.color }]} />
+              <Text style={[styles.stageTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+                {stage.name}
+              </Text>
+              <Text style={[styles.stageCount, { color: stage.color }]}>
+                {stage.leads.length}
+              </Text>
+            </View>
+
+            {stage.leads.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="leaf-outline" size={32} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  No leads in this stage
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.leadsList}>
+                {stage.leads.map((lead) => (
+                  <TouchableOpacity
+                    key={lead.id}
+                    style={[
+                      styles.leadCard,
+                      { borderColor: isDark ? '#374151' : '#E5E7EB' }
+                    ]}
+                    onPress={() => router.push(`/leads/${lead.id}` as any)}
+                  >
+                    <View style={styles.leadHeader}>
+                      <Text style={[styles.leadName, { color: isDark ? colors.surface : colors.onBackground }]}>
+                        {lead.name}
+                      </Text>
+                      <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(lead.priority) + '20' }]}>
+                        <Ionicons name={getPriorityIcon(lead.priority)} size={12} color={getPriorityColor(lead.priority)} />
+                        <Text style={[styles.priorityText, { color: getPriorityColor(lead.priority) }]}>
+                          {(lead.priority || 'Medium').toUpperCase()}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.leadDetails}>
+                      <Text style={[styles.leadInfo, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                        {lead.phone} • {lead.email}
+                      </Text>
+                      <Text style={[styles.leadInfo, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                        Source: {lead.source} • Assigned: {lead.assignedToName}
+                      </Text>
+                    </View>
+
+                    <View style={styles.leadFooter}>
+                      <Text style={[styles.leadMeta, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                        Last Contacted: {new Date(lead.lastContacted).toLocaleDateString()}
+                      </Text>
+                      {lead.nextFollowUp && (
+                        <Text style={[styles.leadMeta, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                          Next Follow-up: {new Date(lead.nextFollowUp).toLocaleDateString()}
+                        </Text>
+                      )}
+                    </View>
+
+                    <View style={styles.leadActions}>
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                        onPress={() => router.push(`/communication/whatsapp?phone=${lead.phone}&name=${lead.name}` as any)}
+                      >
+                        <Ionicons name="logo-whatsapp" size={16} color="white" />
+                        <Text style={styles.actionText}>WhatsApp</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
+                        onPress={() => router.push(`/communication/dialer?phone=${lead.phone}&name=${lead.name}` as any)}
+                      >
+                        <Ionicons name="call" size={16} color="white" />
+                        <Text style={styles.actionText}>Call</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#10B981' }]}
+                        onPress={() => router.push(`/leads/${lead.id}/edit` as any)}
+                      >
+                        <Ionicons name="pencil" size={16} color="white" />
+                        <Text style={styles.actionText}>Edit</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </Card>
+        ))}
+      </View>
+
+      {/* Quick Actions */}
+      <Card style={[styles.actionsCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+        <Text style={[styles.actionsTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+          Quick Actions
+        </Text>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.quickButton, { backgroundColor: colors.primary }]}
+            onPress={() => router.push('/leads/add' as any)}
+          >
+            <Ionicons name="add-circle" size={24} color="white" />
+            <Text style={styles.quickButtonText}>Add Lead</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickButton, { backgroundColor: '#10B981' }]}
+            onPress={() => router.push('/leads/search' as any)}
+          >
+            <Ionicons name="search" size={24} color="white" />
+            <Text style={styles.quickButtonText}>Search</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickButton, { backgroundColor: '#F59E0B' }]}
+            onPress={() => router.push('/leads/import' as any)}
+          >
+            <Ionicons name="cloud-upload" size={24} color="white" />
+            <Text style={styles.quickButtonText}>Import</Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
+    </ScrollView>
   );
 }
 
@@ -343,189 +352,184 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 20,
     paddingTop: 40,
   },
   title: {
     fontSize: 24,
     fontFamily: fonts.nohemi.bold,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  refreshButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: colors.primary + '10',
-  },
-  addButton: {
-    paddingHorizontal: 16,
-  },
-  statsCard: {
-    margin: 20,
-    padding: 16,
-  },
-  statsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 16,
   },
-  statsTitle: {
-    fontSize: 18,
-    fontFamily: fonts.nohemi.semiBold,
-  },
-  statsGrid: {
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 16,
   },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontFamily: fonts.nohemi.bold,
-    marginBottom: 4,
+  statCard: {
+    flex: 1,
+    padding: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: fonts.satoshi.medium,
+    fontFamily: fonts.satoshi.regular,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 18,
+    fontFamily: fonts.nohemi.bold,
   },
   pipelineContainer: {
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  stage: {
-    width: 280,
-    marginRight: 16,
-    backgroundColor: 'transparent',
+  stageCard: {
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   stageHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  stageHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+    gap: 12,
+    marginBottom: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   stageIndicator: {
     width: 4,
-    height: 16,
+    height: 24,
     borderRadius: 2,
-    marginRight: 8,
   },
-  stageName: {
-    fontSize: 14,
-    fontFamily: fonts.nohemi.semiBold,
+  stageTitle: {
     flex: 1,
+    fontSize: 18,
+    fontFamily: fonts.nohemi.semiBold,
   },
-  stageHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  leadCount: {
+  stageCount: {
     fontSize: 16,
     fontFamily: fonts.nohemi.bold,
   },
-  addLeadButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
+  emptyState: {
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 24,
   },
-  leadsContainer: {
-    maxHeight: 500,
+  emptyText: {
+    fontSize: 14,
+    fontFamily: fonts.satoshi.regular,
+    marginTop: 8,
   },
-  leadsContent: {
-    paddingBottom: 8,
+  leadsList: {
+    gap: 12,
   },
   leadCard: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
   },
   leadHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  leadName: {
+    fontSize: 16,
+    fontFamily: fonts.nohemi.medium,
+    flex: 1,
+  },
+  priorityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  priorityText: {
+    fontSize: 10,
+    fontFamily: fonts.nohemi.medium,
+    textTransform: 'uppercase',
+  },
+  leadDetails: {
+    gap: 4,
     marginBottom: 8,
   },
   leadInfo: {
-    flex: 1,
-  },
-  leadName: {
-    fontSize: 14,
-    fontFamily: fonts.nohemi.medium,
-    marginBottom: 4,
-  },
-  leadEmail: {
     fontSize: 12,
     fontFamily: fonts.satoshi.regular,
-    marginBottom: 2,
-  },
-  leadPhone: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.regular,
-  },
-  quickActions: {
-    padding: 4,
   },
   leadFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  createdDate: {
-    fontSize: 10,
-    fontFamily: fonts.satoshi.regular,
-  },
-  leadTags: {
-    flexDirection: 'row',
     gap: 4,
-  },
-  tag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  tagText: {
-    fontSize: 10,
-    fontFamily: fonts.satoshi.medium,
-  },
-  emptyStage: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  emptyStageText: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.medium,
-    marginTop: 8,
     marginBottom: 12,
   },
-  addFirstLead: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
+  leadMeta: {
+    fontSize: 11,
+    fontFamily: fonts.satoshi.regular,
   },
-  addFirstLeadText: {
+  leadActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  actionText: {
     fontSize: 12,
+    fontFamily: fonts.nohemi.medium,
+    color: 'white',
+  },
+  actionsCard: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  actionsTitle: {
+    fontSize: 16,
+    fontFamily: fonts.nohemi.semiBold,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  quickButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  quickButtonText: {
+    fontSize: 14,
+    fontFamily: fonts.nohemi.medium,
+    color: 'white',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
     fontFamily: fonts.satoshi.medium,
+    marginTop: 12,
   },
 });

@@ -171,7 +171,7 @@ export default function AdminDashboard() {
         }
 
         return (
-            <div key={item.id} className={span}>
+            <div key={item.id} className={`${span} h-full`}>
                 <DraggableWidget id={item.id} isEditing={isEditing}>
                     {content}
                 </DraggableWidget>

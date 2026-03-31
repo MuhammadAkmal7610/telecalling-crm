@@ -16,6 +16,13 @@ export class AuthController {
         return this.authService.signup(signupDto);
     }
 
+    @Post('signup-invite')
+    @ApiOperation({ summary: 'Register a new user via invitation' })
+    @ApiResponse({ status: 201, description: 'User successfully registered via invite' })
+    async signupInvite(@Body() body: { signupDto: any, token: string }) {
+        return this.authService.signupInvite(body.signupDto, body.token);
+    }
+
     @Post('login')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Login with email and password' })

@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UserSettingsDto } from './dto/user-settings.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -26,9 +27,23 @@ export class UsersController {
 
     /** PATCH /users/me — any authenticated user can update their own profile */
     @Patch('me')
-    @ApiOperation({ summary: 'Update your own user profile' })
-    updateMe(@CurrentUser() user: any, @Body() dto: { name?: string; phone?: string; initials?: string }) {
+    @ApiOperation({ summary: 'Update your own user profile or switch workspace' })
+    updateMe(@CurrentUser() user: any, @Body() dto: { name?: string; phone?: string; initials?: string; workspace_id?: string }) {
         return this.usersService.updateMe(user.id, dto, user.organizationId);
+    }
+
+    /** GET /users/me/settings — fetch persisted user preferences */
+    @Get('me/settings')
+    @ApiOperation({ summary: 'Get current user settings' })
+    getMySettings(@CurrentUser() user: any) {
+        return this.usersService.getMySettings(user.id, user.organizationId);
+    }
+
+    /** PATCH /users/me/settings — update persisted user preferences */
+    @Patch('me/settings')
+    @ApiOperation({ summary: 'Update current user settings' })
+    updateMySettings(@CurrentUser() user: any, @Body() dto: UserSettingsDto) {
+        return this.usersService.updateMySettings(user.id, user.organizationId, dto);
     }
 
     /** GET /users/licenses/available — admin+ */

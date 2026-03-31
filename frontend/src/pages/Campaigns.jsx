@@ -2,6 +2,7 @@ import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabaseClient';
 import { useEffect, useState } from 'react';
+import { useApi } from '../hooks/useApi';
 import {
     MagnifyingGlassIcon,
     FunnelIcon,
@@ -89,6 +90,7 @@ const FilterDropdown = ({ placeholder, icon: Icon }) => (
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 export default function Campaigns() {
+    const { apiFetch } = useApi();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [campaigns, setCampaigns] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -103,14 +105,7 @@ export default function Campaigns() {
     const fetchCampaigns = async () => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const res = await fetch(`${API_URL}/campaigns`, {
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                }
-            });
+            const res = await apiFetch('/campaigns');
             const result = await res.json();
             const data = result.data?.data || result.data || result || [];
 
@@ -141,14 +136,8 @@ export default function Campaigns() {
     const confirmDelete = async () => {
         if (!campaignToDelete) return;
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const res = await fetch(`${API_URL}/campaigns/${campaignToDelete}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                }
+            const res = await apiFetch(`/campaigns/${campaignToDelete}`, {
+                method: 'DELETE'
             });
 
             if (res.ok) {

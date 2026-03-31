@@ -40,6 +40,7 @@ export const WorkspaceProvider = ({ children }) => {
             setCurrentWorkspace(active);
             if (active) localStorage.setItem(STORAGE_KEY, active.id);
         } catch (err) {
+            if (err.name === 'AbortError') return;
             console.error('WorkspaceContext: failed to load workspaces', err);
         } finally {
             setLoading(false);

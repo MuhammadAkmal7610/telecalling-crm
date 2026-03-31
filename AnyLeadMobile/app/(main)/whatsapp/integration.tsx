@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ScrollView, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, TextInput, ScrollView, useColorScheme, RefreshControl, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../../src/components/common/Card';
-import { colors, fonts } from '../../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { ApiService } from '../../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
+import CommunicationService from '@/src/services/CommunicationService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface WhatsAppMessage {
@@ -111,7 +112,7 @@ interface WhatsAppAutomation {
 export default function WhatsAppIntegrationScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
   
   const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
   const [contacts, setContacts] = useState<WhatsAppContact[]>([]);
@@ -154,229 +155,83 @@ export default function WhatsAppIntegrationScreen() {
   };
 
   const loadMessages = async () => {
-    // Mock WhatsApp messages
-    const mockMessages: WhatsAppMessage[] = [
-      {
-        id: '1',
-        messageId: 'wamid.HBgLOTE1MjEzNDU2NVVBIQF',
-        contactId: '1',
-        contactName: 'Rahul Sharma',
-        contactPhone: '+919876543210',
-        message: 'Hi, I\'m interested in your CRM solution. Can you provide more details?',
-        type: 'text',
-        direction: 'inbound',
-        status: 'read',
-        timestamp: new Date(Date.now() - 3600000).toISOString(),
-        isBusiness: false,
-        labels: ['lead', 'interested'],
-        assignedTo: user?.id,
-        assignedToName: user?.name,
-        leadId: 'lead_1'
-      },
-      {
-        id: '2',
-        messageId: 'wamid.HBgLOTE1MjEzNDU2NVVCMQ',
-        contactId: '1',
-        contactName: 'Rahul Sharma',
-        contactPhone: '+919876543210',
-        message: 'Hello Rahul! I\'d be happy to help. Our CRM includes lead management, automated follow-ups, WhatsApp integration, and advanced analytics. Would you like to schedule a demo?',
-        type: 'text',
-        direction: 'outbound',
-        status: 'delivered',
-        timestamp: new Date(Date.now() - 3000000).toISOString(),
-        isBusiness: true,
-        labels: ['response'],
-        assignedTo: user?.id,
-        assignedToName: user?.name,
-        leadId: 'lead_1'
-      },
-      {
-        id: '3',
-        messageId: 'wamid.HBgLOTE1MjEzNDU2NVVCMg',
-        contactId: '2',
-        contactName: 'Priya Patel',
-        contactPhone: '+919876543211',
-        message: 'I need pricing for enterprise plan with 50 users',
-        type: 'text',
-        direction: 'inbound',
-        status: 'read',
-        timestamp: new Date(Date.now() - 7200000).toISOString(),
-        isBusiness: false,
-        labels: ['pricing', 'enterprise'],
-        assignedTo: user?.id,
-        assignedToName: user?.name,
-        leadId: 'lead_2'
-      }
-    ];
-    setMessages(mockMessages);
+    if (!user?.organization_id) return;
+    try {
+      const messages = await CommunicationService.getWhatsAppMessages(user.organization_id);
+      setMessages(messages);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
   };
 
   const loadContacts = async () => {
-    // Mock WhatsApp contacts
-    const mockContacts: WhatsAppContact[] = [
-      {
-        id: '1',
-        phone: '+919876543210',
-        name: 'Rahul Sharma',
-        isBusiness: false,
-        isBlocked: false,
-        lastMessage: 'Hi, I\'m interested in your CRM solution. Can you provide more details?',
-        lastMessageTime: new Date(Date.now() - 3600000).toISOString(),
-        unreadCount: 1,
-        labels: ['lead', 'interested'],
-        assignedTo: user?.id,
-        assignedToName: user?.name,
-        leadId: 'lead_1',
-        status: 'contacted',
-        priority: 'high',
-        tags: ['whatsapp', 'crm', 'demo']
-      },
-      {
-        id: '2',
-        phone: '+919876543211',
-        name: 'Priya Patel',
-        isBusiness: false,
-        isBlocked: false,
-        lastMessage: 'I need pricing for enterprise plan with 50 users',
-        lastMessageTime: new Date(Date.now() - 7200000).toISOString(),
-        unreadCount: 0,
-        labels: ['pricing', 'enterprise'],
-        assignedTo: user?.id,
-        assignedToName: user?.name,
-        leadId: 'lead_2',
-        status: 'qualified',
-        priority: 'medium',
-        tags: ['whatsapp', 'pricing', 'enterprise']
-      }
-    ];
-    setContacts(mockContacts);
+    if (!user?.organization_id) return;
+    try {
+      const contacts = await CommunicationService.getWhatsAppContacts(user.organization_id);
+      setContacts(contacts);
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+    }
   };
 
   const loadCampaigns = async () => {
-    // Mock WhatsApp campaigns
-    const mockCampaigns: WhatsAppCampaign[] = [
-      {
-        id: '1',
-        name: 'Product Launch Campaign',
-        type: 'bulk',
-        status: 'active',
-        template: {
-          name: 'product_launch',
-          language: 'en',
-          category: 'marketing',
-          components: [
-            {
-              type: 'header',
-              text: '🚀 Exciting News!',
-              format: 'text'
-            },
-            {
-              type: 'body',
-              text: 'We\'re thrilled to announce our new CRM features! Click below to learn more.'
-            },
-            {
-              type: 'buttons',
-              buttons: [
-                { type: 'url', text: 'Learn More', url: 'https://yourcrm.com/features' },
-                { type: 'quick_reply', text: 'Schedule Demo' }
-              ]
-            }
-          ]
-        },
-        recipients: [
-          { phone: '+919876543210', status: 'delivered', sentAt: new Date(Date.now() - 3600000).toISOString() },
-          { phone: '+919876543211', status: 'read', sentAt: new Date(Date.now() - 7200000).toISOString() }
-        ],
-        stats: {
-          totalSent: 150,
-          delivered: 142,
-          read: 89,
-          failed: 8,
-          clicked: 23
-        },
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        createdBy: user?.id || '1'
-      }
-    ];
-    setCampaigns(mockCampaigns);
+    if (!user?.organization_id) return;
+    try {
+      const campaigns = await CommunicationService.getWhatsAppCampaigns(user.organization_id);
+      setCampaigns(campaigns);
+    } catch (error) {
+      console.error('Error loading campaigns:', error);
+    }
   };
 
   const loadAutomations = async () => {
-    // Mock WhatsApp automations
-    const mockAutomations: WhatsAppAutomation[] = [
-      {
-        id: '1',
-        name: 'Auto-Reply to New Leads',
-        trigger: {
-          type: 'incoming_message',
-          conditions: {
-            keywords: ['price', 'cost', 'demo', 'trial'],
-            isNewContact: true
-          }
-        },
-        actions: [
-          {
-            type: 'send_message',
-            parameters: {
-              template: 'auto_reply_lead',
-              assignToUser: true
-            }
-          },
-          {
-            type: 'add_label',
-            parameters: {
-              labels: ['auto-replied', 'interested']
-            }
-          }
-        ],
-        isActive: true,
-        stats: {
-          triggered: 45,
-          completed: 43,
-          failed: 2
-        },
-        createdAt: new Date(Date.now() - 604800000).toISOString()
-      }
-    ];
-    setAutomations(mockAutomations);
+    if (!user?.organization_id) return;
+    try {
+      const automations = await CommunicationService.getWhatsAppAutomations(user.organization_id);
+      setAutomations(automations);
+    } catch (error) {
+      console.error('Error loading automations:', error);
+    }
   };
 
   const sendMessage = async () => {
     if (!messageInput.trim() || !selectedContact) return;
+    const messageText = messageInput;
+    setMessageInput('');
 
     try {
-      const newMessage: WhatsAppMessage = {
-        id: Date.now().toString(),
-        messageId: `wamid.${Date.now()}`,
-        contactId: selectedContact.id,
-        contactName: selectedContact.name || 'Unknown',
-        contactPhone: selectedContact.phone,
-        message: messageInput,
+      // Try backend WhatsApp Business API first
+      const newMessage = await CommunicationService.sendWhatsAppMessage({
+        to: selectedContact.phone,
+        message: messageText,
         type: 'text',
-        direction: 'outbound',
-        status: 'sent',
-        timestamp: new Date().toISOString(),
-        isBusiness: true,
-        labels: [],
-        assignedTo: user?.id,
-        assignedToName: user?.name,
         leadId: selectedContact.leadId
-      };
+      });
 
       setMessages(prev => [newMessage, ...prev]);
-      setMessageInput('');
 
       // Update contact's last message
       setContacts(prev => prev.map(contact =>
         contact.id === selectedContact.id
-          ? { ...contact, lastMessage: messageInput, lastMessageTime: new Date().toISOString() }
+          ? { ...contact, lastMessage: messageText, lastMessageTime: new Date().toISOString() }
           : contact
       ));
-
-      Alert.alert('Success', 'Message sent successfully');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message');
+    } catch (error: any) {
+      console.error('Backend WhatsApp send failed, falling back to native app:', error);
+      // Fallback: open native WhatsApp app
+      let phone = selectedContact.phone.replace(/[^0-9]/g, '');
+      if (phone.length === 10) phone = '91' + phone;
+      const waUrl = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(messageText)}`;
+      const supported = await Linking.canOpenURL(waUrl);
+      if (supported) {
+        await Linking.openURL(waUrl);
+      } else {
+        Alert.alert(
+          'WhatsApp Not Configured',
+          'The WhatsApp Business API is not set up yet. Please install WhatsApp on your device to send messages.',
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 
@@ -385,7 +240,7 @@ export default function WhatsAppIntegrationScreen() {
       // Log the call activity
       await ApiService.createActivity({
         type: 'call',
-        description: `Called ${contact.name} via WhatsApp integration`,
+        details: `Called ${contact.name} via WhatsApp integration`,
         lead_id: contact.leadId,
         user_id: user?.id,
         organization_id: user?.organization_id,
@@ -565,7 +420,7 @@ export default function WhatsAppIntegrationScreen() {
             color: item.status === 'active' ? '#10B981' : 
                    item.status === 'paused' ? '#F59E0B' : '#6B7280'
           }]}>
-            {item.status.toUpperCase()}
+            {(item.status || 'Draft').toUpperCase()}
           </Text>
         </View>
       </View>
@@ -683,10 +538,9 @@ export default function WhatsAppIntegrationScreen() {
           renderItem={renderContactItem}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
-          refreshControl={{
-            refreshing,
-            onRefresh,
-          }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
           ListHeaderComponent={
             <View style={styles.chatsHeader}>
               <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
@@ -891,7 +745,6 @@ export default function WhatsAppIntegrationScreen() {
   );
 }
 
-import { Linking } from 'expo-linking';
 
 const styles = StyleSheet.create({
   container: {

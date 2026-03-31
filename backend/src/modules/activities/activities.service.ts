@@ -12,14 +12,22 @@ export class ActivitiesService {
     async create(dto: CreateActivityDto, userId: string, workspaceId: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
 
+        // Map camelCase properties to snake_case for database
+        const activityData = {
+            type: dto.type,
+            title: dto.title,
+            subtitle: dto.subtitle,
+            details: dto.details,
+            duration: dto.duration,
+            lead_id: dto.leadId, // Map leadId to lead_id
+            user_id: userId,
+            workspace_id: workspaceId,
+            organization_id: organizationId
+        };
+
         const { data, error } = await supabase
             .from(this.TABLE)
-            .insert({
-                ...dto,
-                user_id: userId,
-                workspace_id: workspaceId,
-                organization_id: organizationId
-            })
+            .insert(activityData)
             .select()
             .single();
 
@@ -28,6 +36,9 @@ export class ActivitiesService {
     }
 
     async findAll(query: ActivityQueryDto, workspaceId: string, organizationId: string) {
+        if (!workspaceId || workspaceId === 'null') {
+            throw new BadRequestException('Workspace ID is required to fetch activities.');
+        }
         const supabase = this.supabaseService.getAdminClient();
         const { page = 1, limit = 20, type, leadId, userId, period } = query;
         const from = (page - 1) * limit;

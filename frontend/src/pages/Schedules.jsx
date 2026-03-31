@@ -4,15 +4,13 @@ import Header from '../components/Header';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import ConfirmModal from '../components/ConfirmModal';
 import TaskModal from '../components/TaskModal';
-import { supabase } from '../lib/supabaseClient';
+import { useApi } from '../hooks/useApi';
 import {
     ArrowPathIcon, PlusIcon, MagnifyingGlassIcon, PhoneIcon, FlagIcon,
     CalendarDaysIcon, UserIcon, TrashIcon, PencilSquareIcon,
     CheckCircleIcon, ClockIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 const PRIORITY_CONFIG = {
     Urgent: { color: 'text-red-600', bg: 'bg-red-50', dot: 'bg-red-500' },
@@ -41,6 +39,7 @@ function formatDueDate(dateStr) {
 }
 
 export default function Schedules() {
+    const { apiFetch } = useApi();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [schedules, setSchedules] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -57,15 +56,10 @@ export default function Schedules() {
     const fetchSchedules = useCallback(async () => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
             const params = new URLSearchParams({ limit: '50' });
             if (statusFilter) params.set('status', statusFilter);
 
-            const res = await fetch(`${API_URL}/schedules?${params}`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
+            const res = await apiFetch(`/schedules?${params}`);
             if (!res.ok) throw new Error('Failed to fetch');
             const result = await res.json();
             const data = result.data?.data || result.data || [];
@@ -92,10 +86,8 @@ export default function Schedules() {
         setIsConfirmOpen(false);
         setDeletingId(id);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const res = await fetch(`${API_URL}/schedules/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            const res = await apiFetch(`/schedules/${id}`, {
+                method: 'DELETE'
             });
             if (res.ok) {
                 toast.success('Schedule deleted');
@@ -109,10 +101,8 @@ export default function Schedules() {
 
     const handleMarkDone = async (id) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const res = await fetch(`${API_URL}/schedules/${id}`, {
+            const res = await apiFetch(`/schedules/${id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
                 body: JSON.stringify({ status: 'Done', completedAt: new Date().toISOString() })
             });
             if (res.ok) {

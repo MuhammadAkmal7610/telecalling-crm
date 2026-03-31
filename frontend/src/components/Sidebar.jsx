@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { usePermission } from '../hooks/usePermission';
@@ -23,17 +23,18 @@ const navigation = [
     { name: 'Dashboard', icon: PresentationChartLineIcon, path: '/dashboard' },
     { name: 'Pipeline', icon: ViewColumnsIcon, path: '/pipeline' },
     { name: 'Search', icon: MagnifyingGlassIcon, path: '/search' },
+    { name: 'Email', icon: EnvelopeIcon, path: '/email-campaigns' },
     { name: 'Add Leads', icon: UserPlusIcon, path: '/add-leads' },
     { name: 'Activities', icon: ListBulletIcon, path: '/activities' },
     { name: 'WhatsApp', icon: WhatsAppIcon, path: '/whatsapp' },
-    { name: 'Email', icon: EnvelopeIcon, path: '/email-campaigns' },
-    { name: 'Invitations', icon: UserGroupIcon, path: '/user-invitations' },
     { name: 'Analytics', icon: ChartBarIcon, path: '/advanced-analytics' },
     { name: 'Campaigns', icon: MegaphoneIcon, path: '/campaigns' },
     { name: 'Filters', icon: FunnelIcon, path: '/filters' },
     { name: 'My Lists', icon: QueueListIcon, path: '/my-lists' },
     { name: 'Reports', icon: ChartBarIcon, path: '/reports' },
     { name: 'Automations', icon: BoltIcon, path: '/automations' },
+    { name: 'My Preferences', icon: Cog6ToothIcon, path: '/my-preferences' },
+    { name: 'Advanced Settings', icon: Cog6ToothIcon, path: '/enterprise-preferences' },
     { name: 'Integrations', icon: CpuChipIcon, path: '/integrations' },
 ];
 

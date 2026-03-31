@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, RefreshControl, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '../../src/components/common/Card';
-import { colors, fonts } from '../../src/theme/theme';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { ApiService } from '../../../src/services/ApiService';
+import { Card, Button } from '@/src/components/common/Card';
+import { colors, fonts } from '@/src/theme/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface User {
@@ -54,7 +54,7 @@ interface Team {
 export default function UserManagementScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const isDark = useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
   
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -99,106 +99,39 @@ export default function UserManagementScreen() {
   };
 
   const loadUsers = async () => {
-    // Mock users data
-    const mockUsers: User[] = [
-      {
-        id: '1',
-        name: 'John Smith',
-        email: 'john@company.com',
-        role: 'admin',
-        status: 'active',
-        organizationId: 'org1',
-        workspaceId: 'ws1',
-        lastLogin: new Date().toISOString(),
-        createdAt: new Date(Date.now() - 2592000000).toISOString(),
-        permissions: ['user_management', 'workspace_management', 'billing_management'],
-        teams: ['Sales Team', 'Management'],
-        profile: {
-          phone: '+1234567890',
-          department: 'Sales',
-          location: 'New York'
-        },
-        statistics: {
-          leadsCreated: 145,
-          dealsClosed: 23,
-          revenueGenerated: 125000,
-          activitiesLogged: 890
-        }
-      },
-      {
-        id: '2',
-        name: 'Sarah Johnson',
-        email: 'sarah@company.com',
-        role: 'manager',
-        status: 'active',
-        organizationId: 'org1',
-        workspaceId: 'ws1',
-        lastLogin: new Date(Date.now() - 86400000).toISOString(),
-        createdAt: new Date(Date.now() - 5184000000).toISOString(),
-        permissions: ['team_management', 'lead_management', 'report_view'],
-        teams: ['Sales Team'],
-        profile: {
-          phone: '+1234567891',
-          department: 'Sales',
-          location: 'Los Angeles'
-        },
-        statistics: {
-          leadsCreated: 234,
-          dealsClosed: 45,
-          revenueGenerated: 287000,
-          activitiesLogged: 1234
-        }
-      },
-      {
-        id: '3',
-        name: 'Michael Chen',
-        email: 'michael@company.com',
-        role: 'sales',
-        status: 'active',
-        organizationId: 'org1',
-        workspaceId: 'ws1',
-        lastLogin: new Date(Date.now() - 3600000).toISOString(),
-        createdAt: new Date(Date.now() - 7776000000).toISOString(),
-        permissions: ['lead_management', 'activity_logging'],
-        teams: ['Sales Team'],
-        profile: {
-          phone: '+1234567892',
-          department: 'Sales',
-          location: 'Chicago'
-        },
-        statistics: {
-          leadsCreated: 189,
-          dealsClosed: 31,
-          revenueGenerated: 156000,
-          activitiesLogged: 567
-        }
-      },
-      {
-        id: '4',
-        name: 'Emily Davis',
-        email: 'emily@company.com',
-        role: 'agent',
-        status: 'inactive',
-        organizationId: 'org1',
-        workspaceId: 'ws1',
-        lastLogin: new Date(Date.now() - 604800000).toISOString(),
-        createdAt: new Date(Date.now() - 10368000000).toISOString(),
-        permissions: ['lead_view', 'activity_logging'],
-        teams: ['Support Team'],
-        profile: {
-          phone: '+1234567893',
-          department: 'Support',
-          location: 'Houston'
-        },
-        statistics: {
-          leadsCreated: 67,
-          dealsClosed: 8,
-          revenueGenerated: 45000,
-          activitiesLogged: 234
-        }
+    try {
+      const response = await ApiService.getUsers();
+      if (response && response.data) {
+        // Backend returns `{ data, total, page, limit }`
+        const backendUsers = response.data.data || [];
+        const mappedUsers: User[] = backendUsers.map((u: any) => ({
+          id: u.id,
+          name: u.name || u.email,
+          email: u.email,
+          role: (u.role?.toLowerCase() || 'agent') as any,
+          status: (u.status?.toLowerCase() === 'invited' ? 'inactive' : u.status?.toLowerCase() === 'deleted' ? 'suspended' : 'active') as any,
+          organizationId: u.organization_id || '',
+          workspaceId: u.workspace_id || '',
+          lastLogin: u.updated_at,
+          createdAt: u.created_at,
+          permissions: u.permission_template ? [u.permission_template.name] : [],
+          teams: [],
+          profile: {
+            phone: u.phone || undefined,
+            department: u.license_type || undefined,
+          },
+          statistics: {
+            leadsCreated: 0,
+            dealsClosed: 0,
+            revenueGenerated: 0,
+            activitiesLogged: 0
+          }
+        }));
+        setUsers(mappedUsers);
       }
-    ];
-    setUsers(mockUsers);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
   };
 
   const loadRoles = async () => {
@@ -624,10 +557,9 @@ export default function UserManagementScreen() {
         renderItem={renderUserItem}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        refreshControl={{
-          refreshing,
-          onRefresh,
-        }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={48} color={isDark ? '#6B7280' : '#9CA3AF'} />

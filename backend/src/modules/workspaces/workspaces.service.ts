@@ -7,6 +7,30 @@ export class WorkspacesService {
 
     constructor(private readonly supabaseService: SupabaseService) { }
 
+    private async assertWorkspaceAccess(
+        userId: string,
+        workspaceId: string,
+        organizationId: string,
+        isOrgAdminOrRoot: boolean,
+    ) {
+        // Workspace must exist and belong to the organization
+        await this.findOneWorkspace(workspaceId, organizationId);
+
+        // Org admins can manage any workspace in the org
+        if (isOrgAdminOrRoot) return;
+
+        const supabase = this.supabaseService.getAdminClient();
+        const { data, error } = await supabase
+            .from('workspace_members')
+            .select('id')
+            .eq('workspace_id', workspaceId)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (error) throw new BadRequestException(error.message);
+        if (!data) throw new ForbiddenException('Not a member of this workspace');
+    }
+
     // ─── Organization helpers ─────────────────────────────────────────────────
 
     async create(name: string) {
@@ -209,6 +233,18 @@ export class WorkspacesService {
         const ws = await this.findOneWorkspace(id, organizationId);
         if (ws.is_default) throw new ForbiddenException('Cannot delete the default workspace');
 
+        // Check for active data
+        const [leads, tasks, campaigns, activities] = await Promise.all([
+            supabase.from('leads').select('id', { count: 'exact', head: true }).eq('workspace_id', id),
+            supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('workspace_id', id),
+            supabase.from('campaigns').select('id', { count: 'exact', head: true }).eq('workspace_id', id),
+            supabase.from('activities').select('id', { count: 'exact', head: true }).eq('workspace_id', id),
+        ]);
+
+        if ((leads.count ?? 0) > 0 || (tasks.count ?? 0) > 0 || (campaigns.count ?? 0) > 0 || (activities.count ?? 0) > 0) {
+            throw new BadRequestException('Cannot delete workspace: This workspace contains active leads, tasks, or campaigns. Please delete or migrate all data before attempting to remove the workspace.');
+        }
+
         const { error } = await supabase
             .from('workspaces')
             .delete()
@@ -267,5 +303,60 @@ export class WorkspacesService {
             .eq('workspace_id', workspaceId);
         if (error) throw new BadRequestException(error.message);
         return data;
+    }
+
+    async getMySettings(
+        userId: string,
+        workspaceId: string,
+        organizationId: string,
+        isOrgAdminOrRoot: boolean,
+    ): Promise<any> {
+        await this.assertWorkspaceAccess(userId, workspaceId, organizationId, isOrgAdminOrRoot);
+
+        const supabase = this.supabaseService.getAdminClient();
+        const { data, error } = await supabase
+            .from('workspaces')
+            .select('settings')
+            .eq('id', workspaceId)
+            .eq('organization_id', organizationId)
+            .single();
+
+        if (error) throw new BadRequestException(error.message);
+        return data?.settings || {};
+    }
+
+    async updateMySettings(
+        userId: string,
+        workspaceId: string,
+        organizationId: string,
+        isOrgAdminOrRoot: boolean,
+        dto: any,
+    ): Promise<any> {
+        await this.assertWorkspaceAccess(userId, workspaceId, organizationId, isOrgAdminOrRoot);
+
+        const current = await this.getMySettings(userId, workspaceId, organizationId, isOrgAdminOrRoot);
+        const next = {
+            ...(current || {}),
+            ...(dto || {}),
+            toggles: {
+                ...((current && current.toggles) || {}),
+                ...((dto && dto.toggles) || {}),
+            },
+        };
+
+        const supabase = this.supabaseService.getAdminClient();
+        const { data, error } = await supabase
+            .from('workspaces')
+            .update({
+                settings: next,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', workspaceId)
+            .eq('organization_id', organizationId)
+            .select('settings')
+            .single();
+
+        if (error) throw new BadRequestException(error.message);
+        return data?.settings || next;
     }
 }

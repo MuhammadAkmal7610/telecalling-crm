@@ -12,19 +12,47 @@ export class ReportsService {
 
         let workspaceId = workspaceIdFromHeader;
 
-        if (!workspaceId) {
-            // Fallback: Get user's current workspace from DB if header is missing
-            const { data: userData, error: userError } = await supabase
-                .from('users')
-                .select('workspace_id')
-                .eq('id', userId)
-                .single();
-
-            if (userError) throw new BadRequestException(`Workspace error: ${userError.message}`);
-            workspaceId = userData?.workspace_id;
+        // --- Auto-resolve workspace if missing ---
+        if (!workspaceId || workspaceId === 'null') {
+            this.logger.log(`Workspace ID missing for dashboard request. Attempting auto-resolution for org: ${organizationId}`);
+            const { data: workspaces } = await supabase
+                .from('workspaces')
+                .select('id')
+                .eq('organization_id', organizationId)
+                .order('is_default', { ascending: false })
+                .limit(1);
+            
+            if (workspaces && workspaces.length > 0) {
+                workspaceId = workspaces[0].id;
+                this.logger.log(`Auto-resolved workspaceId: ${workspaceId} for user: ${userId}`);
+            }
         }
 
         if (!workspaceId) throw new BadRequestException('User workspace not found. Please select a workspace.');
+        this.logger.debug(`Fetching stats for org=${organizationId}, ws=${workspaceId}`);
+
+        // --- Orphan Sync: Assign leads/activities with NULL workspace_id to this active workspace ---
+        // This is a one-time migration for users transitioning to the workspace model.
+        const syncUpdate = { workspace_id: workspaceId };
+        const { error: leadUpdateError } = await supabase
+            .from('leads')
+            .update(syncUpdate)
+            .eq('organization_id', organizationId)
+            .is('workspace_id', null);
+        
+        if (leadUpdateError) this.logger.warn(`Orphan sync (leads) error: ${leadUpdateError.message}`);
+
+        await supabase
+            .from('activities')
+            .update({ workspace_id: workspaceId })
+            .eq('organization_id', organizationId)
+            .is('workspace_id', null);
+
+        await supabase
+            .from('tasks')
+            .update({ workspace_id: workspaceId })
+            .eq('organization_id', organizationId)
+            .is('workspace_id', null);
 
         // ---Date Range Logic---
         const now = new Date();
@@ -185,7 +213,8 @@ export class ReportsService {
 
         // ---7. Chart Data Calculations---
         const leadByStatus = leadData.reduce((acc: any[], lead) => {
-            const status = lead.status || 'Unknown';
+            const rawStatus = lead.status || 'Unknown';
+            const status = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase();
             const existing = acc.find(i => i.name === status);
             if (existing) existing.value++;
             else acc.push({ name: status, value: 1 });
@@ -233,21 +262,33 @@ export class ReportsService {
             conversion: (s.won / (s.won + s.lost || 1)) * 100
         }));
 
+        // Lead Source Breakdown (for deep dive)
+        const leadSourceBreakdown = leadData.reduce((acc: any[], lead) => {
+            const source = lead.source || 'Unknown';
+            const existing = acc.find(i => i.name === source);
+            if (existing) existing.value++;
+            else acc.push({ name: source, value: 1 });
+            return acc;
+        }, []);
+
         return {
-            totalLeads: currentLeads.length,
+            totalLeads: leadData.length, // All-time for this workspace
             leadTrend,
-            activeTasks: currentTasks.filter(t => t.status !== 'Done').length,
+            activeTasks: taskData.filter(t => t.status !== 'Done').length, // All-time pending
             taskTrend,
-            totalCalls: currentActivities.filter(a => a.type === 'call').length,
+            totalCalls: activityData.filter(a => a.type === 'call').length, // All-time calls
             callTrend,
-            revenue: currentRevenue,
+            revenue: calculateRevenue(leadData), // All-time revenue
             revenueTrend,
-            wonLeads: currentLeads.filter(l => l.status === 'Won').length,
-            conversionRate: currentLeads.length > 0 ? (currentLeads.filter(l => l.status === 'Won').length / currentLeads.length) * 100 : 0,
+            wonLeads: leadData.filter(l => l.status === 'Won').length,
+            conversionRate: leadData.length > 0 ? (leadData.filter(l => l.status === 'Won').length / leadData.length) * 100 : 0,
             statusBreakdown: leadData.reduce((acc: Record<string, number>, l) => {
-                acc[l.status] = (acc[l.status] || 0) + 1;
+                const rawStatus = l.status || 'Unknown';
+                const s = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase();
+                acc[s] = (acc[s] || 0) + 1;
                 return acc;
             }, {}),
+            leadSourceBreakdown,
             followUpsSummary: Object.values(followUpsSummary).filter((s: any) => s.name !== 'Unknown'),
             leadsByStageSummary: Object.values(leadsByStageSummary).filter((s: any) => s.name !== 'Unknown'),
             filtersSummary,
@@ -544,4 +585,62 @@ export class ReportsService {
             lead: (act.leads as any)?.name || 'N/A'
         }));
     }
+
+    async getPipelineConversionRate(workspaceId: string, organizationId: string, timeRange: string = '30d') {
+        const supabase = this.supabaseService.getAdminClient();
+
+        // 1. Get all leads for this workspace
+        const { data: leads, error: leadError } = await supabase
+            .from('leads')
+            .select('id, stage_id, status, custom_fields, created_at')
+            .eq('workspace_id', workspaceId)
+            .eq('organization_id', organizationId);
+
+        if (leadError) throw new BadRequestException(leadError.message);
+
+        // 2. Get all stages
+        const { data: stages, error: stageError } = await supabase
+            .from('lead_stages')
+            .select('id, name, position')
+            .eq('workspace_id', workspaceId)
+            .order('position', { ascending: true });
+
+        if (stageError) throw new BadRequestException(stageError.message);
+
+        // 3. Process conversion metrics
+        const totalLeads = leads.length;
+        const wonLeads = leads.filter(l => l.status === 'Won' || l.status === 'won');
+        const lostLeads = leads.filter(l => l.status === 'Lost' || l.status === 'lost');
+
+        const pipelineMetrics = stages.map(stage => {
+            const stageLeads = leads.filter(l => l.stage_id === stage.id);
+            const stageWon = stageLeads.filter(l => l.status === 'Won' || l.status === 'won').length;
+            
+            return {
+                stageId: stage.id,
+                stageName: stage.name,
+                count: stageLeads.length,
+                value: stageLeads.reduce((sum, l) => {
+                    const val = parseFloat((l.custom_fields as any)?.value || (l.custom_fields as any)?.deal_value || 0);
+                    return sum + (isNaN(val) ? 0 : val);
+                }, 0),
+                conversionRate: stageLeads.length > 0 ? (stageWon / stageLeads.length) * 100 : 0
+            };
+        });
+
+        return {
+            summary: {
+                totalLeads,
+                wonCount: wonLeads.length,
+                lostCount: lostLeads.length,
+                winRate: totalLeads > 0 ? (wonLeads.length / totalLeads) * 100 : 0,
+                totalValue: leads.reduce((sum, l) => {
+                    const val = parseFloat((l.custom_fields as any)?.value || (l.custom_fields as any)?.deal_value || 0);
+                    return sum + (isNaN(val) ? 0 : val);
+                }, 0)
+            },
+            stages: pipelineMetrics
+        };
+    }
 }
+

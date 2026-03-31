@@ -53,7 +53,7 @@ export default function WebsiteLeads() {
     const fetchWebsiteLeads = async () => {
         setLoading(true);
         try {
-            const res = await apiFetch('/leads?source=website&limit=100');
+            const res = await apiFetch('/leads?source=Website&limit=100');
             const result = await res.json();
             const data = result.data?.data || result.data || [];
             setLeads(data);
