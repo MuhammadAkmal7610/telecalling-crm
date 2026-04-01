@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, TextInput, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, TextInput, RefreshControl, Modal, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card, Button, LeadStatusBadge } from '@/src/components/common/Card';
 import { colors, fonts } from '@/src/theme/theme';
@@ -22,6 +23,12 @@ interface FilterOption {
   count?: number;
 }
 
+interface UserOption {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export default function AdvancedLeadsScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -33,6 +40,9 @@ export default function AdvancedLeadsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filterType, setFilterType] = useState<'status' | 'source' | 'dateRange' | 'assignedTo' | null>(null);
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [filters, setFilters] = useState<LeadFilters>({
     search: '',
     status: 'all',
@@ -43,33 +53,43 @@ export default function AdvancedLeadsScreen() {
 
   const statusOptions: FilterOption[] = [
     { value: 'all', label: 'All Status' },
-    { value: 'new', label: 'New' },
-    { value: 'contacted', label: 'Contacted' },
-    { value: 'qualified', label: 'Qualified' },
-    { value: 'converted', label: 'Converted' },
-    { value: 'lost', label: 'Lost' }
+    { value: 'Fresh', label: 'New' },
+    { value: 'Active', label: 'Active' },
+    { value: 'Interested', label: 'Interested' },
+    { value: 'Hot', label: 'Hot' },
+    { value: 'Scheduled', label: 'Scheduled' },
+    { value: 'Won', label: 'Converted' },
+    { value: 'Lost', label: 'Lost' },
+    { value: 'Cold', label: 'Cold' },
+    { value: 'Archive', label: 'Archive' },
+    { value: 'Trash', label: 'Trash' }
   ];
 
   const sourceOptions: FilterOption[] = [
     { value: 'all', label: 'All Sources' },
-    { value: 'website', label: 'Website' },
-    { value: 'referral', label: 'Referral' },
-    { value: 'social', label: 'Social Media' },
-    { value: 'email', label: 'Email' },
-    { value: 'phone', label: 'Phone' },
-    { value: 'other', label: 'Other' }
+    { value: 'Facebook', label: 'Facebook' },
+    { value: 'Website', label: 'Website' },
+    { value: 'WhatsApp', label: 'WhatsApp' },
+    { value: 'Referral', label: 'Referral' },
+    { value: 'Manual', label: 'Manual' },
+    { value: 'Import', label: 'Import' },
+    { value: 'IndiaMART', label: 'IndiaMART' },
+    { value: 'Justdial', label: 'Justdial' },
+    { value: 'Google Ads', label: 'Google Ads' }
   ];
 
   const dateRangeOptions: FilterOption[] = [
     { value: 'all', label: 'All Time' },
     { value: 'today', label: 'Today' },
-    { value: 'week', label: 'This Week' },
-    { value: 'month', label: 'This Month' },
-    { value: 'quarter', label: 'This Quarter' }
+    { value: '7d', label: 'Last 7 Days' },
+    { value: '30d', label: 'Last 30 Days' },
+    { value: '90d', label: 'Last 90 Days' },
+    { value: '1y', label: 'Last Year' }
   ];
 
   useEffect(() => {
     loadLeads();
+    loadUsers();
   }, []);
 
   useEffect(() => {
@@ -89,61 +109,39 @@ export default function AdvancedLeadsScreen() {
     }
   };
 
-  const applyFilters = () => {
-    let filtered = [...leads];
-
-    // Search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(lead =>
-        lead.name.toLowerCase().includes(searchLower) ||
-        lead.email?.toLowerCase().includes(searchLower) ||
-        lead.phone?.includes(searchLower)
-      );
+  const loadUsers = async () => {
+    try {
+      const response = await ApiService.getUsers();
+      if (response.data) {
+        setUsers(response.data.map((u: any) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
     }
-
-    // Status filter
-    if (filters.status !== 'all') {
-      filtered = filtered.filter(lead => lead.status === filters.status);
-    }
-
-    // Source filter
-    if (filters.source !== 'all') {
-      filtered = filtered.filter(lead => lead.source === filters.source);
-    }
-
-    // Date range filter
-    if (filters.dateRange !== 'all') {
-      const now = new Date();
-      const filterDate = getDateForRange(filters.dateRange);
-      filtered = filtered.filter(lead => {
-        const leadDate = new Date(lead.created_at);
-        return leadDate >= filterDate;
-      });
-    }
-
-    setFilteredLeads(filtered);
   };
 
-  const getDateForRange = (range: string): Date => {
-    const now = new Date();
-    switch (range) {
-      case 'today':
-        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      case 'week':
-        const weekAgo = new Date(now);
-        weekAgo.setDate(now.getDate() - 7);
-        return weekAgo;
-      case 'month':
-        const monthAgo = new Date(now);
-        monthAgo.setMonth(now.getMonth() - 1);
-        return monthAgo;
-      case 'quarter':
-        const quarterAgo = new Date(now);
-        quarterAgo.setMonth(now.getMonth() - 3);
-        return quarterAgo;
-      default:
-        return new Date(0);
+  const applyFilters = async () => {
+    try {
+      setLoading(true);
+      const queryParams: any = {};
+      
+      if (filters.search) queryParams.search = filters.search;
+      if (filters.status !== 'all') queryParams.status = filters.status;
+      if (filters.source !== 'all') queryParams.source = filters.source;
+      if (filters.dateRange !== 'all') queryParams.timeRange = filters.dateRange;
+      if (filters.assignedTo !== 'all') queryParams.assigneeId = filters.assignedTo;
+
+      const response = await ApiService.get('/leads', queryParams);
+      setFilteredLeads(response.data || []);
+    } catch (error) {
+      console.error('Error applying filters:', error);
+      setFilteredLeads([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -190,7 +188,7 @@ export default function AdvancedLeadsScreen() {
                 if (action === 'Delete') {
                   await ApiService.deleteLead(leadId);
                 } else if (action === 'Convert') {
-                  await ApiService.updateLead(leadId, { status: 'converted' });
+                  await ApiService.updateLead(leadId, { status: 'Won' });
                 } else if (action === 'Assign') {
                   // Navigate to assignment screen
                   router.push({
@@ -224,6 +222,44 @@ export default function AdvancedLeadsScreen() {
       dateRange: 'all',
       assignedTo: 'all'
     });
+    // Clear backend filters
+    applyFilters();
+  };
+
+  const openFilterModal = (type: 'status' | 'source' | 'dateRange' | 'assignedTo') => {
+    setFilterType(type);
+    setShowFilterModal(true);
+  };
+
+  const selectFilterOption = (value: string) => {
+    if (filterType === 'status') {
+      setFilters(prev => ({ ...prev, status: value }));
+    } else if (filterType === 'source') {
+      setFilters(prev => ({ ...prev, source: value }));
+    } else if (filterType === 'dateRange') {
+      setFilters(prev => ({ ...prev, dateRange: value }));
+    } else if (filterType === 'assignedTo') {
+      setFilters(prev => ({ ...prev, assignedTo: value }));
+    }
+    setShowFilterModal(false);
+    setFilterType(null);
+    applyFilters();
+  };
+
+  const getSelectedLabel = (type: string, value: string) => {
+    if (value === 'all') return type === 'assignedTo' ? 'All Assignees' : `All ${type.charAt(0).toUpperCase() + type.slice(1)}s`;
+    
+    if (type === 'status') {
+      return statusOptions.find(opt => opt.value === value)?.label || value;
+    } else if (type === 'source') {
+      return sourceOptions.find(opt => opt.value === value)?.label || value;
+    } else if (type === 'dateRange') {
+      return dateRangeOptions.find(opt => opt.value === value)?.label || value;
+    } else if (type === 'assignedTo') {
+      const user = users.find(u => u.id === value);
+      return user ? user.name : 'Unknown User';
+    }
+    return value;
   };
 
   const renderLeadItem = ({ item }: { item: Lead }) => (
@@ -269,20 +305,82 @@ export default function AdvancedLeadsScreen() {
     </Card>
   );
 
-  const renderFilterButton = (options: FilterOption[], value: string, onChange: (value: string) => void, placeholder: string) => (
+  const renderFilterButton = (type: 'status' | 'source' | 'dateRange' | 'assignedTo', value: string, options: FilterOption[], placeholder: string) => (
     <TouchableOpacity
       style={[styles.filterButton, { borderColor: isDark ? '#374151' : '#E5E7EB' }]}
-      onPress={() => {
-        // TODO: Implement filter picker
-        Alert.alert('Filter', `${placeholder} options will be implemented`);
-      }}
+      onPress={() => openFilterModal(type)}
     >
       <Text style={[styles.filterButtonText, { color: isDark ? colors.surface : colors.onBackground }]}>
-        {options.find(opt => opt.value === value)?.label || placeholder}
+        {getSelectedLabel(type, value)}
       </Text>
       <Ionicons name="chevron-down" size={16} color={isDark ? '#6B7280' : '#9CA3AF'} />
     </TouchableOpacity>
   );
+
+  const renderFilterModal = () => {
+    if (!showFilterModal || !filterType) return null;
+
+    let options: FilterOption[] = [];
+    if (filterType === 'status') options = statusOptions;
+    else if (filterType === 'source') options = sourceOptions;
+    else if (filterType === 'dateRange') options = dateRangeOptions;
+    else if (filterType === 'assignedTo') {
+      options = [
+        { value: 'all', label: 'All Assignees' },
+        ...users.map(u => ({ value: u.id, label: u.name }))
+      ];
+    }
+
+    return (
+      <Modal
+        visible={showFilterModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowFilterModal(false)}
+        >
+          <View style={[styles.modalContent, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+                Select {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
+              </Text>
+              <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                <Ionicons name="close" size={24} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalList}>
+              {options.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.modalOption,
+                    filters[filterType] === option.value && styles.modalOptionSelected
+                  ]}
+                  onPress={() => selectFilterOption(option.value)}
+                >
+                  <Text style={[
+                    styles.modalOptionText,
+                    { color: isDark ? colors.surface : colors.onBackground },
+                    filters[filterType] === option.value && { fontFamily: fonts.satoshi.bold }
+                  ]}>
+                    {option.label}
+                  </Text>
+                  {filters[filterType] === option.value && (
+                    <Ionicons name="checkmark" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}>
@@ -300,7 +398,10 @@ export default function AdvancedLeadsScreen() {
           </TouchableOpacity>
           <Button
             title="Add Lead"
-            onPress={() => router.push('/leads/create' as any)}
+            onPress={() => router.push({
+              pathname: '/leads/create',
+              params: { returnTo: 'leads/advanced' }
+            } as any)}
             style={styles.addButton}
           />
         </View>
@@ -308,15 +409,37 @@ export default function AdvancedLeadsScreen() {
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <View style={[styles.searchInput, { borderColor: isDark ? '#374151' : '#E5E7EB' }]}>
-          <Ionicons name="search-outline" size={20} color={isDark ? '#6B7280' : '#9CA3AF'} />
+        <View style={[
+          styles.searchInput, 
+          { 
+            borderWidth: filters.search ? 2 : 1,
+            borderColor: filters.search ? colors.primary : (isDark ? '#374151' : '#E5E7EB'),
+            shadowColor: filters.search ? colors.primary : 'transparent',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: filters.search ? 0.3 : 0,
+            shadowRadius: filters.search ? 4 : 0,
+            elevation: filters.search ? 2 : 0,
+          }
+        ]}>
+          <Ionicons name="search-outline" size={20} color={filters.search ? colors.primary : (isDark ? '#6B7280' : '#9CA3AF')} />
           <TextInput
             style={[styles.searchText, { color: isDark ? colors.surface : colors.onBackground }]}
-            placeholder="Search leads..."
+            placeholder="Search leads by name, email, or phone..."
             placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
             value={filters.search}
             onChangeText={(text) => setFilters(prev => ({ ...prev, search: text }))}
+            onFocus={() => {
+              // Add focus styling if needed
+            }}
           />
+          {filters.search.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearSearchButton}
+              onPress={() => setFilters(prev => ({ ...prev, search: '' }))}
+            >
+              <Ionicons name="close-circle" size={20} color={isDark ? '#9CA3AF' : '#6B7280'} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -335,12 +458,10 @@ export default function AdvancedLeadsScreen() {
           </View>
           
           <View style={styles.filtersGrid}>
-            {renderFilterButton(statusOptions, filters.status, (value) => 
-              setFilters(prev => ({ ...prev, status: value })), 'Status')}
-            {renderFilterButton(sourceOptions, filters.source, (value) => 
-              setFilters(prev => ({ ...prev, source: value })), 'Source')}
-            {renderFilterButton(dateRangeOptions, filters.dateRange, (value) => 
-              setFilters(prev => ({ ...prev, dateRange: value })), 'Date Range')}
+            {renderFilterButton('status', filters.status, statusOptions, 'Status')}
+            {renderFilterButton('source', filters.source, sourceOptions, 'Source')}
+            {renderFilterButton('dateRange', filters.dateRange, dateRangeOptions, 'Date Range')}
+            {renderFilterButton('assignedTo', filters.assignedTo, [], 'Assigned To')}
           </View>
         </Card>
       )}
@@ -416,7 +537,10 @@ export default function AdvancedLeadsScreen() {
             </Text>
             <Button
               title="Add Your First Lead"
-              onPress={() => router.push('/leads/create' as any)}
+              onPress={() => router.push({
+                pathname: '/leads/create',
+                params: { returnTo: 'leads/advanced' }
+              } as any)}
             />
           </View>
         }
@@ -470,6 +594,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.satoshi.regular,
     marginLeft: 8,
+  },
+  clearSearchButton: {
+    padding: 4,
   },
   filtersPanel: {
     margin: 20,
@@ -600,5 +727,46 @@ const styles = StyleSheet.create({
     fontFamily: fonts.satoshi.medium,
     marginTop: 12,
     marginBottom: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    borderRadius: 16,
+    padding: 16,
+    maxHeight: '60%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: fonts.nohemi.semiBold,
+  },
+  modalList: {
+    maxHeight: 300,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  modalOptionSelected: {
+    backgroundColor: colors.primary + '10',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    fontFamily: fonts.satoshi.regular,
   },
 });

@@ -12,15 +12,28 @@ const Signup = () => {
     const inviteToken = searchParams.get('invite');
     const inviteEmail = searchParams.get('email');
 
-    const [step, setStep] = useState(inviteToken ? 1 : 1); // We still show step 1 but pre-filled or simplified
+    // Block direct access to signup when accessed via invite link
+    useEffect(() => {
+        if (inviteToken) {
+            toast.error('This invite link is for existing team members only. Please use the login option to accept your invitation.');
+            navigate('/login?invite=' + inviteToken + (inviteEmail ? '&email=' + encodeURIComponent(inviteEmail) : ''));
+        }
+    }, [inviteToken, inviteEmail, navigate]);
+
+    // If invite token is present, don't render the component
+    if (inviteToken) {
+        return null;
+    }
+
+    const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [fade, setFade] = useState(true);
 
     // Form State
     const [formData, setFormData] = useState({
-        orgName: inviteToken ? 'Joining Organization' : '',
+        orgName: '',
         name: '',        // User's personal name
-        email: inviteEmail || '',
+        email: '',
         phone: '',
         password: '',
         confirmPassword: ''

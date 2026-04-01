@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 const WorkspaceContext = createContext({});
@@ -12,6 +12,9 @@ export const WorkspaceProvider = ({ children }) => {
     const [workspaces, setWorkspaces] = useState([]);
     const [currentWorkspace, setCurrentWorkspace] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [switchingWorkspace, setSwitchingWorkspace] = useState(null);
+    const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false);
+    const switchTimestampRef = useRef(0);
 
     // Load workspaces the user is a member of
     const fetchWorkspaces = useCallback(async () => {
@@ -62,10 +65,38 @@ export const WorkspaceProvider = ({ children }) => {
         return () => subscription.unsubscribe();
     }, [fetchWorkspaces]);
 
-    const switchWorkspace = (workspace) => {
+    const switchWorkspace = useCallback((workspaceId) => {
+        // Prevent rapid switching (debounce - max 1 switch per 500ms)
+        const now = Date.now();
+        if (now - switchTimestampRef.current < 500) {
+            return;
+        }
+        switchTimestampRef.current = now;
+
+        const workspace = workspaces.find(w => w.id === workspaceId);
+        if (!workspace) return;
+
+        setSwitchingWorkspace(workspaceId);
         setCurrentWorkspace(workspace);
         localStorage.setItem(STORAGE_KEY, workspace.id);
-    };
+        
+        // Clear switching state after a short delay to show loading feedback
+        setTimeout(() => {
+            setSwitchingWorkspace(null);
+        }, 800);
+    }, [workspaces]);
+
+    const toggleWorkspaceSwitcher = useCallback(() => {
+        setWorkspaceSwitcherOpen(prev => !prev);
+    }, []);
+
+    const closeWorkspaceSwitcher = useCallback(() => {
+        setWorkspaceSwitcherOpen(false);
+    }, []);
+
+    const openWorkspaceSwitcher = useCallback(() => {
+        setWorkspaceSwitcherOpen(true);
+    }, []);
 
     /**
      * Convenience: returns headers to attach to every API call.
@@ -85,9 +116,14 @@ export const WorkspaceProvider = ({ children }) => {
             workspaces,
             currentWorkspace,
             loading,
+            switchingWorkspace,
+            workspaceSwitcherOpen,
             switchWorkspace,
             fetchWorkspaces,
             getApiHeaders,
+            toggleWorkspaceSwitcher,
+            closeWorkspaceSwitcher,
+            openWorkspaceSwitcher,
         }}>
             {children}
         </WorkspaceContext.Provider>

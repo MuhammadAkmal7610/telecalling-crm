@@ -39,6 +39,7 @@ import { AppConfigModule } from './modules/app-config/app-config.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { ApiTemplatesModule } from './modules/api-templates/api-templates.module';
+import { DevicesModule } from './modules/devices/devices.module';
 
 @Module({
   imports: [
@@ -47,14 +48,19 @@ import { ApiTemplatesModule } from './modules/api-templates/api-templates.module
       isGlobal: true,
       envFilePath: '.env',
     }),
-    ThrottlerModule.forRoot({
-      throttlers: [
-        {
-          ttl: 60000,
-          limit: 120,
-        },
-      ],
-    }),
+    ThrottlerModule.forRoot([{
+      name: 'short',
+      ttl: 1000,
+      limit: 10,
+    }, {
+      name: 'medium',
+      ttl: 60000,
+      limit: 300,
+    }, {
+      name: 'long',
+      ttl: 600000,
+      limit: 1000,
+    }]),
     SupabaseModule,
     AuthModule,
     LeadsModule,
@@ -90,6 +96,7 @@ import { ApiTemplatesModule } from './modules/api-templates/api-templates.module
     AnalyticsModule,
     InvitationsModule,
     ApiTemplatesModule,
+    DevicesModule,
   ],
   controllers: [AppController],
   providers: [

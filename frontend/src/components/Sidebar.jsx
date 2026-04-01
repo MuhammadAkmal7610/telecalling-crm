@@ -33,8 +33,8 @@ const navigation = [
     { name: 'My Lists', icon: QueueListIcon, path: '/my-lists' },
     { name: 'Reports', icon: ChartBarIcon, path: '/reports' },
     { name: 'Automations', icon: BoltIcon, path: '/automations' },
-    { name: 'My Preferences', icon: Cog6ToothIcon, path: '/my-preferences' },
-    { name: 'Advanced Settings', icon: Cog6ToothIcon, path: '/enterprise-preferences' },
+    // { name: 'My Preferences', icon: Cog6ToothIcon, path: '/my-preferences' },
+    // { name: 'Advanced Settings', icon: Cog6ToothIcon, path: '/enterprise-preferences' },
     { name: 'Integrations', icon: CpuChipIcon, path: '/integrations' },
 ];
 

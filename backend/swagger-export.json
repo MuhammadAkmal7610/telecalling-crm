@@ -1,0 +1,6773 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "AppController_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "operationId": "AuthController_signup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User successfully registered"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Register a new organization and user",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/signup-invite": {
+      "post": {
+        "operationId": "AuthController_signupInvite",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "User successfully registered via invite"
+          }
+        },
+        "summary": "Register a new user via invitation",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Login with email and password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "operationId": "AuthController_forgotPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Request password reset email",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "operationId": "AuthController_resetPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Reset password using token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/workspaces": {
+      "get": {
+        "operationId": "WorkspacesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      },
+      "post": {
+        "operationId": "WorkspacesController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      }
+    },
+    "/workspaces/my": {
+      "get": {
+        "operationId": "WorkspacesController_findMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      }
+    },
+    "/workspaces/{id}": {
+      "get": {
+        "operationId": "WorkspacesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      },
+      "patch": {
+        "operationId": "WorkspacesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      },
+      "delete": {
+        "operationId": "WorkspacesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      }
+    },
+    "/workspaces/{id}/members": {
+      "get": {
+        "operationId": "WorkspacesController_getMembers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      },
+      "post": {
+        "operationId": "WorkspacesController_addMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      }
+    },
+    "/workspaces/{id}/members/{userId}": {
+      "patch": {
+        "operationId": "WorkspacesController_updateMemberRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      },
+      "delete": {
+        "operationId": "WorkspacesController_removeMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      }
+    },
+    "/workspaces/my/settings": {
+      "get": {
+        "operationId": "WorkspacesController_getMySettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      },
+      "patch": {
+        "operationId": "WorkspacesController_updateMySettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Workspaces"
+        ]
+      }
+    },
+    "/leads/debug-all": {
+      "get": {
+        "operationId": "LeadsController_debugAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "TEMPORARY DEBUG - List all leads without filters",
+        "tags": [
+          "Leads"
+        ]
+      }
+    },
+    "/leads": {
+      "post": {
+        "operationId": "LeadsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new lead",
+        "tags": [
+          "Leads"
+        ]
+      },
+      "get": {
+        "operationId": "LeadsController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Fresh",
+                "Active",
+                "Interested",
+                "Hot",
+                "Scheduled",
+                "Won",
+                "Lost",
+                "Cold",
+                "Archive",
+                "Trash"
+              ]
+            }
+          },
+          {
+            "name": "source",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Facebook",
+                "Website",
+                "WhatsApp",
+                "Referral",
+                "Manual",
+                "Import",
+                "IndiaMART",
+                "Justdial",
+                "Google Ads"
+              ]
+            }
+          },
+          {
+            "name": "assigneeId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assignee_id",
+            "required": false,
+            "in": "query",
+            "description": "Alias for assigneeId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stageId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stage_id",
+            "required": false,
+            "in": "query",
+            "description": "Alias for stageId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "archive",
+            "required": false,
+            "in": "query",
+            "description": "Filter by old/archived leads",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaignId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by campaign ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "required": false,
+            "in": "query",
+            "description": "Alias for campaignId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "timeRange",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "30d",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all leads with filtering, search & pagination",
+        "tags": [
+          "Leads"
+        ]
+      }
+    },
+    "/leads/stats": {
+      "get": {
+        "operationId": "LeadsController_getStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get lead counts grouped by status",
+        "tags": [
+          "Leads"
+        ]
+      }
+    },
+    "/leads/{id}": {
+      "get": {
+        "operationId": "LeadsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a single lead by ID",
+        "tags": [
+          "Leads"
+        ]
+      },
+      "patch": {
+        "operationId": "LeadsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a lead",
+        "tags": [
+          "Leads"
+        ]
+      },
+      "delete": {
+        "operationId": "LeadsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a lead",
+        "tags": [
+          "Leads"
+        ]
+      }
+    },
+    "/leads/{id}/status": {
+      "patch": {
+        "operationId": "LeadsController_updateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update lead status (with optional lost reason)",
+        "tags": [
+          "Leads"
+        ]
+      }
+    },
+    "/leads/{id}/assign": {
+      "patch": {
+        "operationId": "LeadsController_assign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign lead to a user",
+        "tags": [
+          "Leads"
+        ]
+      }
+    },
+    "/leads/{id}/stage": {
+      "patch": {
+        "operationId": "LeadsController_updateStage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update lead stage",
+        "tags": [
+          "Leads"
+        ]
+      }
+    },
+    "/leads/bulk-assign": {
+      "patch": {
+        "operationId": "LeadsController_bulkAssign",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Bulk assign leads to a user",
+        "tags": [
+          "Leads"
+        ]
+      }
+    },
+    "/leads/bulk-import": {
+      "post": {
+        "operationId": "LeadsController_bulkImport",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Bulk import leads from CSV/Excel data",
+        "tags": [
+          "Leads"
+        ]
+      }
+    },
+    "/leads/duplicates": {
+      "get": {
+        "operationId": "LeadsController_getDuplicates",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get groups of duplicate leads by phone or email",
+        "tags": [
+          "Leads"
+        ]
+      }
+    },
+    "/workflows": {
+      "get": {
+        "operationId": "WorkflowsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all automation workflows",
+        "tags": [
+          "Workflows"
+        ]
+      },
+      "post": {
+        "operationId": "WorkflowsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new workflow automation",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/workflows/{id}": {
+      "patch": {
+        "operationId": "WorkflowsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a workflow",
+        "tags": [
+          "Workflows"
+        ]
+      },
+      "delete": {
+        "operationId": "WorkflowsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a workflow",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/workflows/test": {
+      "post": {
+        "operationId": "WorkflowsController_test",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Test workflow execution",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/webhooks/workflows/{slug}": {
+      "post": {
+        "operationId": "WorkflowsWebhookController_handleInbound",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Receive external webhook to trigger a workflow",
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
+    "/whatsapp/send": {
+      "post": {
+        "operationId": "WhatsAppController_sendMessage",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send WhatsApp message",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/send-template": {
+      "post": {
+        "operationId": "WhatsAppController_sendTemplateMessage",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send WhatsApp template message",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/webhook": {
+      "get": {
+        "operationId": "WhatsAppController_verifyWebhook",
+        "parameters": [
+          {
+            "name": "hub.mode",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.verify_token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.challenge",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Verify WhatsApp webhook",
+        "tags": [
+          "WhatsApp"
+        ]
+      },
+      "post": {
+        "operationId": "WhatsAppController_handleWebhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Handle WhatsApp webhook",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/messages/{leadId}": {
+      "get": {
+        "operationId": "WhatsAppController_getMessages",
+        "parameters": [
+          {
+            "name": "leadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get WhatsApp messages for a lead",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/conversations": {
+      "get": {
+        "operationId": "WhatsAppController_getConversations",
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get WhatsApp conversations",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/analytics": {
+      "get": {
+        "operationId": "WhatsAppController_getAnalytics",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get WhatsApp analytics",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/sync-templates": {
+      "post": {
+        "operationId": "WhatsAppController_syncTemplates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Sync WhatsApp templates from Meta",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "NotificationsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all notifications for current user",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/{id}/read": {
+      "patch": {
+        "operationId": "NotificationsController_markRead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mark a notification as read",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/notifications/mark-all-read": {
+      "post": {
+        "operationId": "NotificationsController_markAllRead",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mark all notifications as read",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/activities": {
+      "post": {
+        "operationId": "ActivitiesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateActivityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Log an activity",
+        "tags": [
+          "Activities"
+        ]
+      },
+      "get": {
+        "operationId": "ActivitiesController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "call",
+                "email",
+                "whatsapp",
+                "meeting",
+                "note",
+                "status_change",
+                "stage_change",
+                "task"
+              ]
+            }
+          },
+          {
+            "name": "leadId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "description": "today | yesterday | this_week | this_month",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List activities with filtering & pagination",
+        "tags": [
+          "Activities"
+        ]
+      }
+    },
+    "/activities/lead/{leadId}": {
+      "get": {
+        "operationId": "ActivitiesController_findByLead",
+        "parameters": [
+          {
+            "name": "leadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get timeline of activities for a specific lead",
+        "tags": [
+          "Activities"
+        ]
+      }
+    },
+    "/activities/{id}": {
+      "delete": {
+        "operationId": "ActivitiesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete an activity log entry",
+        "tags": [
+          "Activities"
+        ]
+      }
+    },
+    "/tasks": {
+      "post": {
+        "operationId": "TasksController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a task",
+        "tags": [
+          "Tasks"
+        ]
+      },
+      "get": {
+        "operationId": "TasksController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CallFollowup",
+                "Todo"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Pending",
+                "Rescheduled",
+                "Late",
+                "Done",
+                "Cancelled"
+              ]
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Urgent",
+                "High",
+                "Medium",
+                "Low",
+                "None"
+              ]
+            }
+          },
+          {
+            "name": "assigneeId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "leadId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "due",
+            "required": false,
+            "in": "query",
+            "description": "Filter: today | yesterday | this_week | this_month",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List tasks with filtering & pagination",
+        "tags": [
+          "Tasks"
+        ]
+      }
+    },
+    "/tasks/{id}": {
+      "get": {
+        "operationId": "TasksController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a single task",
+        "tags": [
+          "Tasks"
+        ]
+      },
+      "patch": {
+        "operationId": "TasksController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a task",
+        "tags": [
+          "Tasks"
+        ]
+      },
+      "delete": {
+        "operationId": "TasksController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a task",
+        "tags": [
+          "Tasks"
+        ]
+      }
+    },
+    "/tasks/bulk": {
+      "post": {
+        "operationId": "TasksController_bulkCreate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Bulk create tasks",
+        "tags": [
+          "Tasks"
+        ]
+      }
+    },
+    "/campaigns": {
+      "post": {
+        "operationId": "CampaignsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new campaign",
+        "tags": [
+          "Campaigns"
+        ]
+      },
+      "get": {
+        "operationId": "CampaignsController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Active",
+                "Paused",
+                "Completed",
+                "Archived"
+              ]
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "High",
+                "Medium",
+                "Low"
+              ]
+            }
+          },
+          {
+            "name": "assigneeId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List campaigns",
+        "tags": [
+          "Campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}": {
+      "get": {
+        "operationId": "CampaignsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get campaign details",
+        "tags": [
+          "Campaigns"
+        ]
+      },
+      "patch": {
+        "operationId": "CampaignsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update campaign",
+        "tags": [
+          "Campaigns"
+        ]
+      },
+      "delete": {
+        "operationId": "CampaignsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Close/Delete campaign",
+        "tags": [
+          "Campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/stats": {
+      "get": {
+        "operationId": "CampaignsController_getStats",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get campaign-specific stats",
+        "tags": [
+          "Campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/run": {
+      "post": {
+        "operationId": "CampaignsController_runCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Run a bulk messaging campaign",
+        "tags": [
+          "Campaigns"
+        ]
+      }
+    },
+    "/reports/dashboard": {
+      "get": {
+        "operationId": "ReportsController_getDashboard",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "7d",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get summary stats for dashboard",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/reports/pipeline-conversion": {
+      "get": {
+        "operationId": "ReportsController_getPipelineConversion",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "30d",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get pipeline conversion analytics",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/reports/performance": {
+      "get": {
+        "operationId": "ReportsController_getPerformance",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get user performance leaderboard",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/reports/workspace/{id}/source": {
+      "get": {
+        "operationId": "ReportsController_getWorkspaceSource",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Leads by source for a workspace",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/reports/workspace/{id}/conversion": {
+      "get": {
+        "operationId": "ReportsController_getWorkspaceConversion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Conversion rate for a workspace",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/reports/workspace/{id}/sales": {
+      "get": {
+        "operationId": "ReportsController_getWorkspaceSales",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Sales performance for a workspace",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/reports/workspace/{id}/agents": {
+      "get": {
+        "operationId": "ReportsController_getWorkspaceAgents",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Agent performance for a workspace",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/reports/workspace/{id}/followups": {
+      "get": {
+        "operationId": "ReportsController_getWorkspaceFollowups",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Daily follow-up report for a workspace",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/reports/org/analytics": {
+      "get": {
+        "operationId": "ReportsController_getOrgAnalytics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Combined workspace analytics for organization",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/reports/org/revenue": {
+      "get": {
+        "operationId": "ReportsController_getOrgRevenue",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Revenue analytics for organization",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/reports/org/activities": {
+      "get": {
+        "operationId": "ReportsController_getOrgActivities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "User activity logs for organization",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/calls/feedback-statuses": {
+      "get": {
+        "operationId": "CallsController_getStatuses",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all call feedback statuses",
+        "tags": [
+          "Call Feedback"
+        ]
+      },
+      "post": {
+        "operationId": "CallsController_createStatus",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCallFeedbackStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a call feedback status",
+        "tags": [
+          "Call Feedback"
+        ]
+      }
+    },
+    "/calls/feedback-statuses/reorder": {
+      "patch": {
+        "operationId": "CallsController_reorder",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reorder call feedback statuses",
+        "tags": [
+          "Call Feedback"
+        ]
+      }
+    },
+    "/calls/feedback-statuses/{id}": {
+      "patch": {
+        "operationId": "CallsController_updateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCallFeedbackStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a call feedback status",
+        "tags": [
+          "Call Feedback"
+        ]
+      },
+      "delete": {
+        "operationId": "CallsController_removeStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a call feedback status",
+        "tags": [
+          "Call Feedback"
+        ]
+      }
+    },
+    "/users/me": {
+      "get": {
+        "operationId": "UsersController_getMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get current authenticated user profile",
+        "tags": [
+          "Users"
+        ]
+      },
+      "patch": {
+        "operationId": "UsersController_updateMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update your own user profile or switch workspace",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/me/settings": {
+      "get": {
+        "operationId": "UsersController_getMySettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get current user settings",
+        "tags": [
+          "Users"
+        ]
+      },
+      "patch": {
+        "operationId": "UsersController_updateMySettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update current user settings",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/licenses/available": {
+      "get": {
+        "operationId": "UsersController_getAvailableLicenses",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List available (unassigned) licenses",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "operationId": "UsersController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "root",
+                "billing_admin",
+                "admin",
+                "manager",
+                "caller",
+                "marketing"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Working",
+                "On Leave",
+                "Invited",
+                "Deleted"
+              ]
+            }
+          },
+          {
+            "name": "licenseType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Whatsapp Chat Sync",
+                "Core crm"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all team members",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "operationId": "UsersController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a user by ID",
+        "tags": [
+          "Users"
+        ]
+      },
+      "patch": {
+        "operationId": "UsersController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a user profile or role (admin only)",
+        "tags": [
+          "Users"
+        ]
+      },
+      "delete": {
+        "operationId": "UsersController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove (soft-delete) a user (admin only)",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/{id}/activity": {
+      "get": {
+        "operationId": "UsersController_getUserActivity",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get activity logs for a specific user",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/invite": {
+      "post": {
+        "operationId": "UsersController_invite",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Invite a new user to the organization (admin only)",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/licenses/assign": {
+      "post": {
+        "operationId": "UsersController_assignLicense",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignLicenseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign a license to a user (admin only)",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/templates": {
+      "get": {
+        "operationId": "TemplatesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ]
+      },
+      "post": {
+        "operationId": "TemplatesController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ]
+      }
+    },
+    "/schedules": {
+      "post": {
+        "operationId": "SchedulesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a call followup schedule",
+        "tags": [
+          "Schedules"
+        ]
+      },
+      "get": {
+        "operationId": "SchedulesController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CallFollowup",
+                "Todo"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Pending",
+                "Rescheduled",
+                "Late",
+                "Done",
+                "Cancelled"
+              ]
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Urgent",
+                "High",
+                "Medium",
+                "Low",
+                "None"
+              ]
+            }
+          },
+          {
+            "name": "assigneeId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "leadId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "due",
+            "required": false,
+            "in": "query",
+            "description": "Filter: today | yesterday | this_week | this_month",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List schedules (CallFollowup tasks) with filtering & pagination",
+        "tags": [
+          "Schedules"
+        ]
+      }
+    },
+    "/schedules/{id}": {
+      "get": {
+        "operationId": "SchedulesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a single schedule",
+        "tags": [
+          "Schedules"
+        ]
+      },
+      "patch": {
+        "operationId": "SchedulesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a schedule",
+        "tags": [
+          "Schedules"
+        ]
+      },
+      "delete": {
+        "operationId": "SchedulesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a schedule",
+        "tags": [
+          "Schedules"
+        ]
+      }
+    },
+    "/billing/subscription": {
+      "get": {
+        "operationId": "BillingController_getSubscription",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get current subscription plan",
+        "tags": [
+          "Billing"
+        ]
+      }
+    },
+    "/billing/transactions": {
+      "get": {
+        "operationId": "BillingController_getTransactions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get payment history",
+        "tags": [
+          "Billing"
+        ]
+      }
+    },
+    "/billing/upgrade": {
+      "post": {
+        "operationId": "BillingController_upgrade",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upgrade / Update plan",
+        "tags": [
+          "Billing"
+        ]
+      }
+    },
+    "/billing/checkout": {
+      "post": {
+        "operationId": "BillingController_createCheckout",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create Stripe checkout session",
+        "tags": [
+          "Billing"
+        ]
+      }
+    },
+    "/billing/info": {
+      "get": {
+        "operationId": "BillingController_getBillingInfo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get organization billing details",
+        "tags": [
+          "Billing"
+        ]
+      },
+      "patch": {
+        "operationId": "BillingController_updateBillingInfo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update organization billing details",
+        "tags": [
+          "Billing"
+        ]
+      }
+    },
+    "/integrations": {
+      "get": {
+        "operationId": "IntegrationsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all integrations",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/integrations/auth/google": {
+      "get": {
+        "operationId": "IntegrationsController_getGoogleAuthUrl",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get Google Auth URL",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/integrations/auth/gmail": {
+      "get": {
+        "operationId": "IntegrationsController_getGmailAuthUrl",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get Gmail Auth URL",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/integrations/auth/outlook": {
+      "get": {
+        "operationId": "IntegrationsController_getOutlookAuthUrl",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get Outlook Auth URL",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/integrations/callback/google": {
+      "get": {
+        "operationId": "IntegrationsController_googleCallback",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Google OAuth Callback",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/integrations/callback/outlook": {
+      "get": {
+        "operationId": "IntegrationsController_outlookCallback",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Outlook OAuth Callback",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/lists": {
+      "get": {
+        "operationId": "ListsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Lists"
+        ]
+      },
+      "post": {
+        "operationId": "ListsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Lists"
+        ]
+      }
+    },
+    "/lists/{id}": {
+      "delete": {
+        "operationId": "ListsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Lists"
+        ]
+      }
+    },
+    "/lists/{id}/leads": {
+      "post": {
+        "operationId": "ListsController_addLeads",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Lists"
+        ]
+      }
+    },
+    "/lead-fields": {
+      "get": {
+        "operationId": "LeadFieldsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all lead field definitions",
+        "tags": [
+          "lead-fields"
+        ]
+      },
+      "post": {
+        "operationId": "LeadFieldsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new lead field definition",
+        "tags": [
+          "lead-fields"
+        ]
+      }
+    },
+    "/lead-fields/{id}": {
+      "patch": {
+        "operationId": "LeadFieldsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a lead field definition",
+        "tags": [
+          "lead-fields"
+        ]
+      },
+      "delete": {
+        "operationId": "LeadFieldsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a lead field definition",
+        "tags": [
+          "lead-fields"
+        ]
+      }
+    },
+    "/lead-fields/seed": {
+      "post": {
+        "operationId": "LeadFieldsController_seed",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Seed default fields",
+        "tags": [
+          "lead-fields"
+        ]
+      }
+    },
+    "/lead-stages": {
+      "post": {
+        "operationId": "LeadStagesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLeadStageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new lead stage",
+        "tags": [
+          "Lead Stages"
+        ]
+      },
+      "get": {
+        "operationId": "LeadStagesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all lead stages ordered by position",
+        "tags": [
+          "Lead Stages"
+        ]
+      }
+    },
+    "/lead-stages/{id}": {
+      "get": {
+        "operationId": "LeadStagesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a lead stage by ID",
+        "tags": [
+          "Lead Stages"
+        ]
+      },
+      "patch": {
+        "operationId": "LeadStagesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadStageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a lead stage",
+        "tags": [
+          "Lead Stages"
+        ]
+      },
+      "delete": {
+        "operationId": "LeadStagesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a lead stage (non-default only)",
+        "tags": [
+          "Lead Stages"
+        ]
+      }
+    },
+    "/lead-stages/reorder": {
+      "patch": {
+        "operationId": "LeadStagesController_reorder",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reorder stages by providing ordered array of IDs",
+        "tags": [
+          "Lead Stages"
+        ]
+      }
+    },
+    "/lead-stages/lost-reasons": {
+      "get": {
+        "operationId": "LeadStagesController_getLostReasons",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all lost reasons",
+        "tags": [
+          "Lead Stages"
+        ]
+      },
+      "post": {
+        "operationId": "LeadStagesController_createLostReason",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLostReasonDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a lost reason",
+        "tags": [
+          "Lead Stages"
+        ]
+      }
+    },
+    "/lead-stages/lost-reasons/{id}": {
+      "patch": {
+        "operationId": "LeadStagesController_updateLostReason",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLostReasonDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a lost reason",
+        "tags": [
+          "Lead Stages"
+        ]
+      },
+      "delete": {
+        "operationId": "LeadStagesController_removeLostReason",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a lost reason",
+        "tags": [
+          "Lead Stages"
+        ]
+      }
+    },
+    "/external-leads/indiamart": {
+      "post": {
+        "operationId": "ExternalLeadsController_indiamart",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "IndiaMART Webhook",
+        "tags": [
+          "External Leads"
+        ]
+      }
+    },
+    "/external-leads/justdial": {
+      "post": {
+        "operationId": "ExternalLeadsController_justdial",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Justdial Webhook",
+        "tags": [
+          "External Leads"
+        ]
+      }
+    },
+    "/external-leads/facebook": {
+      "post": {
+        "operationId": "ExternalLeadsController_facebook",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Facebook Lead Ads Webhook",
+        "tags": [
+          "External Leads"
+        ]
+      }
+    },
+    "/external-leads/webhook/{orgId}/{source}": {
+      "post": {
+        "operationId": "ExternalLeadsController_genericWebhook",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Generic Webhook",
+        "tags": [
+          "External Leads"
+        ]
+      }
+    },
+    "/external-leads/google-ads": {
+      "post": {
+        "operationId": "ExternalLeadsController_googleAds",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Google Ads Webhook",
+        "tags": [
+          "External Leads"
+        ]
+      }
+    },
+    "/search/global": {
+      "get": {
+        "operationId": "SearchController_globalSearch",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Search"
+        ]
+      }
+    },
+    "/scripts": {
+      "post": {
+        "operationId": "ScriptsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScriptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Scripts"
+        ]
+      },
+      "get": {
+        "operationId": "ScriptsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Scripts"
+        ]
+      }
+    },
+    "/scripts/{id}": {
+      "get": {
+        "operationId": "ScriptsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Scripts"
+        ]
+      },
+      "patch": {
+        "operationId": "ScriptsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScriptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Scripts"
+        ]
+      },
+      "delete": {
+        "operationId": "ScriptsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Scripts"
+        ]
+      }
+    },
+    "/public/organization/{name}": {
+      "get": {
+        "operationId": "PublicController_getOrg",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get organization ID by name (Public)",
+        "tags": [
+          "Public"
+        ]
+      }
+    },
+    "/public/fields/{orgId}": {
+      "get": {
+        "operationId": "PublicController_getFields",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get lead field definitions for an organization (Public)",
+        "tags": [
+          "Public"
+        ]
+      }
+    },
+    "/public/lead": {
+      "post": {
+        "operationId": "PublicController_submitLead",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Submit a new lead from a public form",
+        "tags": [
+          "Public"
+        ]
+      }
+    },
+    "/admin/stats": {
+      "get": {
+        "operationId": "AdminController_getStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get org-wide admin statistics",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "operationId": "AdminController_getUsers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all org users",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/users/{id}/role": {
+      "patch": {
+        "operationId": "AdminController_updateRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update user role (root only)",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/activity": {
+      "get": {
+        "operationId": "AdminController_getActivity",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get recent org-wide activity feed",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/telephony/calls": {
+      "post": {
+        "operationId": "TelephonyController_initiateCall",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Initiate a new call",
+        "tags": [
+          "Telephony"
+        ]
+      },
+      "get": {
+        "operationId": "TelephonyController_getCalls",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lead_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get calls with filters",
+        "tags": [
+          "Telephony"
+        ]
+      }
+    },
+    "/telephony/calls/{id}": {
+      "patch": {
+        "operationId": "TelephonyController_updateCall",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an existing call",
+        "tags": [
+          "Telephony"
+        ]
+      }
+    },
+    "/telephony/calls/summary": {
+      "get": {
+        "operationId": "TelephonyController_getCallSummary",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get call summary statistics",
+        "tags": [
+          "Telephony"
+        ]
+      }
+    },
+    "/telephony/calls/analytics": {
+      "get": {
+        "operationId": "TelephonyController_getCallAnalytics",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get call analytics data",
+        "tags": [
+          "Telephony"
+        ]
+      }
+    },
+    "/telephony/calls/recordings": {
+      "get": {
+        "operationId": "TelephonyController_getCallRecordings",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get call recordings",
+        "tags": [
+          "Telephony"
+        ]
+      }
+    },
+    "/telephony/leads/next-to-call": {
+      "get": {
+        "operationId": "TelephonyController_getNextLeadToCall",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get next lead to call",
+        "tags": [
+          "Telephony"
+        ]
+      }
+    },
+    "/email/templates": {
+      "post": {
+        "operationId": "EmailController_createTemplate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create email template",
+        "tags": [
+          "Email"
+        ]
+      },
+      "get": {
+        "operationId": "EmailController_getTemplates",
+        "parameters": [
+          {
+            "name": "category",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get email templates",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/templates/{id}": {
+      "put": {
+        "operationId": "EmailController_updateTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update email template",
+        "tags": [
+          "Email"
+        ]
+      },
+      "delete": {
+        "operationId": "EmailController_deleteTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete email template",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/campaigns": {
+      "post": {
+        "operationId": "EmailController_createCampaign",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create email campaign",
+        "tags": [
+          "Email"
+        ]
+      },
+      "get": {
+        "operationId": "EmailController_getCampaigns",
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get email campaigns",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/campaigns/{id}/execute": {
+      "post": {
+        "operationId": "EmailController_executeCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Execute email campaign",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/campaigns/{id}/analytics": {
+      "get": {
+        "operationId": "EmailController_getCampaignAnalytics",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get campaign analytics",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/automations": {
+      "post": {
+        "operationId": "EmailController_createAutomation",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create email automation",
+        "tags": [
+          "Email"
+        ]
+      },
+      "get": {
+        "operationId": "EmailController_getAutomations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get email automations",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/automations/{id}/trigger": {
+      "post": {
+        "operationId": "EmailController_triggerAutomation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Trigger email automation",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/drip-campaigns": {
+      "post": {
+        "operationId": "EmailController_createDripCampaign",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create drip campaign",
+        "tags": [
+          "Email"
+        ]
+      },
+      "get": {
+        "operationId": "EmailController_getDripCampaigns",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get drip campaigns",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/drip-campaigns/{id}": {
+      "put": {
+        "operationId": "EmailController_updateDripCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update drip campaign",
+        "tags": [
+          "Email"
+        ]
+      },
+      "delete": {
+        "operationId": "EmailController_deleteDripCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete drip campaign",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/drip-campaigns/{id}/enroll": {
+      "post": {
+        "operationId": "EmailController_enrollInDripCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Enroll lead in drip campaign",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/analytics": {
+      "get": {
+        "operationId": "EmailController_getEmailAnalytics",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get email analytics",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/webhooks/sendgrid": {
+      "post": {
+        "operationId": "EmailController_handleSendGridWebhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Handle SendGrid webhook events",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email/webhooks/ses": {
+      "post": {
+        "operationId": "EmailController_handleSESWebhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Handle AWS SES webhook events",
+        "tags": [
+          "Email"
+        ]
+      }
+    },
+    "/email-tracking/open/{logId}": {
+      "get": {
+        "operationId": "EmailTrackingController_trackOpen",
+        "parameters": [
+          {
+            "name": "logId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Track email open",
+        "tags": [
+          "Email Tracking"
+        ]
+      }
+    },
+    "/email-tracking/click/{logId}": {
+      "get": {
+        "operationId": "EmailTrackingController_trackClick",
+        "parameters": [
+          {
+            "name": "logId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "url",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Track email click",
+        "tags": [
+          "Email Tracking"
+        ]
+      }
+    },
+    "/app-config/home": {
+      "get": {
+        "operationId": "AppConfigController_getHomeConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get home page configuration",
+        "tags": [
+          "Config"
+        ]
+      }
+    },
+    "/analytics/dashboard": {
+      "get": {
+        "operationId": "AnalyticsController_getDashboard",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get comprehensive dashboard data",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/real-time": {
+      "get": {
+        "operationId": "AnalyticsController_getRealTimeMetrics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get real-time metrics",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/conversion-funnel": {
+      "get": {
+        "operationId": "AnalyticsController_getConversionFunnel",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get conversion funnel analysis",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/agent-performance": {
+      "get": {
+        "operationId": "AnalyticsController_getAgentPerformance",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get agent performance metrics",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/custom-report": {
+      "post": {
+        "operationId": "AnalyticsController_generateCustomReport",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate custom report",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/metrics/leads": {
+      "get": {
+        "operationId": "AnalyticsController_getLeadsMetrics",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupBy",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get detailed leads metrics",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/metrics/calls": {
+      "get": {
+        "operationId": "AnalyticsController_getCallsMetrics",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupBy",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get detailed calls metrics",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/metrics/whatsapp": {
+      "get": {
+        "operationId": "AnalyticsController_getWhatsAppMetrics",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupBy",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get detailed WhatsApp metrics",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/trends/leads": {
+      "get": {
+        "operationId": "AnalyticsController_getLeadsTrend",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "granularity",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get leads trend over time",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/trends/calls": {
+      "get": {
+        "operationId": "AnalyticsController_getCallsTrend",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "granularity",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get calls trend over time",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/trends/conversions": {
+      "get": {
+        "operationId": "AnalyticsController_getConversionsTrend",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "granularity",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get conversion rate trend over time",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/top-performers": {
+      "get": {
+        "operationId": "AnalyticsController_getTopPerformers",
+        "parameters": [
+          {
+            "name": "timeRange",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get top performing agents and sources",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/analytics/alerts": {
+      "get": {
+        "operationId": "AnalyticsController_getAlerts",
+        "parameters": [
+          {
+            "name": "severity",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get analytics alerts and notifications",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/invitations": {
+      "post": {
+        "operationId": "InvitationsController_createInvitation",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new invitation",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/pending": {
+      "get": {
+        "operationId": "InvitationsController_listPending",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List pending invitations for the organization",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/{token}": {
+      "get": {
+        "operationId": "InvitationsController_verifyToken",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Verify an invitation token",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/{token}/accept": {
+      "post": {
+        "operationId": "InvitationsController_acceptInvitation",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Accept an invitation",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/{id}": {
+      "delete": {
+        "operationId": "InvitationsController_cancelInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancel/Delete an invitation",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api-templates": {
+      "get": {
+        "operationId": "ApiTemplatesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all API outbound templates",
+        "tags": [
+          "API Templates"
+        ]
+      },
+      "post": {
+        "operationId": "ApiTemplatesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new API template",
+        "tags": [
+          "API Templates"
+        ]
+      }
+    },
+    "/api-templates/{id}": {
+      "get": {
+        "operationId": "ApiTemplatesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a single API template",
+        "tags": [
+          "API Templates"
+        ]
+      },
+      "patch": {
+        "operationId": "ApiTemplatesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApiTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an existing API template",
+        "tags": [
+          "API Templates"
+        ]
+      },
+      "delete": {
+        "operationId": "ApiTemplatesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove an API template",
+        "tags": [
+          "API Templates"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Telecalling CRM API",
+    "description": "Scalable REST API for the Telecalling CRM platform",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "access-token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "SignupDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "test@example.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "password123"
+          },
+          "orgName": {
+            "type": "string",
+            "example": "Acme Inc"
+          },
+          "name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+1234567890"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "orgName"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "test@example.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "password123"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "ForgotPasswordDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "test@example.com"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ResetPasswordDto": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "example": "newpassword123"
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "WorkspaceToggleSettingsDto": {
+        "type": "object",
+        "properties": {
+          "newReporting": {
+            "type": "boolean",
+            "example": true
+          },
+          "leadStage": {
+            "type": "boolean",
+            "example": true
+          },
+          "leadRating": {
+            "type": "boolean",
+            "example": false
+          },
+          "locationCheckIn": {
+            "type": "boolean",
+            "example": false
+          },
+          "campaign": {
+            "type": "boolean",
+            "example": true
+          },
+          "customActions": {
+            "type": "boolean",
+            "example": false
+          },
+          "salesGroup": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "WorkspaceSettingsDto": {
+        "type": "object",
+        "properties": {
+          "countryCode": {
+            "type": "string",
+            "example": "92"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Asia/Karachi"
+          },
+          "currency": {
+            "type": "string",
+            "example": "PKR"
+          },
+          "minDuration": {
+            "type": "number",
+            "example": 2
+          },
+          "sessionTimeout": {
+            "type": "string",
+            "enum": [
+              "Never",
+              "30 Minutes",
+              "1 Hour",
+              "4 Hours"
+            ],
+            "example": "Never"
+          },
+          "toggles": {
+            "$ref": "#/components/schemas/WorkspaceToggleSettingsDto"
+          }
+        }
+      },
+      "CreateLeadDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ali Hassan"
+          },
+          "phone": {
+            "type": "string",
+            "example": "923001234567",
+            "description": "Phone is the Lead ID"
+          },
+          "altPhone": {
+            "type": "string",
+            "example": "923007654321"
+          },
+          "alt_phone": {
+            "type": "string",
+            "example": "923007654321",
+            "description": "Alias for altPhone"
+          },
+          "email": {
+            "type": "string",
+            "example": "ali@example.com"
+          },
+          "city": {
+            "type": "string",
+            "example": "Karachi"
+          },
+          "company": {
+            "type": "string",
+            "example": "Acme Corp",
+            "description": "Company name"
+          },
+          "age": {
+            "type": "number",
+            "example": 28
+          },
+          "jobTitle": {
+            "type": "string",
+            "example": "Ali Khan",
+            "description": "Job title"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "Facebook",
+              "Website",
+              "WhatsApp",
+              "Referral",
+              "Manual",
+              "Import",
+              "IndiaMART",
+              "Justdial",
+              "Google Ads"
+            ],
+            "default": "Manual"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Fresh",
+              "Active",
+              "Interested",
+              "Hot",
+              "Scheduled",
+              "Won",
+              "Lost",
+              "Cold",
+              "Archive",
+              "Trash"
+            ],
+            "default": "Fresh"
+          },
+          "stageId": {
+            "type": "string",
+            "example": "uuid-of-stage"
+          },
+          "stage_id": {
+            "type": "string",
+            "example": "uuid-of-stage",
+            "description": "Alias for stageId"
+          },
+          "assigneeId": {
+            "type": "string",
+            "example": "uuid-of-user"
+          },
+          "assignee_id": {
+            "type": "string",
+            "example": "uuid-of-user",
+            "description": "Alias for assigneeId"
+          },
+          "rating": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0,
+            "maximum": 5
+          },
+          "bestTimeToCall": {
+            "type": "string",
+            "example": "10:00 AM"
+          },
+          "facebookAd": {
+            "type": "string"
+          },
+          "facebookCampaign": {
+            "type": "string"
+          },
+          "facebookLeadId": {
+            "type": "string"
+          },
+          "customFields": {
+            "type": "object",
+            "description": "Custom field values as key-value pairs"
+          },
+          "custom_fields": {
+            "type": "object",
+            "description": "Alias for customFields"
+          },
+          "listIds": {
+            "description": "List IDs this lead belongs to",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "campaignId": {
+            "type": "string",
+            "example": "uuid-of-campaign"
+          },
+          "campaign_id": {
+            "type": "string",
+            "example": "uuid-of-campaign",
+            "description": "Alias for campaignId"
+          }
+        },
+        "required": [
+          "name",
+          "phone"
+        ]
+      },
+      "UpdateLeadDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ali Hassan"
+          },
+          "phone": {
+            "type": "string",
+            "example": "923001234567",
+            "description": "Phone is the Lead ID"
+          },
+          "altPhone": {
+            "type": "string",
+            "example": "923007654321"
+          },
+          "alt_phone": {
+            "type": "string",
+            "example": "923007654321",
+            "description": "Alias for altPhone"
+          },
+          "email": {
+            "type": "string",
+            "example": "ali@example.com"
+          },
+          "city": {
+            "type": "string",
+            "example": "Karachi"
+          },
+          "company": {
+            "type": "string",
+            "example": "Acme Corp",
+            "description": "Company name"
+          },
+          "age": {
+            "type": "number",
+            "example": 28
+          },
+          "jobTitle": {
+            "type": "string",
+            "example": "Ali Khan",
+            "description": "Job title"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "Facebook",
+              "Website",
+              "WhatsApp",
+              "Referral",
+              "Manual",
+              "Import",
+              "IndiaMART",
+              "Justdial",
+              "Google Ads"
+            ],
+            "default": "Manual"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Fresh",
+              "Active",
+              "Interested",
+              "Hot",
+              "Scheduled",
+              "Won",
+              "Lost",
+              "Cold",
+              "Archive",
+              "Trash"
+            ],
+            "default": "Fresh"
+          },
+          "stageId": {
+            "type": "string",
+            "example": "uuid-of-stage"
+          },
+          "stage_id": {
+            "type": "string",
+            "example": "uuid-of-stage",
+            "description": "Alias for stageId"
+          },
+          "assigneeId": {
+            "type": "string",
+            "example": "uuid-of-user"
+          },
+          "assignee_id": {
+            "type": "string",
+            "example": "uuid-of-user",
+            "description": "Alias for assigneeId"
+          },
+          "rating": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0,
+            "maximum": 5
+          },
+          "bestTimeToCall": {
+            "type": "string",
+            "example": "10:00 AM"
+          },
+          "facebookAd": {
+            "type": "string"
+          },
+          "facebookCampaign": {
+            "type": "string"
+          },
+          "facebookLeadId": {
+            "type": "string"
+          },
+          "customFields": {
+            "type": "object",
+            "description": "Custom field values as key-value pairs"
+          },
+          "custom_fields": {
+            "type": "object",
+            "description": "Alias for customFields"
+          },
+          "listIds": {
+            "description": "List IDs this lead belongs to",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "campaignId": {
+            "type": "string",
+            "example": "uuid-of-campaign"
+          },
+          "campaign_id": {
+            "type": "string",
+            "example": "uuid-of-campaign",
+            "description": "Alias for campaignId"
+          },
+          "lostReason": {
+            "type": "string",
+            "description": "Lost reason if status is Lost"
+          },
+          "lost_reason": {
+            "type": "string",
+            "description": "Alias for lostReason"
+          }
+        }
+      },
+      "CreateActivityDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "call",
+              "email",
+              "whatsapp",
+              "meeting",
+              "note",
+              "status_change",
+              "stage_change",
+              "task"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "example": "Outbound Call - Connected"
+          },
+          "subtitle": {
+            "type": "string",
+            "example": "Sarah Wilson"
+          },
+          "details": {
+            "type": "string",
+            "example": "Discussed project requirements and timeline."
+          },
+          "duration": {
+            "type": "string",
+            "example": "4m 32s"
+          },
+          "leadId": {
+            "type": "string",
+            "description": "Lead UUID this activity is linked to"
+          }
+        },
+        "required": [
+          "type",
+          "title"
+        ]
+      },
+      "CreateTaskDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "example": "Call back regarding pricing query"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CallFollowup",
+              "Todo"
+            ],
+            "default": "CallFollowup"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending",
+              "Rescheduled",
+              "Late",
+              "Done",
+              "Cancelled"
+            ],
+            "default": "Pending"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "Urgent",
+              "High",
+              "Medium",
+              "Low",
+              "None"
+            ],
+            "default": "None"
+          },
+          "dueDate": {
+            "type": "string",
+            "example": "2026-02-28T10:00:00Z"
+          },
+          "leadId": {
+            "type": "string",
+            "description": "Lead UUID this task belongs to"
+          },
+          "assigneeId": {
+            "type": "string",
+            "description": "User UUID assigned to this task"
+          }
+        },
+        "required": [
+          "description"
+        ]
+      },
+      "UpdateTaskDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "example": "Call back regarding pricing query"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CallFollowup",
+              "Todo"
+            ],
+            "default": "CallFollowup"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending",
+              "Rescheduled",
+              "Late",
+              "Done",
+              "Cancelled"
+            ],
+            "default": "Pending"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "Urgent",
+              "High",
+              "Medium",
+              "Low",
+              "None"
+            ],
+            "default": "None"
+          },
+          "dueDate": {
+            "type": "string",
+            "example": "2026-02-28T10:00:00Z"
+          },
+          "leadId": {
+            "type": "string",
+            "description": "Lead UUID this task belongs to"
+          },
+          "assigneeId": {
+            "type": "string",
+            "description": "User UUID assigned to this task"
+          },
+          "completedAt": {
+            "type": "string",
+            "example": "2026-02-28T10:30:00Z",
+            "description": "Completion timestamp"
+          }
+        }
+      },
+      "CreateCampaignDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "@facebook-ad-leads"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "High",
+              "Medium",
+              "Low"
+            ],
+            "default": "Medium"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Active",
+              "Paused",
+              "Completed",
+              "Archived"
+            ],
+            "default": "Active"
+          },
+          "assigneeIds": {
+            "description": "Array of user IDs assigned to this campaign",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string",
+            "example": "Campaign description"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateCampaignDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "@facebook-ad-leads"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "High",
+              "Medium",
+              "Low"
+            ],
+            "default": "Medium"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Active",
+              "Paused",
+              "Completed",
+              "Archived"
+            ],
+            "default": "Active"
+          },
+          "assigneeIds": {
+            "description": "Array of user IDs assigned to this campaign",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string",
+            "example": "Campaign description"
+          }
+        }
+      },
+      "CreateCallFeedbackStatusDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "CONNECTED"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "example": false,
+            "description": "Default status auto-assigned after connected call"
+          },
+          "position": {
+            "type": "number",
+            "example": 1,
+            "description": "Display order"
+          }
+        },
+        "required": [
+          "label"
+        ]
+      },
+      "UpdateCallFeedbackStatusDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "CONNECTED"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "example": false,
+            "description": "Default status auto-assigned after connected call"
+          },
+          "position": {
+            "type": "number",
+            "example": 1,
+            "description": "Display order"
+          }
+        }
+      },
+      "NotificationPreferencesDto": {
+        "type": "object",
+        "properties": {
+          "paymentPending": {
+            "type": "boolean",
+            "example": true
+          },
+          "paymentCompleted": {
+            "type": "boolean",
+            "example": true
+          },
+          "paymentFailed": {
+            "type": "boolean",
+            "example": true
+          },
+          "newLead": {
+            "type": "boolean",
+            "example": true
+          },
+          "callReminder": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "UserSettingsDto": {
+        "type": "object",
+        "properties": {
+          "emailHandler": {
+            "type": "string",
+            "enum": [
+              "web",
+              "mobile"
+            ],
+            "example": "web"
+          },
+          "whatsappHandler": {
+            "type": "string",
+            "enum": [
+              "web",
+              "mobile"
+            ],
+            "example": "mobile"
+          },
+          "notifications": {
+            "$ref": "#/components/schemas/NotificationPreferencesDto"
+          }
+        }
+      },
+      "InviteUserDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "ali@company.com"
+          },
+          "name": {
+            "type": "string",
+            "example": "Ali Hassan"
+          },
+          "initials": {
+            "type": "string",
+            "example": "AH"
+          },
+          "password": {
+            "type": "string",
+            "example": "Password123!"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+923001234567"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "root",
+              "billing_admin",
+              "admin",
+              "manager",
+              "caller",
+              "marketing"
+            ],
+            "default": "caller"
+          },
+          "permissionTemplateId": {
+            "type": "string",
+            "description": "Permission template ID to assign"
+          },
+          "licenseType": {
+            "type": "string",
+            "enum": [
+              "Whatsapp Chat Sync",
+              "Core crm"
+            ]
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ali Hassan"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "root",
+              "billing_admin",
+              "admin",
+              "manager",
+              "caller",
+              "marketing"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Working",
+              "On Leave",
+              "Invited",
+              "Deleted"
+            ]
+          },
+          "permissionTemplateId": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        }
+      },
+      "AssignLicenseDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "User ID to assign license to"
+          },
+          "licenseType": {
+            "type": "string",
+            "enum": [
+              "Whatsapp Chat Sync",
+              "Core crm"
+            ]
+          },
+          "expiryDate": {
+            "type": "string",
+            "example": "2027-03-17"
+          }
+        },
+        "required": [
+          "userId",
+          "licenseType",
+          "expiryDate"
+        ]
+      },
+      "CreateLeadStageDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Interested"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "initial",
+              "active",
+              "won",
+              "lost"
+            ],
+            "default": "active"
+          },
+          "color": {
+            "type": "string",
+            "example": "bg-amber-100 text-amber-800 border-amber-200",
+            "description": "Tailwind color classes"
+          },
+          "position": {
+            "type": "number",
+            "example": 1,
+            "description": "Display order position"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateLeadStageDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Interested"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "initial",
+              "active",
+              "won",
+              "lost"
+            ],
+            "default": "active"
+          },
+          "color": {
+            "type": "string",
+            "example": "bg-amber-100 text-amber-800 border-amber-200",
+            "description": "Tailwind color classes"
+          },
+          "position": {
+            "type": "number",
+            "example": 1,
+            "description": "Display order position"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "CreateLostReasonDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "Budget Issues"
+          },
+          "position": {
+            "type": "number",
+            "example": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "UpdateLostReasonDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "Budget Issues"
+          },
+          "position": {
+            "type": "number",
+            "example": 1
+          }
+        }
+      },
+      "CreateScriptDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateScriptDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateApiTemplateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "My Webhook"
+          },
+          "endpoint": {
+            "type": "string",
+            "example": "https://api.example.com/webhook"
+          },
+          "method": {
+            "type": "string",
+            "default": "POST"
+          },
+          "variables": {
+            "example": [
+              "status",
+              "phone"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "headers": {
+            "type": "object",
+            "example": {
+              "Content-Type": "application/json"
+            }
+          },
+          "workflow_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "endpoint"
+        ]
+      },
+      "UpdateApiTemplateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "My Webhook"
+          },
+          "endpoint": {
+            "type": "string",
+            "example": "https://api.example.com/webhook"
+          },
+          "method": {
+            "type": "string",
+            "default": "POST"
+          },
+          "variables": {
+            "example": [
+              "status",
+              "phone"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "headers": {
+            "type": "object",
+            "example": {
+              "Content-Type": "application/json"
+            }
+          },
+          "workflow_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "endpoint"
+        ]
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CreateWhatsAppCampaignDto, CreateWhatsAppDripSequenceDto, CreateWhatsAppTemplateDto, CreateWhatsAppAutomationRuleDto } from './dto/whatsapp-campaign.dto';
 
 export interface WhatsAppMessage {
   id: string;
@@ -643,5 +644,558 @@ export class WhatsAppService {
     }
     
     return volume;
+  }
+
+  // === CAMPAIGN MANAGEMENT METHODS ===
+
+  async createCampaign(dto: CreateWhatsAppCampaignDto, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+
+    const campaignData = {
+      ...dto,
+      organization_id: user.organizationId,
+      workspace_id: user.workspaceId,
+      created_by: user.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('whatsapp_campaigns')
+      .insert(campaignData)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    
+    // If campaign is scheduled or immediate, process recipients
+    if (dto.schedule_type === 'immediate') {
+      await this.processCampaignRecipients(data.id, user);
+    }
+
+    return data;
+  }
+
+  async getCampaigns(query: any, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    const { page = 1, limit = 20, search, status, campaign_type } = query;
+    const from = (page - 1) * limit;
+
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+
+    let q = supabase
+      .from('whatsapp_campaigns')
+      .select('*', { count: 'exact' })
+      .eq('workspace_id', user.workspaceId)
+      .order('created_at', { ascending: false })
+      .range(from, from + limit - 1);
+
+    if (search) q = q.ilike('name', `%${search}%`);
+    if (status) q = q.eq('status', status);
+    if (campaign_type) q = q.eq('campaign_type', campaign_type);
+
+    const { data, error, count } = await q;
+    if (error) throw new BadRequestException(error.message);
+
+    return { data, total: count, page, limit };
+  }
+
+  async getCampaign(id: string, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+    
+    const { data, error } = await supabase
+      .from('whatsapp_campaigns')
+      .select('*')
+      .eq('id', id)
+      .eq('workspace_id', user.workspaceId)
+      .single();
+
+    if (error || !data) throw new BadRequestException('Campaign not found');
+    return data;
+  }
+
+  async updateCampaign(id: string, dto: any, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+    
+    await this.getCampaign(id, user);
+
+    const updateData = {
+      ...dto,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('whatsapp_campaigns')
+      .update(updateData)
+      .eq('id', id)
+      .eq('workspace_id', user.workspaceId)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async deleteCampaign(id: string, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+    
+    await this.getCampaign(id, user);
+    
+    const { error } = await supabase
+      .from('whatsapp_campaigns')
+      .delete()
+      .eq('id', id)
+      .eq('workspace_id', user.workspaceId);
+    
+    if (error) throw new BadRequestException(error.message);
+    return { message: 'Campaign deleted' };
+  }
+
+  async processCampaignRecipients(campaignId: string, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    // Get campaign details
+    const campaign = await this.getCampaign(campaignId, user);
+    
+    // Get leads based on campaign filters
+    let leadsQuery = supabase
+      .from('leads')
+      .select('*')
+      .eq('workspace_id', user.workspaceId)
+      .eq('organization_id', user.organizationId);
+
+    // Apply campaign filters
+    if (campaign.target_audience) {
+      Object.entries(campaign.target_audience).forEach(([field, value]) => {
+        if (field === 'status') {
+          leadsQuery = leadsQuery.eq('status', value);
+        } else if (field === 'source') {
+          leadsQuery = leadsQuery.eq('source', value);
+        }
+      });
+    }
+
+    const { data: leads, error } = await leadsQuery;
+    if (error) throw new BadRequestException(error.message);
+
+    // Create campaign recipients
+    const recipients = leads.map((lead: any) => ({
+      campaign_id: campaignId,
+      lead_id: lead.id,
+      organization_id: user.organizationId,
+      workspace_id: user.workspaceId,
+      phone_number: lead.phone,
+      message_content: campaign.message_content,
+      variables_used: this.mapLeadToVariables(lead, campaign.variables_mapping),
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+
+    if (recipients.length > 0) {
+      const { error: insertError } = await supabase
+        .from('whatsapp_campaign_recipients')
+        .insert(recipients);
+
+      if (insertError) {
+        this.logger.error('Error creating campaign recipients:', insertError);
+      }
+
+      // Update campaign stats
+      await supabase
+        .from('whatsapp_campaigns')
+        .update({
+          total_recipients: recipients.length,
+          status: 'running',
+          started_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
+    }
+  }
+
+  async runCampaign(campaignId: string, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    const campaign = await this.getCampaign(campaignId, user);
+
+    if (campaign.status === 'completed') {
+      throw new BadRequestException('Campaign is already completed');
+    }
+
+    // Get pending recipients
+    const { data: recipients, error } = await supabase
+      .from('whatsapp_campaign_recipients')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .eq('status', 'pending')
+      .limit(campaign.rate_limit_per_hour || 100);
+
+    if (error) throw new BadRequestException(error.message);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const recipient of recipients) {
+      try {
+        await this.sendMessage({
+          to: recipient.phone_number,
+          message: recipient.message_content,
+          type: 'text',
+        }, user);
+
+        await supabase
+          .from('whatsapp_campaign_recipients')
+          .update({
+            status: 'sent',
+            sent_at: new Date().toISOString()
+          })
+          .eq('id', recipient.id);
+
+        successCount++;
+      } catch (err) {
+        this.logger.error(`Failed to send message to ${recipient.phone_number}: ${err.message}`);
+        
+        await supabase
+          .from('whatsapp_campaign_recipients')
+          .update({
+            status: 'failed',
+            error_message: err.message,
+            failed_at: new Date().toISOString()
+          })
+          .eq('id', recipient.id);
+
+        failCount++;
+      }
+    }
+
+    // Update campaign progress
+    const { data: updatedCampaign } = await supabase
+      .from('whatsapp_campaigns')
+      .select('*')
+      .eq('id', campaignId)
+      .single();
+
+    const totalSent = updatedCampaign.sent_count + successCount;
+    const totalFailed = updatedCampaign.failed_count + failCount;
+    const progress = Math.round((totalSent / updatedCampaign.total_recipients) * 100);
+
+    await supabase
+      .from('whatsapp_campaigns')
+      .update({
+        sent_count: totalSent,
+        failed_count: totalFailed,
+        progress
+      })
+      .eq('id', campaignId);
+
+    return { successCount, failCount, total: recipients.length };
+  }
+
+  // === DRIP SEQUENCE METHODS ===
+
+  async createDripSequence(dto: CreateWhatsAppDripSequenceDto, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+
+    const sequenceData = {
+      ...dto,
+      organization_id: user.organizationId,
+      workspace_id: user.workspaceId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('whatsapp_drip_sequences')
+      .insert(sequenceData)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async enrollLeadInDripSequence(sequenceId: string, leadId: string, reason: string, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+
+    // Check if already enrolled
+    const { data: existingEnrollment } = await supabase
+      .from('whatsapp_drip_enrollments')
+      .select('*')
+      .eq('drip_sequence_id', sequenceId)
+      .eq('lead_id', leadId)
+      .single();
+
+    if (existingEnrollment) {
+      throw new BadRequestException('Lead is already enrolled in this sequence');
+    }
+
+    const enrollmentData = {
+      drip_sequence_id: sequenceId,
+      lead_id: leadId,
+      organization_id: user.organizationId,
+      workspace_id: user.workspaceId,
+      enrollment_reason: reason,
+      next_run_at: new Date(Date.now() + (60 * 60 * 1000)).toISOString(), // Start in 1 hour
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('whatsapp_drip_enrollments')
+      .insert(enrollmentData)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  // === TEMPLATE MANAGEMENT METHODS ===
+
+  async createTemplate(dto: CreateWhatsAppTemplateDto, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+
+    const templateData = {
+      ...dto,
+      organization_id: user.organizationId,
+      workspace_id: user.workspaceId,
+      created_by: user.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('whatsapp_templates')
+      .insert(templateData)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async getTemplates(user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+
+    const { data, error } = await supabase
+      .from('whatsapp_templates')
+      .select('*')
+      .eq('workspace_id', user.workspaceId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  // === AUTOMATION RULE METHODS ===
+
+  async createAutomationRule(dto: CreateWhatsAppAutomationRuleDto, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+
+    const ruleData = {
+      ...dto,
+      organization_id: user.organizationId,
+      workspace_id: user.workspaceId,
+      created_by: user.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('whatsapp_automation_rules')
+      .insert(ruleData)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  async executeAutomationRule(ruleId: string, leadId: string, eventData: any, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    // Get rule details
+    const { data: rule, error: ruleError } = await supabase
+      .from('whatsapp_automation_rules')
+      .select('*')
+      .eq('id', ruleId)
+      .eq('workspace_id', user.workspaceId)
+      .single();
+
+    if (ruleError || !rule) {
+      throw new BadRequestException('Automation rule not found');
+    }
+
+    // Check if rule is active
+    if (!rule.is_active) {
+      throw new BadRequestException('Automation rule is not active');
+    }
+
+    // Create execution record
+    const executionData = {
+      rule_id: ruleId,
+      lead_id: leadId,
+      organization_id: user.organizationId,
+      workspace_id: user.workspaceId,
+      trigger_event: rule.trigger_event,
+      trigger_data: eventData,
+      action_type: rule.action_type,
+      action_config: rule.action_config,
+      status: 'pending',
+      scheduled_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    };
+
+    const { data: execution, error: execError } = await supabase
+      .from('whatsapp_automation_executions')
+      .insert(executionData)
+      .select()
+      .single();
+
+    if (execError) throw new BadRequestException(execError.message);
+
+    // Execute the action
+    try {
+      if (rule.action_type === 'send_message') {
+        await this.sendMessage({
+          to: eventData.phone,
+          message: rule.action_config.message_content,
+          type: 'text',
+        }, user);
+      } else if (rule.action_type === 'send_template') {
+        await this.sendTemplateMessage(
+          eventData.phone,
+          rule.action_config.template_name,
+          rule.action_config.variables || {},
+          user
+        );
+      } else if (rule.action_type === 'enroll_sequence') {
+        await this.enrollLeadInDripSequence(
+          rule.action_config.sequence_id,
+          leadId,
+          'automation_rule',
+          user
+        );
+      }
+
+      // Update execution status
+      await supabase
+        .from('whatsapp_automation_executions')
+        .update({
+          status: 'executed',
+          executed_at: new Date().toISOString(),
+          action_result: { success: true }
+        })
+        .eq('id', execution.id);
+
+    } catch (error) {
+      // Update execution status to failed
+      await supabase
+        .from('whatsapp_automation_executions')
+        .update({
+          status: 'failed',
+          error_message: error.message,
+          executed_at: new Date().toISOString(),
+          action_result: { success: false, error: error.message }
+        })
+        .eq('id', execution.id);
+
+      throw error;
+    }
+
+    return execution;
+  }
+
+  // === ANALYTICS METHODS ===
+
+  async getCampaignAnalytics(campaignId: string, user: any) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    if (!user.workspaceId) {
+      throw new BadRequestException('Workspace ID is required');
+    }
+
+    const { data: campaign, error: campaignError } = await supabase
+      .from('whatsapp_campaigns')
+      .select('*')
+      .eq('id', campaignId)
+      .eq('workspace_id', user.workspaceId)
+      .single();
+
+    if (campaignError || !campaign) {
+      throw new BadRequestException('Campaign not found');
+    }
+
+    // Get recipient stats
+    const { data: recipients, error: recError } = await supabase
+      .from('whatsapp_campaign_recipients')
+      .select('status')
+      .eq('campaign_id', campaignId);
+
+    if (recError) throw new BadRequestException(recError.message);
+
+    const stats = recipients.reduce((acc: any, r: any) => {
+      acc[r.status] = (acc[r.status] || 0) + 1;
+      return acc;
+    }, {});
+
+    const deliveryRate = stats.sent ? Math.round((stats.delivered / stats.sent) * 100) : 0;
+    const readRate = stats.delivered ? Math.round((stats.read / stats.delivered) * 100) : 0;
+    const replyRate = stats.read ? Math.round((stats.replied / stats.read) * 100) : 0;
+
+    return {
+      campaign,
+      stats,
+      deliveryRate,
+      readRate,
+      replyRate,
+      totalRecipients: campaign.total_recipients,
+    };
+  }
+
+  private mapLeadToVariables(lead: any, mapping: any): Record<string, any> {
+    if (!mapping) return { name: lead.name };
+    const variables: Record<string, any> = {};
+    Object.entries(mapping).forEach(([key, field]) => {
+      variables[key] = lead[field as string] || '';
+    });
+    return variables;
   }
 }

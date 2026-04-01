@@ -59,10 +59,10 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-            const res = await axios.get(`${API_URL}/users`, {
+            const res = await axios.get(`${API_URL}/users/team`, {
                 headers: { Authorization: `Bearer ${session.access_token}` }
             });
-            const data = res.data.data?.data || res.data.data || res.data || [];
+            const data = res.data || [];
             const validUsers = (Array.isArray(data) ? data : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
             setUsers(validUsers);
             // Set default assignee to current user

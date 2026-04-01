@@ -37,8 +37,8 @@ export default function JoinOrganization() {
 
     const handleJoin = async () => {
         if (!isAuthenticated) {
-            // Redirect to signup with invite token
-            navigate(`/signup?invite=${token}&email=${encodeURIComponent(invitation?.email || '')}`);
+            // Redirect to login with invite token instead of signup
+            navigate(`/login?invite=${token}&email=${encodeURIComponent(invitation?.email || '')}`);
             return;
         }
 
@@ -138,16 +138,13 @@ export default function JoinOrganization() {
                             <div>
                                 <button
                                     onClick={handleJoin}
-                                    className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mb-4"
+                                    className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                 >
                                     Login to Accept <ArrowRight className="w-4 h-4" />
                                 </button>
-                                <button
-                                    onClick={() => navigate(`/signup?invite=${token}&email=${encodeURIComponent(invitation?.email || '')}`)}
-                                    className="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                                >
-                                    Create New Account
-                                </button>
+                                <p className="mt-4 text-xs text-gray-500 text-center">
+                                    Note: Invite links are for existing team members only. If you don't have an account, please contact your administrator.
+                                </p>
                             </div>
                         )}
                     </div>

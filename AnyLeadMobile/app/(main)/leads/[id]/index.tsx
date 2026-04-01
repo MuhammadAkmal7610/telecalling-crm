@@ -9,6 +9,25 @@ import { Lead, Activity } from '@/src/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import CommunicationService from '@/src/services/CommunicationService';
 
+const getActivityConfig = (type: string) => {
+  switch (type) {
+    case 'call':
+      return { icon: 'call', color: '#3B82F6', label: 'Call' };
+    case 'email':
+      return { icon: 'mail', color: '#8B5CF6', label: 'Email' };
+    case 'whatsapp':
+      return { icon: 'logo-whatsapp', color: '#10B981', label: 'WhatsApp' };
+    case 'note':
+      return { icon: 'document-text', color: '#F59E0B', label: 'Note' };
+    case 'meeting':
+      return { icon: 'calendar', color: '#EC4899', label: 'Meeting' };
+    case 'task':
+      return { icon: 'checkbox', color: '#10B981', label: 'Task' };
+    default:
+      return { icon: 'ellipse', color: '#6B7280', label: 'Activity' };
+  }
+};
+
 export default function LeadDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -192,45 +211,106 @@ export default function LeadDetailsScreen() {
         </Card>
       </View>
 
-      {/* Recent Activities */}
+      {/* Real-time Lead History Timeline */}
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>Recent Activity</Text>
+          <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>Lead History Timeline</Text>
           <TouchableOpacity onPress={() => logCommunication('note')}>
-            <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.satoshi.bold }}>Add Note</Text>
+            <Text style={{ color: colors.primary, fontSize: 13, fontFamily: fonts.satoshi.bold }}>+ Add Note</Text>
           </TouchableOpacity>
         </View>
-        <Card>
-          {activities.length > 0 ? (
-            activities.map((activity, index) => (
-              <View 
-                key={activity.id} 
-                style={[
-                  styles.activityItem, 
-                  index === activities.length - 1 && { borderBottomWidth: 0 }
-                ]}
-              >
-                <View style={[styles.activityIconBox, { backgroundColor: isDark ? colors.darkBorder : '#F1F5F9' }]}>
-                  <Ionicons 
-                    name={activity.type === 'call' ? 'call' : activity.type === 'whatsapp' ? 'logo-whatsapp' : activity.type === 'email' ? 'mail' : 'document-text'} 
-                    size={14} 
-                    color={colors.primary} 
-                  />
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={[styles.activityDesc, { color: isDark ? colors.surface : colors.onBackground }]}>
-                    {activity.details}
-                  </Text>
-                  <Text style={[styles.activityTime, { color: isDark ? colors.darkMuted : colors.muted }]}>
-                    {new Date(activity.created_at).toLocaleString()}
-                  </Text>
-                </View>
+        
+        <View style={styles.timelineContainer}>
+          {/* Lead Created Event */}
+          <View style={styles.timelineItem}>
+            <View style={[styles.timelineDot, { backgroundColor: '#10B981' }]}>
+              <Ionicons name="person-add" size={14} color="#FFFFFF" />
+            </View>
+            <View style={styles.timelineContent}>
+              <View style={styles.timelineHeader}>
+                <Text style={[styles.timelineTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+                  Lead Created
+                </Text>
+                <Text style={[styles.timelineTime, { color: isDark ? colors.darkMuted : colors.muted }]}>
+                  {new Date(lead.created_at).toLocaleString()}
+                </Text>
               </View>
-            ))
+              <Text style={[styles.timelineDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                Lead was created from {lead.source}
+              </Text>
+            </View>
+          </View>
+
+          {/* Timeline line connecting events */}
+          <View style={styles.timelineLine} />
+
+          {/* Activities */}
+          {activities.length > 0 ? (
+            activities
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+              .map((activity, index) => {
+                const activityConfig = getActivityConfig(activity.type);
+                return (
+                  <View key={activity.id} style={styles.timelineItem}>
+                    <View style={[styles.timelineDot, { backgroundColor: activityConfig.color }]}>
+                      <Ionicons name={activityConfig.icon as any} size={14} color="#FFFFFF" />
+                    </View>
+                    <View style={styles.timelineContent}>
+                      <View style={styles.timelineHeader}>
+                        <Text style={[styles.timelineTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+                          {activityConfig.label}
+                        </Text>
+                        <Text style={[styles.timelineTime, { color: isDark ? colors.darkMuted : colors.muted }]}>
+                          {new Date(activity.created_at).toLocaleString()}
+                        </Text>
+                      </View>
+                      <Text style={[styles.timelineDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                        {activity.details}
+                      </Text>
+                      {activity.type === 'call' && (
+                        <TouchableOpacity style={styles.playRecordingButton}>
+                          <Ionicons name="play-circle-outline" size={16} color={colors.primary} />
+                          <Text style={[styles.playRecordingText, { color: colors.primary }]}>
+                            Play Recording
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
           ) : (
-            <Text style={styles.noData}>No recent activity</Text>
+            <View style={styles.timelineItem}>
+              <View style={[styles.timelineDot, { backgroundColor: '#6B7280' }]}>
+                <Ionicons name="time-outline" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.timelineContent}>
+                <Text style={[styles.timelineDescription, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
+                  No activity recorded yet
+                </Text>
+              </View>
+            </View>
           )}
-        </Card>
+
+          {/* Lead Status Change (if applicable) */}
+          {lead.status && (
+            <View style={styles.timelineItem}>
+              <View style={[styles.timelineDot, { backgroundColor: '#8B5CF6' }]}>
+                <Ionicons name="flag" size={14} color="#FFFFFF" />
+              </View>
+              <View style={styles.timelineContent}>
+                <View style={styles.timelineHeader}>
+                  <Text style={[styles.timelineTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+                    Status Updated
+                  </Text>
+                </View>
+                <Text style={[styles.timelineDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  Current status: <Text style={{ color: colors.primary, fontFamily: fonts.satoshi.bold }}>{lead.status}</Text>
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
       </View>
 
       <View style={{ height: 40 }} />
@@ -359,6 +439,66 @@ const styles = StyleSheet.create({
     padding: 24,
     textAlign: 'center',
     color: '#9CA3AF',
+    fontFamily: fonts.satoshi.medium,
+  },
+  // Timeline styles
+  timelineContainer: {
+    paddingLeft: 20,
+    paddingBottom: 8,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    position: 'relative',
+  },
+  timelineDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    flexShrink: 0,
+  },
+  timelineContent: {
+    flex: 1,
+    paddingBottom: 8,
+  },
+  timelineHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  timelineTitle: {
+    fontSize: 15,
+    fontFamily: fonts.nohemi.semiBold,
+  },
+  timelineTime: {
+    fontSize: 11,
+    fontFamily: fonts.satoshi.regular,
+  },
+  timelineDescription: {
+    fontSize: 13,
+    fontFamily: fonts.satoshi.regular,
+    lineHeight: 18,
+  },
+  timelineLine: {
+    position: 'absolute',
+    left: 33,
+    top: 28,
+    bottom: 0,
+    width: 2,
+    backgroundColor: '#E5E7EB',
+  },
+  playRecordingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 4,
+  },
+  playRecordingText: {
+    fontSize: 12,
     fontFamily: fonts.satoshi.medium,
   },
 });

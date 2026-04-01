@@ -34,12 +34,12 @@ export default function TaskModal({ isOpen, onClose, onSuccess, leadId = null, l
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
 
-            const res = await fetch(`${API_URL}/users`, {
+            const res = await fetch(`${API_URL}/users/team`, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
             if (res.ok) {
                 const result = await res.json();
-                const userList = result.data?.data || result.data || [];
+                const userList = result || [];
                 const validUsers = (Array.isArray(userList) ? userList : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
                 setUsers(validUsers);
 

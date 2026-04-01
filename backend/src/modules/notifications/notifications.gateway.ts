@@ -50,6 +50,13 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
         client.join(`org_${orgId}`);
       }
 
+      // Join device room if deviceId is provided (for mobile devices)
+      const deviceId = client.handshake.query.deviceId as string;
+      if (deviceId) {
+        client.join(`device_${deviceId}`);
+        console.log(`Device ${deviceId} connected with socket ${client.id}`);
+      }
+      
       // Store connection
       this.connectedUsers.set(client.id, userId);
       
@@ -96,6 +103,11 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
   sendTaskUpdateToOrganization(organizationId: string, taskData: any) {
     this.server.to(`org_${organizationId}`).emit('task_update', taskData);
+  }
+
+  // Send call request to specific device
+  sendCallRequestToDevice(deviceId: string, callData: any) {
+    this.server.to(`device_${deviceId}`).emit('call_request', callData);
   }
 
   @SubscribeMessage('join_room')

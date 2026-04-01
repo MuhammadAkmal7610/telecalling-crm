@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, useColorScheme, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Card, Button, Input } from '../../../src/components/common/Card';
 import { colors, fonts, spacing } from '../../../src/theme/theme';
 import { ApiService } from '../../../src/services/ApiService';
@@ -24,6 +24,7 @@ const LEAD_SOURCES = ['Facebook', 'Website', 'WhatsApp', 'Referral', 'Manual', '
 
 export default function CreateLeadScreen() {
   const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const { user } = useAuth();
   const { showSuccess, showError, showValidation } = usePopupMessages();
   const isDark = useColorScheme() === 'dark';
@@ -108,7 +109,12 @@ export default function CreateLeadScreen() {
       }
 
       showSuccess('Lead created successfully');
-      router.back();
+      // Navigate back to the page the user came from, or default to leads list
+      if (returnTo) {
+        router.push(`/${returnTo}` as any);
+      } else {
+        router.back();
+      }
     } catch (error: any) {
       console.error('Error creating lead:', error);
       showError(error.message || 'Failed to create lead. Please try again.');

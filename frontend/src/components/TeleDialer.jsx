@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { useApi } from '../hooks/useApi';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useSocket } from '../contexts/SocketContext';
+import { useAuth } from '../context/AuthContext';
 import {
     PhoneIcon,
     PhoneXMarkIcon,
@@ -16,14 +17,16 @@ import {
     ArrowPathIcon,
     CheckCircleIcon,
     XCircleIcon,
-    ExclamationTriangleIcon
+    ExclamationTriangleIcon,
+    DevicePhoneMobileIcon
 } from '@heroicons/react/24/outline';
 
 const TeleDialer = () => {
     const { apiFetch } = useApi();
     const { currentWorkspace } = useWorkspace();
     const { socketService, isConnected } = useSocket();
-    const [dialerState, setDialerState] = useState('idle'); // idle, dialing, connected, ended
+    const { user } = useAuth();
+    const [dialerState, setDialerState] = useState('idle');
     const [currentLead, setCurrentLead] = useState(null);
     const [callDuration, setCallDuration] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
@@ -34,7 +37,10 @@ const TeleDialer = () => {
     const [nextLead, setNextLead] = useState(null);
     const [callHistory, setCallHistory] = useState([]);
     const [feedbackStatuses, setFeedbackStatuses] = useState([]);
+    const [callMode, setCallMode] = useState(() => localStorage.getItem('call_mode') || 'mobile');
+    const [deviceStatus, setDeviceStatus] = useState(null);
     const intervalRef = useRef(null);
+    const [autoNextCountdown, setAutoNextCountdown] = useState(null);
 
     useEffect(() => {
         if (dialerState === 'connected') {
@@ -55,10 +61,24 @@ const TeleDialer = () => {
     }, [dialerState]);
 
     useEffect(() => {
-        // Fetch next lead and feedback statuses when component mounts
         fetchNextLead();
         fetchFeedbackStatuses();
+        checkDeviceStatus();
     }, []);
+
+    const checkDeviceStatus = async () => {
+        try {
+            const response = await apiFetch('/devices/me');
+            const data = await response.json();
+            if (response.ok && data) {
+                setDeviceStatus({ connected: true, deviceName: data.device_name });
+            } else {
+                setDeviceStatus({ connected: false, deviceName: null });
+            }
+        } catch (error) {
+            setDeviceStatus({ connected: false, deviceName: null });
+        }
+    };
 
     const fetchFeedbackStatuses = async () => {
         try {
@@ -96,9 +116,57 @@ const TeleDialer = () => {
         }
     };
 
-    const initiateCall = async (lead) => {
+    const initiateCallToMobile = async (lead) => {
         if (!lead) return;
 
+        try {
+            const res = await apiFetch(`/devices/call-request?userId=${user.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    leadId: lead.id,
+                    leadName: lead.name,
+                    leadPhone: lead.phone,
+                    workspaceId: currentWorkspace?.workspaceId,
+                    organizationId: currentWorkspace?.organizationId
+                })
+            });
+
+            const result = await res.json();
+            if (res.ok && result.success) {
+                setDialerState('dialing');
+                setCurrentLead(lead);
+                setCallDuration(0);
+                setCallNotes('');
+                setCallStatus('');
+                toast.success('Call request sent to your mobile device!');
+                
+                const callRes = await apiFetch('/telephony/calls', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lead_id: lead.id,
+                        agent_id: user.id,
+                        status: 'initiated',
+                        direction: 'outbound',
+                        workspace_id: currentWorkspace?.workspaceId,
+                        organization_id: currentWorkspace?.organizationId
+                    })
+                });
+                const callData = await callRes.json();
+                if (callRes.ok) {
+                    setCurrentLead(prev => ({ ...prev, callId: callData.id }));
+                }
+            } else {
+                toast.error(result.message || 'No mobile device connected. Please open the mobile app.');
+            }
+        } catch (error) {
+            console.error('Error sending call request:', error);
+            toast.error('Failed to send call request');
+        }
+    };
+
+    const initiateCallLocal = async (lead) => {
         setCurrentLead(lead);
         setDialerState('dialing');
         setCallDuration(0);
@@ -106,31 +174,28 @@ const TeleDialer = () => {
         setCallStatus('');
 
         try {
-            // Trigger actual call via protocol
             window.location.href = `tel:${lead.phone}`;
 
-            // Log call initiation to backend
             const res = await apiFetch('/telephony/calls', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     lead_id: lead.id,
+                    agent_id: user.id,
                     status: 'initiated',
+                    direction: 'outbound',
                     workspace_id: currentWorkspace?.workspaceId,
                     organization_id: currentWorkspace?.organizationId
                 })
             });
             const callData = await res.json();
             if (res.ok) {
-                // Store the call record ID for updates
                 setCurrentLead(prev => ({ ...prev, callId: callData.id }));
             }
 
-            // Simulate "Connected" since tel: doesn't give feedback 
-            // In a real SIP integration, this would come from an event
             setTimeout(() => {
                 setDialerState('connected');
-                setIsRecording(false); // Only simulated recording
+                setIsRecording(false);
             }, 3000);
 
         } catch (error) {
@@ -139,7 +204,15 @@ const TeleDialer = () => {
         }
     };
 
-    const [autoNextCountdown, setAutoNextCountdown] = useState(null);
+    const initiateCall = async (lead) => {
+        if (!lead) return;
+
+        if (callMode === 'mobile' && deviceStatus?.connected) {
+            await initiateCallToMobile(lead);
+        } else {
+            await initiateCallLocal(lead);
+        }
+    };
 
     const endCall = async () => {
         if (!currentLead || !currentLead.callId) return;
@@ -148,7 +221,6 @@ const TeleDialer = () => {
         setIsRecording(false);
 
         try {
-            // Update call record
             await apiFetch(`/telephony/calls/${currentLead.callId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -160,7 +232,6 @@ const TeleDialer = () => {
                 })
             });
 
-            // Add to local call history for UI
             setCallHistory(prev => [{
                 lead: currentLead,
                 duration: callDuration,
@@ -169,7 +240,6 @@ const TeleDialer = () => {
                 timestamp: new Date()
             }, ...prev]);
 
-            // Reset and prepare for next call
             const progressiveEnabled = localStorage.getItem('progressive_dialer') === 'true';
             const wrapupTime = parseInt(localStorage.getItem('wrapup_time')) || 10;
 
@@ -210,15 +280,13 @@ const TeleDialer = () => {
 
     const toggleMute = () => {
         setIsMuted(!isMuted);
-        // Implement actual mute functionality
     };
 
     const toggleSpeaker = () => {
         setIsSpeakerOn(!isSpeakerOn);
-        // Implement actual speaker functionality
     };
 
-    const CallStatusButton = ({ status, label, color, onClick }) => (
+    const CallStatusButton = ({ status, label, color }) => (
         <button
             onClick={() => setCallStatus(status)}
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${callStatus === status
@@ -232,9 +300,29 @@ const TeleDialer = () => {
 
     return (
         <div className="max-w-4xl mx-auto p-6 space-y-6">
-            {/* Header */}
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-gray-900">TeleDialer</h1>
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">TeleDialer</h1>
+                    <div className="flex items-center gap-2 mt-1">
+                        <span className="text-sm text-gray-500">Call Mode:</span>
+                        <div className="flex items-center gap-1">
+                            <DevicePhoneMobileIcon className="w-4 h-4 text-gray-500" />
+                            <span className={`text-sm ${callMode === 'mobile' ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                                Mobile Bridge
+                            </span>
+                            <span className="text-gray-300">|</span>
+                            <PhoneIcon className="w-4 h-4 text-gray-500" />
+                            <span className={`text-sm ${callMode === 'local' ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+                                Local Dialer
+                            </span>
+                        </div>
+                        {callMode === 'mobile' && deviceStatus && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${deviceStatus.connected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {deviceStatus.connected ? `✓ ${deviceStatus.deviceName}` : 'No device connected'}
+                            </span>
+                        )}
+                    </div>
+                </div>
                 <div className="flex items-center gap-3">
                     {isConnected && (
                         <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">Connected</span>
@@ -250,9 +338,7 @@ const TeleDialer = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Dialer */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Current Call */}
                     {currentLead ? (
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                             <div className="text-center mb-6">
@@ -266,7 +352,6 @@ const TeleDialer = () => {
                                 )}
                             </div>
 
-                            {/* Call Status */}
                             <div className="text-center mb-6">
                                 <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${dialerState === 'dialing' ? 'bg-yellow-100 text-yellow-700' :
                                     dialerState === 'connected' ? 'bg-green-100 text-green-700' :
@@ -288,7 +373,6 @@ const TeleDialer = () => {
                                 )}
                             </div>
 
-                            {/* Call Controls */}
                             <div className="flex justify-center gap-4 mb-6">
                                 {dialerState === 'idle' && (
                                     <button
@@ -334,7 +418,6 @@ const TeleDialer = () => {
                                 )}
                             </div>
 
-                            {/* Call Status Options */}
                             {dialerState === 'connected' && (
                                 <div className="space-y-4">
                                     <div>
@@ -374,7 +457,6 @@ const TeleDialer = () => {
                             )}
                         </div>
                     ) : (
-                        /* No Active Call */
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
                             <PhoneIcon className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                             <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Call</h3>
@@ -408,7 +490,6 @@ const TeleDialer = () => {
                         </div>
                     )}
 
-                    {/* Next Lead Preview */}
                     {nextLead && !currentLead && (
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Next Lead</h3>
@@ -433,7 +514,6 @@ const TeleDialer = () => {
                     )}
                 </div>
 
-                {/* Call History */}
                 <div className="space-y-6">
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Calls</h3>
@@ -469,7 +549,6 @@ const TeleDialer = () => {
                         </div>
                     </div>
 
-                    {/* Quick Stats */}
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Today's Stats</h3>
                         <div className="space-y-3">

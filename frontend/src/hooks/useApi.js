@@ -5,6 +5,7 @@
  * Falls back to localStorage('crm_workspace_id') if the context hasn't
  * loaded currentWorkspace yet (race condition on first render).
  */
+import { useCallback } from 'react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { supabase } from '../lib/supabaseClient';
 
@@ -19,7 +20,7 @@ export function useApi() {
      * @param {string} path  - e.g. '/leads' or '/leads?page=1'
      * @param {RequestInit} options - standard fetch options (method, body, etc.)
      */
-    const apiFetch = async (path, options = {}) => {
+    const apiFetch = useCallback(async (path, options = {}) => {
         const { data: { session } } = await supabase.auth.getSession();
 
         // Use context workspace if loaded, otherwise fall back to localStorage
@@ -41,7 +42,7 @@ export function useApi() {
             ...options,
             headers,
         });
-    };
+    }, [currentWorkspace]);
 
     return { apiFetch };
 }

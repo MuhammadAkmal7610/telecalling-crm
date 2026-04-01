@@ -285,6 +285,23 @@ export class UsersService {
         return data?.settings || next;
     }
 
+    /**
+     * Get team members for assignment purposes (accessible to all authenticated users)
+     * Returns limited info: id, name, email, role, initials, phone
+     */
+    async findTeam(organizationId: string) {
+        const supabase = this.supabaseService.getAdminClient();
+        const { data, error } = await supabase
+            .from(this.TABLE)
+            .select('id, name, email, role, initials, phone, status')
+            .eq('organization_id', organizationId)
+            .eq('status', 'Working')
+            .order('name', { ascending: true });
+
+        if (error) throw new BadRequestException(error.message);
+        return data || [];
+    }
+
     async getUserActivity(userId: string, organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
         const { data, error } = await supabase

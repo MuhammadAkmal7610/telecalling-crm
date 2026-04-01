@@ -25,10 +25,10 @@ export default function BulkAssignModal({ isOpen, onClose, selectedLeadIds, onSu
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-            const res = await axios.get(`${API_URL}/users`, {
+            const res = await axios.get(`${API_URL}/users/team`, {
                 headers: { Authorization: `Bearer ${session.access_token}` }
             });
-            const userData = res.data.data?.data || res.data.data || res.data || [];
+            const userData = res.data || [];
             const validUsers = (Array.isArray(userData) ? userData : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
             setUsers(validUsers);
         } catch (error) {

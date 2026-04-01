@@ -600,7 +600,7 @@ export class CommunicationService {
     }
   }
 
-  setupDialerSocket(userId: string, token: string): void {
+  setupDialerSocket(userId: string, token: string, deviceId?: string): void {
     if (this.socket && this.currentUserId === userId) return;
     
     this.currentUserId = userId;
@@ -616,17 +616,22 @@ export class CommunicationService {
     const socketUrl = apiBaseUrl.replace('/api/v1', '');
     
     try {
-      console.log(`Connecting to Dialer WebSocket: ${socketUrl}/dialer`);
-      this.socket = io(`${socketUrl}/dialer`, {
-        query: { userId, token },
-        transports: ['polling', 'websocket'], // Allow polling fallback
+      console.log(`Connecting to Dialer WebSocket: ${socketUrl}`);
+      this.socket = io(socketUrl, {
+        query: { userId, token, deviceId },
+        auth: { token },
+        transports: ['polling', 'websocket'],
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 2000,
       });
 
       this.socket.on('connect', () => {
-        console.log('Connected to Dialer WebSocket');
+        console.log('Connected to WebSocket');
+        // Register device after connection
+        if (deviceId) {
+          this.registerDevice(userId, deviceId).catch(console.error);
+        }
       });
 
       this.socket.on('new_lead_to_call', async (data: { leadId: string, leadName: string, leadPhone: string }) => {
@@ -635,16 +640,80 @@ export class CommunicationService {
         await this.triggerNativeDialer(data.leadPhone);
       });
 
+      // Listen for call requests from web dashboard
+      this.socket.on('call_request', async (data: {
+        action: string;
+        leadId: string;
+        leadName: string;
+        leadPhone: string;
+        workspaceId: string;
+        organizationId: string;
+        timestamp: string;
+      }) => {
+        console.log('Received call request from web:', data);
+        // Trigger native dialer with the lead's phone number
+        await this.triggerNativeDialer(data.leadPhone);
+        
+        // Store call context for post-call feedback
+        this.currentCallContext = {
+          leadId: data.leadId,
+          leadName: data.leadName,
+          workspaceId: data.workspaceId,
+          organizationId: data.organizationId,
+          startTime: new Date().toISOString()
+        };
+      });
+
       this.socket.on('disconnect', () => {
-        console.log('Disconnected from Dialer WebSocket');
+        console.log('Disconnected from WebSocket');
       });
 
       this.socket.on('connect_error', (error) => {
-        console.error('Dialer WebSocket connection error:', error);
+        console.error('WebSocket connection error:', error);
       });
     } catch (error) {
-      console.error('Failed to setup Dialer WebSocket:', error);
+      console.error('Failed to setup WebSocket:', error);
     }
+  }
+
+  private currentCallContext: {
+    leadId: string;
+    leadName: string;
+    workspaceId: string;
+    organizationId: string;
+    startTime: string;
+  } | null = null;
+
+  async registerDevice(userId: string, deviceId: string): Promise<void> {
+    try {
+      const response = await ApiService.post('/devices/register', {
+        device_token: deviceId,
+        device_type: Platform.OS as 'ios' | 'android',
+        device_name: `${Platform.OS} Device`,
+        push_token: await this.getPushToken(),
+      });
+      console.log('Device registered:', response.data);
+    } catch (error) {
+      console.error('Failed to register device:', error);
+    }
+  }
+
+  private async getPushToken(): Promise<string | null> {
+    try {
+      // Try to get Expo push token (requires expo-notifications)
+      // For now, return null - can be implemented later
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  getCurrentCallContext() {
+    return this.currentCallContext;
+  }
+
+  clearCallContext() {
+    this.currentCallContext = null;
   }
 
   async reportCallResult(data: {

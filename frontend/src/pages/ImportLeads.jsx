@@ -77,13 +77,13 @@ export default function ImportLeads() {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-            const res = await axios.get(`${API_URL}/users`, {
+            const res = await axios.get(`${API_URL}/users/team`, {
                 headers: { 
                     Authorization: `Bearer ${session.access_token}`,
                     ...(currentWorkspace?.id ? { 'x-workspace-id': currentWorkspace.id } : {})
                 }
             });
-            const rawData = res.data.data?.data || res.data.data || res.data || [];
+            const rawData = res.data || [];
             const userData = Array.isArray(rawData) ? rawData : [];
             const validUsers = userData.filter(u => u.role !== 'root' && u.role !== 'billing_admin');
             setUsers(validUsers);

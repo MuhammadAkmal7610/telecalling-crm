@@ -4,17 +4,17 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { useWorkspace } from '../context/WorkspaceContext';
 import {
-    Bars3Icon, BellIcon, PhoneIcon, ChevronDownIcon, MagnifyingGlassIcon,
-    BuildingOfficeIcon, Cog8ToothIcon, ListBulletIcon, FunnelIcon,
-    AdjustmentsHorizontalIcon, UsersIcon, ShieldCheckIcon, CreditCardIcon,
-    DocumentTextIcon, UserCircleIcon, ChatBubbleLeftEllipsisIcon, NoSymbolIcon, PowerIcon, CogIcon, ArrowRightOnRectangleIcon
+    Bars3Icon, BellIcon, PhoneIcon, MagnifyingGlassIcon,
+    Cog8ToothIcon, UsersIcon, CreditCardIcon,
+    DocumentTextIcon, UserCircleIcon, ChatBubbleLeftEllipsisIcon, NoSymbolIcon, CogIcon, ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../assets/Logo.png';
 import GlobalSearch from './GlobalSearch';
+import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 export default function Header({ setIsSidebarOpen }) {
     const { user, signOut } = useAuth();
-    const { workspaces, currentWorkspace, switchWorkspace } = useWorkspace();
+    const { toggleWorkspaceSwitcher } = useWorkspace();
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -22,14 +22,20 @@ export default function Header({ setIsSidebarOpen }) {
 
     useEffect(() => {
         const handleKeyDown = (e) => {
+            // Ctrl+K for global search
             if (e.ctrlKey && e.key === 'k') {
                 e.preventDefault();
                 setIsSearchOpen(true);
             }
+            // Ctrl+Shift+W for workspace switcher
+            if (e.ctrlKey && e.shiftKey && e.key === 'W') {
+                e.preventDefault();
+                toggleWorkspaceSwitcher();
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    }, [toggleWorkspaceSwitcher]);
 
     useEffect(() => {
         const fetchNotifications = async () => {
@@ -122,92 +128,8 @@ export default function Header({ setIsSidebarOpen }) {
             <GlobalSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
 
             <div className="flex items-center gap-4">
-                {/* Workspace Switcher & Settings Dropdown */}
-                <div className="relative group">
-                    <button className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all focus:ring-2 focus:ring-[#08A698]/20 focus:border-[#08A698]">
-                        <BuildingOfficeIcon className="h-4 w-4 text-[#08A698]" />
-                        <span className="max-w-[120px] truncate">{currentWorkspace ? currentWorkspace.name : 'Loading Workspace...'}</span>
-                        <ChevronDownIcon className="h-4 w-4 text-gray-400" />
-                    </button>
-
-                    {/* Dropdown Menu */}
-                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible z-50 overflow-hidden ring-1 ring-black/5 transition-all duration-200 ease-in-out delay-200 group-hover:delay-75">
-
-                        {/* Section: MY WORKSPACES */}
-                        <div className="bg-gray-50/50 px-4 py-2 border-b border-gray-100">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">My Workspaces</span>
-                        </div>
-                        <div className="max-h-32 overflow-y-auto p-1">
-                            {workspaces.map((ws) => (
-                                <button
-                                    key={ws.id}
-                                    onClick={() => switchWorkspace(ws.id)}
-                                    className={`w-full text-left flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors ${currentWorkspace?.id === ws.id ? 'bg-[#08A698]/10 text-[#08A698] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-                                >
-                                    <div className={`w-2 h-2 rounded-full ${currentWorkspace?.id === ws.id ? 'bg-[#08A698]' : 'bg-gray-300'}`}></div>
-                                    <span className="truncate">{ws.name}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Section: MAIN SETTINGS */}
-                        <div className="bg-gray-50/50 px-4 py-2 border-b border-gray-100">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Workspace</span>
-                        </div>
-                        <div className="p-2 space-y-0.5">
-                            <Link to="/manage-workspaces" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#08A698]/10 hover:text-[#08A698] rounded-lg transition-colors">
-                                <Cog8ToothIcon className="h-4 w-4 text-gray-400" />
-                                Manage Workspace
-                            </Link>
-                            <Link to="/lead-fields" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#08A698]/10 hover:text-[#08A698] rounded-lg transition-colors">
-                                <ListBulletIcon className="h-4 w-4 text-gray-400" />
-                                Lead Fields
-                            </Link>
-                            <Link to="/lead-stage-configure" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#08A698]/10 hover:text-[#08A698] rounded-lg transition-colors">
-                                <FunnelIcon className="h-4 w-4 text-gray-400" />
-                                Lead Stage
-                            </Link>
-                            <Link to="/call-feedback" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#08A698]/10 hover:text-[#08A698] rounded-lg transition-colors">
-                                <PhoneIcon className="h-4 w-4 text-gray-400" />
-                                Call Feedback
-                            </Link>
-                            <Link to="/enterprise-preferences" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#08A698]/10 hover:text-[#08A698] rounded-lg transition-colors">
-                                <AdjustmentsHorizontalIcon className="h-4 w-4 text-gray-400" />
-                                Preferences
-                            </Link>
-                        </div>
-
-                        {/* Section: TEAM */}
-                        <div className="bg-gray-50/50 px-4 py-2 border-y border-gray-100">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Team</span>
-                        </div>
-                        <div className="p-2 space-y-0.5">
-                            <Link to="/users" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#08A698]/10 hover:text-[#08A698] rounded-lg transition-colors">
-                                <UsersIcon className="h-4 w-4 text-gray-400" />
-                                Users
-                            </Link>
-                            <Link to="/permission-templates" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#08A698]/10 hover:text-[#08A698] rounded-lg transition-colors">
-                                <ShieldCheckIcon className="h-4 w-4 text-gray-400" />
-                                Permission Templates
-                            </Link>
-                        </div>
-
-                        {/* Section: BILLING */}
-                        <div className="bg-gray-50/50 px-4 py-2 border-y border-gray-100">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Billing</span>
-                        </div>
-                        <div className="p-2 space-y-0.5">
-                            <Link to="/billing" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#08A698]/10 hover:text-[#08A698] rounded-lg transition-colors">
-                                <CreditCardIcon className="h-4 w-4 text-gray-400" />
-                                Buy Licenses
-                            </Link>
-                            <Link to="/transaction-history" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-[#08A698]/10 hover:text-[#08A698] rounded-lg transition-colors">
-                                <DocumentTextIcon className="h-4 w-4 text-gray-400" />
-                                Transaction History
-                            </Link>
-                        </div>
-                    </div>
-                </div>
+                {/* Workspace Switcher - New Component */}
+                <WorkspaceSwitcher />
 
                 <div className="h-6 w-px bg-gray-200 mx-2 hidden md:block"></div>
 
@@ -229,7 +151,9 @@ export default function Header({ setIsSidebarOpen }) {
                         <button className="relative p-2 bg-gray-50 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all border border-transparent hover:border-gray-200">
                             <BellIcon className="h-6 w-6" />
                             {unreadCount > 0 && (
-                                <span className="absolute top-2.5 right-2.5 h-1.5 w-1.5 bg-[#08A698] rounded-full ring-1 ring-white"></span>
+                                <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#08A698] px-1 text-[10px] font-bold text-white ring-2 ring-white">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
                             )}
                         </button>
 

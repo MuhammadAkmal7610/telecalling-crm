@@ -42,7 +42,8 @@ export default function UserInvitations() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   const [invitations, setInvitations] = useState([]);
-  const [inviteLinks, setInviteLinks] = useState([]); // Placeholder for link-based invites if needed later
+  const [inviteLinks, setInviteLinks] = useState([]);
+  const [inviteLinksLoading, setInviteLinksLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -52,6 +53,62 @@ export default function UserInvitations() {
     role: 'caller',
     workspaceId: currentWorkspace?.id || '',
   });
+
+  // Settings state
+  const [settings, setSettings] = useState({
+    defaultExpiryDays: 7,
+    autoReminders: true,
+    requireApproval: false,
+    defaultRole: 'caller',
+    maxUsesPerLink: 10,
+  });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+
+  const fetchSettings = async () => {
+    setSettingsLoading(true);
+    try {
+      const res = await apiFetch('/invitations/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setSettings({
+          defaultExpiryDays: data.defaultExpiryDays || 7,
+          autoReminders: data.autoReminders ?? true,
+          requireApproval: data.requireApproval ?? false,
+          defaultRole: data.defaultRole || 'caller',
+          maxUsesPerLink: data.maxUsesPerLink || 10,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const saveSettings = async () => {
+    try {
+      const res = await apiFetch('/invitations/settings', {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        toast.success('Settings saved successfully!');
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.message || 'Failed to save settings');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error('Failed to save settings');
+    }
+  };
+
+  // Load settings when settings tab is active
+  useEffect(() => {
+    if (activeTab === 'settings') {
+      fetchSettings();
+    }
+  }, [activeTab]);
 
   const fetchInvitations = async () => {
     setLoading(true);
@@ -67,8 +124,38 @@ export default function UserInvitations() {
     }
   };
 
+  const fetchInviteLinks = async () => {
+    setInviteLinksLoading(true);
+    try {
+      const res = await apiFetch('/invitations/links');
+      if (res.ok) {
+        const data = await res.json();
+        // Handle both direct array response and wrapped response (e.g., { data: [...] } or { links: [...] })
+        let links = [];
+        if (Array.isArray(data)) {
+          links = data;
+        } else if (data && typeof data === 'object') {
+          // Check for common wrapped response patterns
+          if (Array.isArray(data.data)) {
+            links = data.data;
+          } else if (Array.isArray(data.links)) {
+            links = data.links;
+          } else if (Array.isArray(data.inviteLinks)) {
+            links = data.inviteLinks;
+          }
+        }
+        setInviteLinks(links);
+      }
+    } catch (error) {
+      console.error('Error fetching invite links:', error);
+    } finally {
+      setInviteLinksLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchInvitations();
+    fetchInviteLinks();
   }, []);
 
   const handleSendInvitation = async () => {
@@ -154,8 +241,73 @@ export default function UserInvitations() {
     { value: 'viewer', label: 'Viewer', description: 'View-only access' }
   ];
 
-  const handleCreateInviteLink = () => {
-    toast.error('Invite links are coming soon!');
+  const handleCreateInviteLink = async () => {
+    try {
+      const res = await apiFetch('/invitations/links', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: linkForm.name || 'Team Invitation',
+          role: linkForm.role,
+          maxUses: linkForm.maxUses || null,
+          expiresAt: linkForm.expiresAt || null,
+        }),
+      });
+      if (res.ok) {
+        toast.success('Invite link created successfully!');
+        setShowLinkModal(false);
+        fetchInviteLinks();
+        setLinkForm({
+          name: '',
+          role: 'caller',
+          workspaceId: currentWorkspace?.id || '',
+          maxUses: 10,
+          expiresAt: '',
+        });
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.message || 'Failed to create invite link');
+      }
+    } catch (error) {
+      console.error('Error creating invite link:', error);
+      toast.error('Failed to create invite link');
+    }
+  };
+
+  const deleteLink = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this invite link?')) return;
+    try {
+      const res = await apiFetch(`/invitations/links/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast.success('Invite link deleted');
+        fetchInviteLinks();
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.message || 'Failed to delete invite link');
+      }
+    } catch (error) {
+      console.error('Error deleting invite link:', error);
+      toast.error('Failed to delete invite link');
+    }
+  };
+
+  const toggleLinkActive = async (id) => {
+    try {
+      const res = await apiFetch(`/invitations/links/${id}/toggle`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        toast.success('Invite link status updated');
+        fetchInviteLinks();
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.message || 'Failed to update link');
+      }
+    } catch (error) {
+      console.error('Error toggling link:', error);
+      toast.error('Failed to update link');
+    }
   };
 
   const toggleLinkStatus = (linkId) => {
@@ -164,9 +316,21 @@ export default function UserInvitations() {
     ));
   };
 
-  const resendInvitation = (id) => {
-    // API call to resend invitation
-    toast.success('Invitation resent successfully!');
+  const resendInvitation = async (id) => {
+    try {
+      const res = await apiFetch(`/invitations/${id}/resend`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        toast.success('Invitation email resent successfully!');
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.message || 'Failed to resend invitation');
+      }
+    } catch (error) {
+      console.error('Error resending invitation:', error);
+      toast.error('Failed to resend invitation');
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -327,7 +491,11 @@ export default function UserInvitations() {
     </div>
   );
 
-  const renderLinksTab = () => (
+  const renderLinksTab = () => {
+    // Ensure inviteLinks is always an array for safety
+    const safeInviteLinks = Array.isArray(inviteLinks) ? inviteLinks : [];
+    
+    return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -343,71 +511,85 @@ export default function UserInvitations() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {inviteLinks.map((link) => (
-          <div key={link.id} className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">{link.name}</h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => toggleLinkStatus(link.id)}
-                  className={`p-1 rounded ${link.isActive ? 'text-green-600' : 'text-gray-400'}`}
-                  title={link.isActive ? 'Active' : 'Inactive'}
-                >
-                  {link.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </button>
-                <button className="text-gray-600 hover:text-gray-900">
-                  <MoreVertical className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Role:</span>
-                <span className="font-medium">{getRoleBadge(link.role)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Uses:</span>
-                <span className="font-medium">{link.uses}/{link.maxUses || '∞'}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Created:</span>
-                <span className="font-medium">{new Date(link.createdAt).toLocaleDateString()}</span>
-              </div>
-              {link.expiresAt && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Expires:</span>
-                  <span className="font-medium">{new Date(link.expiresAt).toLocaleDateString()}</span>
+      {inviteLinksLoading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : safeInviteLinks.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          <Link className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+          <p>No invite links created yet</p>
+          <p className="text-sm">Create your first invite link to get started</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {safeInviteLinks.map((link) => {
+            const frontendUrl = window.location.origin;
+            const linkUrl = `${frontendUrl}/invite/link/${link.token}`;
+            return (
+              <div key={link.id} className="bg-white rounded-lg border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900">{link.name}</h3>
+                  <span className={`px-2 py-1 text-xs rounded-full ${link.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {link.is_active ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <div className="p-2 bg-gray-50 rounded text-xs text-gray-600 break-all">
-                {link.link}
+                <div className="space-y-2 mb-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Role:</span>
+                    <span className="font-medium">{getRoleBadge(link.role)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Uses:</span>
+                    <span className="font-medium">{link.uses_count}/{link.max_uses || '∞'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Created:</span>
+                    <span className="font-medium">{new Date(link.created_at).toLocaleDateString()}</span>
+                  </div>
+                  {link.expires_at && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Expires:</span>
+                      <span className="font-medium">{new Date(link.expires_at).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="p-2 bg-gray-50 rounded text-xs text-gray-600 break-all">
+                    {linkUrl}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => copyToClipboard(linkUrl)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm flex items-center justify-center gap-1"
+                    >
+                      <Copy className="w-3 h-3" />
+                      Copy
+                    </button>
+                    <button
+                      onClick={() => toggleLinkActive(link.id)}
+                      className="px-3 py-2 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 text-sm"
+                    >
+                      {link.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      onClick={() => deleteLink(link.id)}
+                      className="px-3 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => copyToClipboard(link.link)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm flex items-center justify-center gap-1"
-                >
-                  <Copy className="w-3 h-3" />
-                  {copiedLink ? 'Copied!' : 'Copy'}
-                </button>
-                <button
-                  onClick={() => deleteLink(link.id)}
-                  className="px-3 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
+  };
 
   const renderSettingsTab = () => (
     <div className="p-6">
@@ -416,45 +598,27 @@ export default function UserInvitations() {
 
         <div className="space-y-6">
           <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Default Permissions</h3>
-            <div className="space-y-4">
-              {roles.map((role) => (
-                <div key={role.value} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{role.label}</h4>
-                      <p className="text-sm text-gray-500">{role.description}</p>
-                    </div>
-                    {getRoleBadge(role.value)}
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                    <label className="flex items-center">
-                      <input type="checkbox" className="mr-2" />
-                      Manage Users
-                    </label>
-                    <label className="flex items-center">
-                      <input type="checkbox" className="mr-2" />
-                      Manage Settings
-                    </label>
-                    <label className="flex items-center">
-                      <input type="checkbox" className="mr-2" />
-                      View Reports
-                    </label>
-                    <label className="flex items-center">
-                      <input type="checkbox" className="mr-2" />
-                      Manage Leads
-                    </label>
-                    <label className="flex items-center">
-                      <input type="checkbox" className="mr-2" />
-                      Manage Campaigns
-                    </label>
-                    <label className="flex items-center">
-                      <input type="checkbox" className="mr-2" />
-                      View Analytics
-                    </label>
-                  </div>
-                </div>
-              ))}
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Default Role for Invitations</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Default Role
+                </label>
+                <select
+                  value={settings.defaultRole}
+                  onChange={(e) => setSettings({ ...settings, defaultRole: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {roles.map((role) => (
+                    <option key={role.value} value={role.value}>
+                      {role.label} - {role.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-sm text-gray-500">
+                New invitations will use this role by default. You can change the role for individual invitations.
+              </p>
             </div>
           </div>
 
@@ -467,9 +631,13 @@ export default function UserInvitations() {
                 </label>
                 <input
                   type="number"
-                  defaultValue="7"
+                  value={settings.defaultExpiryDays}
+                  onChange={(e) => setSettings({ ...settings, defaultExpiryDays: parseInt(e.target.value) || 7 })}
+                  min="1"
+                  max="365"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                <p className="text-xs text-gray-500 mt-1">Invitations will expire after this many days.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -477,28 +645,55 @@ export default function UserInvitations() {
                 </label>
                 <input
                   type="number"
-                  defaultValue="10"
+                  value={settings.maxUsesPerLink}
+                  onChange={(e) => setSettings({ ...settings, maxUsesPerLink: parseInt(e.target.value) || 10 })}
+                  min="1"
+                  max="1000"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                <p className="text-xs text-gray-500 mt-1">Maximum number of times an invite link can be used.</p>
               </div>
               <div className="flex items-center">
-                <input type="checkbox" id="auto-reminders" className="mr-2" />
+                <input
+                  type="checkbox"
+                  id="auto-reminders"
+                  checked={settings.autoReminders}
+                  onChange={(e) => setSettings({ ...settings, autoReminders: e.target.checked })}
+                  className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
                 <label htmlFor="auto-reminders" className="text-sm text-gray-700">
                   Send automatic reminders for pending invitations
                 </label>
               </div>
               <div className="flex items-center">
-                <input type="checkbox" id="require-approval" className="mr-2" />
+                <input
+                  type="checkbox"
+                  id="require-approval"
+                  checked={settings.requireApproval}
+                  onChange={(e) => setSettings({ ...settings, requireApproval: e.target.checked })}
+                  className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
                 <label htmlFor="require-approval" className="text-sm text-gray-700">
-                  Require admin approval for new user registrations
+                  Require admin approval for new user registrations via invite links
                 </label>
               </div>
             </div>
           </div>
 
           <div className="flex justify-end">
-            <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-              Save Settings
+            <button
+              onClick={saveSettings}
+              disabled={settingsLoading}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {settingsLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Saving...
+                </>
+              ) : (
+                'Save Settings'
+              )}
             </button>
           </div>
         </div>

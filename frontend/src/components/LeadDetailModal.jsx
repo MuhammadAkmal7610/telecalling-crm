@@ -71,10 +71,10 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
     const fetchUsers = async () => {
         setLoadingUsers(true);
         try {
-            const res = await apiFetch('/users');
+            const res = await apiFetch('/users/team');
             if (res.ok) {
                 const result = await res.json();
-                const data = result.data?.data || result.data || result || [];
+                const data = result || [];
                 const validUsers = (Array.isArray(data) ? data : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
                 setUsers(validUsers);
             }

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Logo from '../../assets/Logo.png';
 import { getAuthErrorMessage } from '../../utils/authErrors';
@@ -11,6 +11,10 @@ const Login = () => {
     const [error, setError] = useState('');
     const { signIn } = useAuth();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    
+    // Check if this login is accessed via invite link
+    const isInviteLogin = searchParams.get('invite') !== null;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -95,18 +99,26 @@ const Login = () => {
                 </form>
 
                 <div className="mt-6 text-center text-slate-400 text-sm space-y-2">
-                    <div>
-                        No organization account yet?{' '}
-                        <Link
-                            to="/signup"
-                            className="text-teal-400 hover:text-teal-300 font-medium transition-colors"
-                        >
-                            Create Organization
-                        </Link>
-                    </div>
-                    <div className="text-xs text-slate-500">
-                        Team members can also join using their invite link.
-                    </div>
+                    {!isInviteLogin && (
+                        <div>
+                            No organization account yet?{' '}
+                            <Link
+                                to="/signup"
+                                className="text-teal-400 hover:text-teal-300 font-medium transition-colors"
+                            >
+                                Create Organization
+                            </Link>
+                        </div>
+                    )}
+                    {isInviteLogin ? (
+                        <div className="text-xs text-slate-500">
+                            You are accessing this page via an invite link. Please log in to accept the invitation.
+                        </div>
+                    ) : (
+                        <div className="text-xs text-slate-500">
+                            Team members can also join using their invite link.
+                        </div>
+                    )}
                     <div>
                         Need help?{' '}
                         <a href="mailto:support@wewave.com" className="text-white hover:text-slate-200 font-medium transition-colors">
