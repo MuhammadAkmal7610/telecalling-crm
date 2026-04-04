@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useApi } from '../hooks/useApi';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../context/AuthContext';
+import { io } from 'socket.io-client';
 import {
     PhoneIcon,
     PhoneXMarkIcon,
@@ -24,8 +24,9 @@ import {
 const TeleDialer = () => {
     const { apiFetch } = useApi();
     const { currentWorkspace } = useWorkspace();
-    const { socketService, isConnected } = useSocket();
     const { user } = useAuth();
+    const [telephonySocket, setTelephonySocket] = useState(null);
+    const [isTelephonyConnected, setIsTelephonyConnected] = useState(false);
     const [dialerState, setDialerState] = useState('idle');
     const [currentLead, setCurrentLead] = useState(null);
     const [callDuration, setCallDuration] = useState(0);
@@ -41,6 +42,7 @@ const TeleDialer = () => {
     const [deviceStatus, setDeviceStatus] = useState(null);
     const intervalRef = useRef(null);
     const [autoNextCountdown, setAutoNextCountdown] = useState(null);
+    const [currentCallId, setCurrentCallId] = useState(null);
 
     useEffect(() => {
         if (dialerState === 'connected') {
@@ -64,7 +66,91 @@ const TeleDialer = () => {
         fetchNextLead();
         fetchFeedbackStatuses();
         checkDeviceStatus();
+        connectToTelephony();
+        
+        return () => {
+            if (telephonySocket) {
+                telephonySocket.disconnect();
+            }
+        };
     }, []);
+
+    const connectToTelephony = () => {
+        if (!user) return;
+
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+        const socketUrl = apiBaseUrl.replace('/api/v1', '').replace('https://', 'wss://').replace('http://', 'ws://');
+
+        // Get token from localStorage
+        const token = localStorage.getItem('token');
+        
+        const socket = io(socketUrl, {
+            query: {
+                agentId: user.id,
+            },
+            auth: { token },
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 2000,
+            path: '/socket.io',
+        });
+
+        socket.on('connect', () => {
+            console.log('Connected to telephony gateway');
+            setIsTelephonyConnected(true);
+        });
+
+        socket.on('call_status_update', (data) => {
+            console.log('Call status update:', data);
+            if (data.status === 'dialing') {
+                setDialerState('dialing');
+            } else if (data.status === 'connected') {
+                setDialerState('connected');
+            }
+        });
+
+        socket.on('call_ended', (data) => {
+            console.log('Call ended:', data);
+            handleRemoteCallEnded(data);
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from telephony gateway');
+            setIsTelephonyConnected(false);
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Telephony connection error:', error);
+        });
+
+        setTelephonySocket(socket);
+    };
+
+    const handleRemoteCallEnded = (data) => {
+        // Call was ended from mobile device
+        if (currentLead && currentLead.callId) {
+            setDialerState('ended');
+            
+            // Update call history
+            setCallHistory(prev => [{
+                lead: currentLead,
+                duration: data.duration,
+                status: data.status || 'Completed',
+                notes: data.notes || '',
+                timestamp: new Date()
+            }, ...prev]);
+
+            // Reset state
+            setTimeout(() => {
+                setCurrentLead(null);
+                setCurrentCallId(null);
+                setDialerState('idle');
+                setCallDuration(0);
+                fetchNextLead();
+            }, 2000);
+        }
+    };
 
     const checkDeviceStatus = async () => {
         try {
@@ -119,50 +205,61 @@ const TeleDialer = () => {
     const initiateCallToMobile = async (lead) => {
         if (!lead) return;
 
+        if (!telephonySocket || !isTelephonyConnected) {
+            toast.error('Telephony service not connected');
+            return;
+        }
+
         try {
-            const res = await apiFetch(`/devices/call-request?userId=${user.id}`, {
+            setDialerState('dialing');
+            setCurrentLead(lead);
+            setCallDuration(0);
+            setCallNotes('');
+            setCallStatus('');
+
+            // Create call record in database first
+            const callRes = await apiFetch('/telephony/calls', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    lead_id: lead.id,
+                    agent_id: user.id,
+                    status: 'initiated',
+                    direction: 'outbound',
+                    workspace_id: currentWorkspace?.workspaceId,
+                    organization_id: currentWorkspace?.organizationId
+                })
+            });
+            const callData = await callRes.json();
+            
+            if (callRes.ok) {
+                setCurrentLead(prev => ({ ...prev, callId: callData.id }));
+                setCurrentCallId(callData.id);
+
+                // Send call initiation via WebSocket
+                telephonySocket.emit('initiate_call', {
+                    agentId: user.id,
                     leadId: lead.id,
                     leadName: lead.name,
                     leadPhone: lead.phone,
                     workspaceId: currentWorkspace?.workspaceId,
                     organizationId: currentWorkspace?.organizationId
-                })
-            });
-
-            const result = await res.json();
-            if (res.ok && result.success) {
-                setDialerState('dialing');
-                setCurrentLead(lead);
-                setCallDuration(0);
-                setCallNotes('');
-                setCallStatus('');
-                toast.success('Call request sent to your mobile device!');
-                
-                const callRes = await apiFetch('/telephony/calls', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        lead_id: lead.id,
-                        agent_id: user.id,
-                        status: 'initiated',
-                        direction: 'outbound',
-                        workspace_id: currentWorkspace?.workspaceId,
-                        organization_id: currentWorkspace?.organizationId
-                    })
+                }, (response) => {
+                    if (response.status === 'success') {
+                        toast.success('Call request sent to your mobile device!');
+                    } else {
+                        setDialerState('idle');
+                        toast.error(response.message || 'Failed to send call request');
+                    }
                 });
-                const callData = await callRes.json();
-                if (callRes.ok) {
-                    setCurrentLead(prev => ({ ...prev, callId: callData.id }));
-                }
             } else {
-                toast.error(result.message || 'No mobile device connected. Please open the mobile app.');
+                setDialerState('idle');
+                toast.error('Failed to create call record');
             }
         } catch (error) {
-            console.error('Error sending call request:', error);
-            toast.error('Failed to send call request');
+            console.error('Error initiating call:', error);
+            setDialerState('idle');
+            toast.error('Failed to initiate call');
         }
     };
 
@@ -215,75 +312,105 @@ const TeleDialer = () => {
     };
 
     const endCall = async () => {
-        if (!currentLead || !currentLead.callId) return;
+        if (!currentLead) return;
 
         setDialerState('ended');
         setIsRecording(false);
 
-        try {
-            await apiFetch(`/telephony/calls/${currentLead.callId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    status: 'ended',
-                    duration: callDuration,
-                    notes: callNotes,
-                    call_status: callStatus
-                })
+        // If using mobile bridge, send end signal via WebSocket
+        if (callMode === 'mobile' && telephonySocket && currentCallId) {
+            telephonySocket.emit('end_call', {
+                callId: currentCallId,
+                agentId: user.id,
+                status: callStatus,
+                notes: callNotes
             });
+        }
 
-            setCallHistory(prev => [{
-                lead: currentLead,
-                duration: callDuration,
-                status: callStatus || 'Completed',
-                notes: callNotes,
-                timestamp: new Date()
-            }, ...prev]);
-
-            const progressiveEnabled = localStorage.getItem('progressive_dialer') === 'true';
-            const wrapupTime = parseInt(localStorage.getItem('wrapup_time')) || 10;
-
-            if (progressiveEnabled && nextLead) {
-                toast.success(`Call ended. Next call in ${wrapupTime}s...`);
-                setAutoNextCountdown(wrapupTime);
-                
-                const countdownInterval = setInterval(() => {
-                    setAutoNextCountdown(prev => {
-                        if (prev <= 1) {
-                            clearInterval(countdownInterval);
-                            return null;
-                        }
-                        return prev - 1;
-                    });
-                }, 1000);
-
-                setTimeout(() => {
-                    if (localStorage.getItem('progressive_dialer') === 'true') {
-                        setCurrentLead(null);
-                        setDialerState('idle');
-                        initiateCall(nextLead);
-                    }
-                }, wrapupTime * 1000);
-            } else {
-                setTimeout(() => {
-                    setCurrentLead(null);
-                    setDialerState('idle');
-                    fetchNextLead();
-                }, 2000);
+        // Update call record in database
+        if (currentLead.callId) {
+            try {
+                await apiFetch(`/telephony/calls/${currentLead.callId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: 'ended',
+                        duration: callDuration,
+                        notes: callNotes,
+                        call_status: callStatus
+                    })
+                });
+            } catch (error) {
+                console.error('Error updating call record:', error);
             }
+        }
 
-        } catch (error) {
-            console.error('Error ending call:', error);
-            toast.error('Failed to save call details');
+        // Update call history
+        setCallHistory(prev => [{
+            lead: currentLead,
+            duration: callDuration,
+            status: callStatus || 'Completed',
+            notes: callNotes,
+            timestamp: new Date()
+        }, ...prev]);
+
+        const progressiveEnabled = localStorage.getItem('progressive_dialer') === 'true';
+        const wrapupTime = parseInt(localStorage.getItem('wrapup_time')) || 10;
+
+        if (progressiveEnabled && nextLead) {
+            toast.success(`Call ended. Next call in ${wrapupTime}s...`);
+            setAutoNextCountdown(wrapupTime);
+            
+            const countdownInterval = setInterval(() => {
+                setAutoNextCountdown(prev => {
+                    if (prev <= 1) {
+                        clearInterval(countdownInterval);
+                        return null;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+
+            setTimeout(() => {
+                if (localStorage.getItem('progressive_dialer') === 'true') {
+                    setCurrentLead(null);
+                    setCurrentCallId(null);
+                    setDialerState('idle');
+                    initiateCall(nextLead);
+                }
+            }, wrapupTime * 1000);
+        } else {
+            setTimeout(() => {
+                setCurrentLead(null);
+                setCurrentCallId(null);
+                setDialerState('idle');
+                fetchNextLead();
+            }, 2000);
         }
     };
 
     const toggleMute = () => {
         setIsMuted(!isMuted);
+        
+        // Send mute toggle to mobile device
+        if (callMode === 'mobile' && telephonySocket && currentCallId) {
+            telephonySocket.emit('toggle_mute', {
+                callId: currentCallId,
+                isMuted: !isMuted
+            });
+        }
     };
 
     const toggleSpeaker = () => {
         setIsSpeakerOn(!isSpeakerOn);
+        
+        // Send speaker toggle to mobile device
+        if (callMode === 'mobile' && telephonySocket && currentCallId) {
+            telephonySocket.emit('toggle_speaker', {
+                callId: currentCallId,
+                isSpeakerOn: !isSpeakerOn
+            });
+        }
     };
 
     const CallStatusButton = ({ status, label, color }) => (
@@ -324,8 +451,8 @@ const TeleDialer = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    {isConnected && (
-                        <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">Connected</span>
+                    {isTelephonyConnected && (
+                        <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">Telephony Connected</span>
                     )}
                     <button
                         onClick={fetchNextLead}

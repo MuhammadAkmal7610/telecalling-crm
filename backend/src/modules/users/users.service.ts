@@ -288,6 +288,7 @@ export class UsersService {
     /**
      * Get team members for assignment purposes (accessible to all authenticated users)
      * Returns limited info: id, name, email, role, initials, phone
+     * Includes all active users (Working or Invited status)
      */
     async findTeam(organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
@@ -295,7 +296,7 @@ export class UsersService {
             .from(this.TABLE)
             .select('id, name, email, role, initials, phone, status')
             .eq('organization_id', organizationId)
-            .eq('status', 'Working')
+            .in('status', ['Working', 'Invited'])
             .order('name', { ascending: true });
 
         if (error) throw new BadRequestException(error.message);

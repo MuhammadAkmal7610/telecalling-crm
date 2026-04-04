@@ -72,6 +72,12 @@ export class LeadsService {
     async create(createLeadDto: CreateLeadDto, user: any) {
         const workspaceId = user.workspaceId;
         const organizationId = user.organizationId;
+
+        // Validate workspaceId is present
+        if (!workspaceId || workspaceId === 'null' || workspaceId === 'undefined') {
+            throw new BadRequestException('Workspace ID is required. Please select a workspace.');
+        }
+
         const mappedDto = this.mapDtoToDb(createLeadDto);
 
         const supabase = this.supabaseService.getAdminClient();
@@ -345,7 +351,7 @@ export class LeadsService {
                     title: 'Lead Imported',
                     details: `Lead imported: ${lead.name}`,
                     leadId: lead.id
-                }, user.id, workspaceId, organizationId).catch(err =>
+                }, user.id, workspaceId, organizationId).catch((err: Error) =>
                     this.logger.error(`Failed to log activity for imported lead ${lead.id}: ${err.message}`)
                 );
             });
@@ -377,7 +383,7 @@ export class LeadsService {
                     title: 'Lead Assigned',
                     details: `Lead assigned to ${assigneeId} by ${user.name || 'System'}`,
                     leadId: lead.id
-                }, user.id, workspaceId, organizationId).catch(err =>
+                }, user.id, workspaceId, organizationId).catch((err: Error) =>
                     this.logger.error(`Failed to log assignment for lead ${lead.id}: ${err.message}`)
                 );
 
@@ -482,7 +488,7 @@ export class LeadsService {
             title: 'Status Changed',
             details: `Status changed to ${status}${lostReason ? ` - Reason: ${lostReason}` : ''}`,
             leadId
-        }, user.id, user.workspaceId, user.organizationId).catch(err =>
+        }, user.id, user.workspaceId, user.organizationId).catch((err: Error) =>
             this.logger.error(`Failed to log status change activity for lead ${leadId}: ${err.message}`)
         );
 

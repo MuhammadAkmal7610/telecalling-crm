@@ -1,6 +1,12 @@
+
+import { useState, useEffect } from 'react';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import { supabase } from '../lib/supabaseClient';
 import axios from 'axios';
+import { toast } from 'react-hot-toast';
+import { useNotification } from '../context/NotificationContext';
+import { useApi } from '../hooks/useApi';
+import { useWorkspace } from '../context/WorkspaceContext';
 import {
     MagnifyingGlassIcon,
     ArrowTopRightOnSquareIcon,
@@ -11,11 +17,82 @@ import {
     FunnelIcon,
     EnvelopeIcon
 } from '@heroicons/react/24/outline';
+import Sidebar from '../components/Sidebar';
+import Header from '../components/Header';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
+/**
+ * Helper to create axios instance with auth and workspace headers
+ */
+const createAuthAxios = async (workspaceId) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return axios.create({
+        headers: {
+            'Authorization': `Bearer ${session?.access_token || ''}`,
+            'x-workspace-id': workspaceId || '',
+        },
+    });
+};
+
+// State for sidebar
+let sidebarOpen = false;
+function setSidebarOpen(open) { sidebarOpen = open; }
+
+// Reusable Input Component - Moved outside to prevent re-creation on each render
+const InputField = ({ label, placeholder, icon: Icon, type = "text", value, onChange, required = false }) => (
+    <div className="mb-5">
+        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">
+            {label}
+            {required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+        <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-[#08A698]">
+                {Icon && <Icon className="h-4 w-4 text-gray-400 group-focus-within:text-[#08A698]" />}
+            </div>
+            <input
+                type={type}
+                value={value || ''}
+                onChange={onChange}
+                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:border-[#08A698] focus:ring-1 focus:ring-[#08A698] transition-all bg-white text-gray-700 shadow-sm hover:border-gray-300"
+                placeholder={placeholder}
+            />
+        </div>
+    </div>
+);
+
+// Reusable Select Component - Moved outside to prevent re-creation on each render
+const SelectField = ({ label, options, value, onChange, icon: Icon = Bars3Icon, required = false }) => (
+    <div className="mb-5">
+        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">
+            {label}
+            {required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+        <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Icon className="h-4 w-4 text-gray-400 group-focus-within:text-[#08A698]" />
+            </div>
+            <select
+                value={value || ''}
+                onChange={onChange}
+                className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-[#08A698] focus:ring-1 focus:ring-[#08A698] transition-all bg-white appearance-none cursor-pointer shadow-sm hover:border-gray-300"
+            >
+                <option value="">Select</option>
+                {options.map((opt, idx) => (
+                    <option key={idx} value={opt.id || opt}>{opt.name || opt}</option>
+                ))}
+            </select>
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <span className="text-gray-400 text-xs">▼</span>
+            </div>
+        </div>
+    </div>
+);
+
 export default function AddLead() {
     const { apiFetch } = useApi();
+    const { currentWorkspace } = useWorkspace();
+    const { success: notifySuccess, error: notifyError, warning: notifyWarning } = useNotification();
     const [loading, setLoading] = useState(false);
     const [fields, setFields] = useState([]);
     const [users, setUsers] = useState([]);
@@ -30,7 +107,7 @@ export default function AddLead() {
         assigneeId: '',
     });
 
-    React.useEffect(() => {
+    useEffect(() => {
         fetchFields();
         fetchUsers();
         fetchStages();
@@ -38,11 +115,10 @@ export default function AddLead() {
 
     const fetchStages = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            const res = await axios.get(`${API_URL}/lead-stages`, {
-                headers: { Authorization: `Bearer ${session.access_token}` }
-            });
+            const workspaceId = currentWorkspace?.id || localStorage.getItem('crm_workspace_id');
+            if (!workspaceId) return;
+            const axiosInstance = await createAuthAxios(workspaceId);
+            const res = await axiosInstance.get(`${API_URL}/lead-stages`);
             const data = res.data.data?.data || res.data.data || res.data || [];
             setStages(Array.isArray(data) ? data : []);
             const defaultStage = data.find(s => s.is_default);
@@ -56,11 +132,10 @@ export default function AddLead() {
 
     const fetchFields = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            const res = await axios.get(`${API_URL}/lead-fields`, {
-                headers: { Authorization: `Bearer ${session.access_token}` }
-            });
+            const workspaceId = currentWorkspace?.id || localStorage.getItem('crm_workspace_id');
+            if (!workspaceId) return;
+            const axiosInstance = await createAuthAxios(workspaceId);
+            const res = await axiosInstance.get(`${API_URL}/lead-fields`);
             const data = res.data.data?.data || res.data.data || res.data || [];
             setFields(Array.isArray(data) ? data : []);
         } catch (error) {
@@ -70,11 +145,11 @@ export default function AddLead() {
 
     const fetchUsers = async () => {
         try {
+            const workspaceId = currentWorkspace?.id || localStorage.getItem('crm_workspace_id');
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
-            const res = await axios.get(`${API_URL}/users/team`, {
-                headers: { Authorization: `Bearer ${session.access_token}` }
-            });
+            const axiosInstance = await createAuthAxios(workspaceId);
+            const res = await axiosInstance.get(`${API_URL}/users/team`);
             const data = res.data || [];
             const validUsers = (Array.isArray(data) ? data : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
             setUsers(validUsers);
@@ -92,6 +167,7 @@ export default function AddLead() {
         e.preventDefault();
         if (!formData.name || !formData.phone) {
             toast.error('Name and Phone are required');
+            notifyWarning('Missing Information', 'Please fill in the required fields (Name and Phone).');
             return;
         }
 
@@ -100,6 +176,16 @@ export default function AddLead() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 toast.error('Session expired. Please login again.');
+                notifyError('Session Expired', 'Please login again to continue.');
+                return;
+            }
+
+            // Get workspace ID
+            const workspaceId = currentWorkspace?.id || localStorage.getItem('crm_workspace_id');
+            if (!workspaceId) {
+                toast.error('Please select a workspace first.');
+                notifyError('No Workspace', 'Please select a workspace before adding a lead.');
+                setLoading(false);
                 return;
             }
 
@@ -120,13 +206,18 @@ export default function AddLead() {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}` 
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'x-workspace-id': workspaceId
                 },
                 body: JSON.stringify({ ...payload, customFields })
             });
 
             if (response.ok) {
                 toast.success('Lead added successfully!');
+                notifySuccess(
+                    'Lead Created Successfully!',
+                    `${formData.name} has been added to your pipeline.`
+                );
                 setFormData({
                     name: '',
                     phone: '',
@@ -139,61 +230,16 @@ export default function AddLead() {
             } else {
                 const error = await response.json();
                 toast.error(error.message || 'Failed to add lead');
+                notifyError('Failed to Add Lead', error.message || 'Please check the information and try again.');
             }
         } catch (error) {
             console.error('Error adding lead:', error);
             toast.error('An error occurred. Please try again.');
+            notifyError('Connection Error', 'Unable to add lead. Please check your internet connection.');
         } finally {
             setLoading(false);
         }
     };
-
-    // Reusable Input Component to keep code clean
-    const InputField = ({ label, placeholder, icon: Icon, type = "text", value, onChange }) => (
-        <div className="mb-5">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">
-                {label}
-            </label>
-            <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors group-focus-within:text-[#08A698]">
-                    {Icon && <Icon className="h-4 w-4 text-gray-400 group-focus-within:text-[#08A698]" />}
-                </div>
-                <input
-                    type={type}
-                    value={value || ''}
-                    onChange={onChange}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:border-[#08A698] focus:ring-1 focus:ring-[#08A698] transition-all bg-white text-gray-700 shadow-sm hover:border-gray-300"
-                    placeholder={placeholder}
-                />
-            </div>
-        </div>
-    );
-
-    const SelectField = ({ label, options, value, onChange, icon: Icon = Bars3Icon }) => (
-        <div className="mb-5">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">
-                {label}
-            </label>
-            <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Icon className="h-4 w-4 text-gray-400 group-focus-within:text-[#08A698]" />
-                </div>
-                <select
-                    value={value || ''}
-                    onChange={onChange}
-                    className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-[#08A698] focus:ring-1 focus:ring-[#08A698] transition-all bg-white appearance-none cursor-pointer shadow-sm hover:border-gray-300"
-                >
-                    <option value="">Select</option>
-                    {options.map((opt, idx) => (
-                        <option key={idx} value={opt.id || opt}>{opt.name || opt}</option>
-                    ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-gray-400 text-xs">▼</span>
-                </div>
-            </div>
-        </div>
-    );
 
     const renderIcon = (fieldName) => {
         const n = fieldName.toLowerCase();
@@ -229,8 +275,8 @@ export default function AddLead() {
                                     {fields.filter(f => f.show_in_quick_add).sort((a, b) => a.position - b.position).map((field) => (
                                         field.name === 'phone' ? (
                                             <div key={field.id} className="mb-5">
-                                                <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">
-                                                    {field.label} <span className="text-[10px] bg-teal-50 text-[#08A698] px-1.5 py-0.5 rounded border border-teal-200 font-bold tracking-wider">REQUIRED</span>
+                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">
+                                                    {field.label} <span className="text-red-500">*</span>
                                                 </label>
                                                 <div className="flex group relative">
                                                     <div className="flex items-center justify-center px-4 border border-r-0 border-gray-200 rounded-l-lg bg-gray-50 text-gray-600 text-sm group-focus-within:border-[#08A698] transition-colors">
@@ -254,6 +300,7 @@ export default function AddLead() {
                                                 icon={renderIcon(field.name)}
                                                 value={formData[field.name]}
                                                 onChange={(e) => handleInputChange(field.name, e.target.value)}
+                                                required={field.name === 'name'}
                                             />
                                         )
                                     ))}

@@ -4,6 +4,9 @@ import { AuthProvider } from './context/AuthContext';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import { HealthCheckProvider } from './context/HealthCheckContext';
 import { SocketProvider } from './contexts/SocketContext';
+import { NotificationProvider } from './context/NotificationContext';
+import { NotificationContainer } from './components/ui/Notification';
+import { useNotification } from './context/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { DialerProvider } from './context/DialerContext';
 import CallLoggerWidget from './components/CallLoggerWidget';
@@ -74,14 +77,22 @@ import { Outlet } from 'react-router-dom';
 
 import { ThemeProvider } from './context/ThemeContext';
 
+// Internal component to connect NotificationContainer with context
+function NotificationSystem() {
+  const { notifications, removeNotification } = useNotification();
+  return <NotificationContainer notifications={notifications} onRemove={removeNotification} />;
+}
+
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <WorkspaceProvider>
           <HealthCheckProvider>
-            <Toaster position="top-center" reverseOrder={false} />
-            <Router>
+            <NotificationProvider>
+              <Toaster position="top-center" reverseOrder={false} />
+              <NotificationSystem />
+              <Router>
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
@@ -165,6 +176,7 @@ function App() {
                 </Route>
               </Routes>
             </Router>
+          </NotificationProvider>
           </HealthCheckProvider>
         </WorkspaceProvider>
       </AuthProvider >

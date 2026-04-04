@@ -1014,78 +1014,26 @@
         ]
       }
     },
-    "/whatsapp/send": {
+    "/whatsapp/campaigns": {
       "post": {
-        "operationId": "WhatsAppController_sendMessage",
+        "operationId": "WhatsAppController_createCampaign",
         "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Send WhatsApp message",
-        "tags": [
-          "WhatsApp"
-        ]
-      }
-    },
-    "/whatsapp/send-template": {
-      "post": {
-        "operationId": "WhatsAppController_sendTemplateMessage",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Send WhatsApp template message",
-        "tags": [
-          "WhatsApp"
-        ]
-      }
-    },
-    "/whatsapp/webhook": {
-      "get": {
-        "operationId": "WhatsAppController_verifyWebhook",
-        "parameters": [
-          {
-            "name": "hub.mode",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWhatsAppCampaignDto"
+              }
             }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Campaign created successfully"
           },
-          {
-            "name": "hub.verify_token",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "hub.challenge",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
+          "400": {
+            "description": "Bad request"
           }
         },
         "security": [
@@ -1093,17 +1041,94 @@
             "bearer": []
           }
         ],
-        "summary": "Verify WhatsApp webhook",
+        "summary": "Create a new WhatsApp campaign",
         "tags": [
           "WhatsApp"
         ]
       },
-      "post": {
-        "operationId": "WhatsAppController_handleWebhook",
-        "parameters": [],
+      "get": {
+        "operationId": "WhatsAppController_getCampaigns",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Page size",
+            "schema": {
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search term",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "scheduled",
+                "running",
+                "completed",
+                "paused",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "campaign_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "bulk",
+                "drip",
+                "triggered"
+              ]
+            }
+          },
+          {
+            "name": "start_date",
+            "required": false,
+            "in": "query",
+            "description": "Start date for filtering",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_date",
+            "required": false,
+            "in": "query",
+            "description": "End date for filtering",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Campaigns retrieved successfully"
           }
         },
         "security": [
@@ -1111,7 +1136,713 @@
             "bearer": []
           }
         ],
-        "summary": "Handle WhatsApp webhook",
+        "summary": "Get all WhatsApp campaigns",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/campaigns/{id}": {
+      "get": {
+        "operationId": "WhatsAppController_getCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign retrieved successfully"
+          },
+          "404": {
+            "description": "Campaign not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a specific WhatsApp campaign",
+        "tags": [
+          "WhatsApp"
+        ]
+      },
+      "put": {
+        "operationId": "WhatsAppController_updateCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWhatsAppCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Campaign updated successfully"
+          },
+          "404": {
+            "description": "Campaign not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a WhatsApp campaign",
+        "tags": [
+          "WhatsApp"
+        ]
+      },
+      "delete": {
+        "operationId": "WhatsAppController_deleteCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign deleted successfully"
+          },
+          "404": {
+            "description": "Campaign not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a WhatsApp campaign",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/campaigns/{id}/run": {
+      "post": {
+        "operationId": "WhatsAppController_runCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign execution started"
+          },
+          "400": {
+            "description": "Campaign cannot be run"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Run a WhatsApp campaign",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/campaigns/{id}/analytics": {
+      "get": {
+        "operationId": "WhatsAppController_getCampaignAnalytics",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Analytics retrieved successfully"
+          },
+          "404": {
+            "description": "Campaign not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get campaign analytics",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/drip-sequences": {
+      "post": {
+        "operationId": "WhatsAppController_createDripSequence",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWhatsAppDripSequenceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Drip sequence created successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new drip sequence",
+        "tags": [
+          "WhatsApp"
+        ]
+      },
+      "get": {
+        "operationId": "WhatsAppController_getDripSequences",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Drip sequences retrieved successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all drip sequences",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/drip-sequences/{id}": {
+      "put": {
+        "operationId": "WhatsAppController_updateDripSequence",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWhatsAppDripSequenceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Drip sequence updated successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a drip sequence",
+        "tags": [
+          "WhatsApp"
+        ]
+      },
+      "delete": {
+        "operationId": "WhatsAppController_deleteDripSequence",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Drip sequence deleted successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a drip sequence",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/drip-sequences/{sequenceId}/enroll/{leadId}": {
+      "post": {
+        "operationId": "WhatsAppController_enrollLeadInDripSequence",
+        "parameters": [
+          {
+            "name": "sequenceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "leadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Lead enrolled successfully"
+          },
+          "400": {
+            "description": "Lead already enrolled or invalid request"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Enroll a lead in a drip sequence",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/templates": {
+      "post": {
+        "operationId": "WhatsAppController_createTemplate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWhatsAppTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Template created successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new WhatsApp template",
+        "tags": [
+          "WhatsApp"
+        ]
+      },
+      "get": {
+        "operationId": "WhatsAppController_getTemplates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Templates retrieved successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all WhatsApp templates",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/templates/{id}": {
+      "put": {
+        "operationId": "WhatsAppController_updateTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWhatsAppTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Template updated successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a WhatsApp template",
+        "tags": [
+          "WhatsApp"
+        ]
+      },
+      "delete": {
+        "operationId": "WhatsAppController_deleteTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Template deleted successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a WhatsApp template",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/templates/sync": {
+      "post": {
+        "operationId": "WhatsAppController_syncTemplatesFromMeta",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Templates synced successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Sync templates from Meta",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/automation-rules": {
+      "post": {
+        "operationId": "WhatsAppController_createAutomationRule",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWhatsAppAutomationRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Automation rule created successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new automation rule",
+        "tags": [
+          "WhatsApp"
+        ]
+      },
+      "get": {
+        "operationId": "WhatsAppController_getAutomationRules",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Automation rules retrieved successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all automation rules",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/automation-rules/{id}": {
+      "put": {
+        "operationId": "WhatsAppController_updateAutomationRule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWhatsAppAutomationRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Automation rule updated successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an automation rule",
+        "tags": [
+          "WhatsApp"
+        ]
+      },
+      "delete": {
+        "operationId": "WhatsAppController_deleteAutomationRule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Automation rule deleted successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete an automation rule",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/automation-rules/{ruleId}/execute/{leadId}": {
+      "post": {
+        "operationId": "WhatsAppController_executeAutomationRule",
+        "parameters": [
+          {
+            "name": "ruleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "leadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Automation rule executed successfully"
+          },
+          "400": {
+            "description": "Rule not found or inactive"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Execute an automation rule for a lead",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/analytics": {
+      "get": {
+        "operationId": "WhatsAppController_getAnalytics",
+        "parameters": [
+          {
+            "name": "metric_type",
+            "required": false,
+            "in": "query",
+            "description": "Metric type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_date",
+            "required": false,
+            "in": "query",
+            "description": "Start date",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end_date",
+            "required": false,
+            "in": "query",
+            "description": "End date",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "campaign_id",
+            "required": false,
+            "in": "query",
+            "description": "Campaign ID for filtering",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sequence_id",
+            "required": false,
+            "in": "query",
+            "description": "Sequence ID for filtering",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "template_id",
+            "required": false,
+            "in": "query",
+            "description": "Template ID for filtering",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Analytics retrieved successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get WhatsApp analytics",
+        "tags": [
+          "WhatsApp"
+        ]
+      }
+    },
+    "/whatsapp/messages": {
+      "post": {
+        "operationId": "WhatsAppController_sendMessage",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Message sent successfully"
+          },
+          "400": {
+            "description": "Invalid request or WhatsApp not configured"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send a WhatsApp message",
         "tags": [
           "WhatsApp"
         ]
@@ -1132,7 +1863,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Messages retrieved successfully"
           }
         },
         "security": [
@@ -1140,7 +1871,7 @@
             "bearer": []
           }
         ],
-        "summary": "Get WhatsApp messages for a lead",
+        "summary": "Get messages for a lead",
         "tags": [
           "WhatsApp"
         ]
@@ -1161,7 +1892,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Conversations retrieved successfully"
           }
         },
         "security": [
@@ -1175,12 +1906,46 @@
         ]
       }
     },
-    "/whatsapp/analytics": {
+    "/whatsapp/webhook": {
+      "post": {
+        "operationId": "WhatsAppController_handleWebhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Webhook processed successfully"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Handle WhatsApp webhook",
+        "tags": [
+          "WhatsApp"
+        ]
+      },
       "get": {
-        "operationId": "WhatsAppController_getAnalytics",
+        "operationId": "WhatsAppController_verifyWebhook",
         "parameters": [
           {
-            "name": "timeRange",
+            "name": "hub.mode",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.challenge",
             "required": true,
             "in": "query",
             "schema": {
@@ -1190,7 +1955,7 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Webhook verified successfully"
           }
         },
         "security": [
@@ -1198,27 +1963,7 @@
             "bearer": []
           }
         ],
-        "summary": "Get WhatsApp analytics",
-        "tags": [
-          "WhatsApp"
-        ]
-      }
-    },
-    "/whatsapp/sync-templates": {
-      "post": {
-        "operationId": "WhatsAppController_syncTemplates",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Sync WhatsApp templates from Meta",
+        "summary": "Verify WhatsApp webhook",
         "tags": [
           "WhatsApp"
         ]
@@ -2467,6 +3212,26 @@
           }
         ],
         "summary": "Update current user settings",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/team": {
+      "get": {
+        "operationId": "UsersController_getTeam",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List team members for assignment (accessible to all authenticated users)",
         "tags": [
           "Users"
         ]
@@ -5463,6 +6228,36 @@
         ]
       }
     },
+    "/invitations/bulk": {
+      "post": {
+        "operationId": "InvitationsController_bulkInvite",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Bulk invite users",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
     "/invitations/pending": {
       "get": {
         "operationId": "InvitationsController_listPending",
@@ -5478,6 +6273,213 @@
           }
         ],
         "summary": "List pending invitations for the organization",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/analytics": {
+      "get": {
+        "operationId": "InvitationsController_getAnalytics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get invitation analytics",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/settings": {
+      "get": {
+        "operationId": "InvitationsController_getSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get invitation settings for the organization",
+        "tags": [
+          "invitations"
+        ]
+      },
+      "put": {
+        "operationId": "InvitationsController_updateSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update invitation settings for the organization",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/links": {
+      "post": {
+        "operationId": "InvitationsController_createInviteLink",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new invite link",
+        "tags": [
+          "invitations"
+        ]
+      },
+      "get": {
+        "operationId": "InvitationsController_listInviteLinks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all invite links",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/links/{token}": {
+      "get": {
+        "operationId": "InvitationsController_getInviteLinkByToken",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Verify an invite link token",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/links/{token}/use": {
+      "post": {
+        "operationId": "InvitationsController_useInviteLink",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Use an invite link to join organization",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/links/{id}/toggle": {
+      "post": {
+        "operationId": "InvitationsController_toggleInviteLink",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Toggle invite link active status",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/links/{id}": {
+      "delete": {
+        "operationId": "InvitationsController_deleteInviteLink",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete an invite link",
         "tags": [
           "invitations"
         ]
@@ -5531,6 +6533,35 @@
           }
         ],
         "summary": "Accept an invitation",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/{id}/resend": {
+      "post": {
+        "operationId": "InvitationsController_resendInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Resend invitation email",
         "tags": [
           "invitations"
         ]
@@ -5703,6 +6734,125 @@
         "summary": "Remove an API template",
         "tags": [
           "API Templates"
+        ]
+      }
+    },
+    "/devices/register": {
+      "post": {
+        "operationId": "DevicesController_registerDevice",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Register a new device or update existing",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/devices/{id}": {
+      "delete": {
+        "operationId": "DevicesController_unregisterDevice",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Unregister a device",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/devices/me": {
+      "get": {
+        "operationId": "DevicesController_getMyDevice",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get current user active device",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/devices/my-devices": {
+      "get": {
+        "operationId": "DevicesController_getMyDevices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all active devices for current user",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/devices/call-request": {
+      "post": {
+        "operationId": "DevicesController_sendCallRequest",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "query",
+            "description": "Target user ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send a call request to user device",
+        "tags": [
+          "Devices"
         ]
       }
     }
@@ -6145,6 +7295,491 @@
           "lost_reason": {
             "type": "string",
             "description": "Alias for lostReason"
+          }
+        }
+      },
+      "CreateWhatsAppCampaignDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Campaign name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Campaign description"
+          },
+          "campaign_type": {
+            "type": "string",
+            "enum": [
+              "bulk",
+              "drip",
+              "triggered"
+            ],
+            "description": "Campaign type"
+          },
+          "template_name": {
+            "type": "string",
+            "description": "Template name for the campaign"
+          },
+          "message_content": {
+            "type": "string",
+            "description": "Message content for bulk campaigns"
+          },
+          "variables_mapping": {
+            "type": "object",
+            "description": "Variable mapping for personalization"
+          },
+          "target_audience": {
+            "type": "object",
+            "description": "Target audience filters"
+          },
+          "lead_filters": {
+            "type": "object",
+            "description": "Lead filters"
+          },
+          "schedule_type": {
+            "type": "string",
+            "enum": [
+              "immediate",
+              "scheduled",
+              "recurring"
+            ],
+            "description": "Schedule type"
+          },
+          "scheduled_at": {
+            "type": "string",
+            "description": "Scheduled date and time"
+          },
+          "max_retries": {
+            "type": "number",
+            "description": "Maximum retries for failed messages"
+          },
+          "retry_interval_minutes": {
+            "type": "number",
+            "description": "Retry interval in minutes"
+          },
+          "rate_limit_per_hour": {
+            "type": "number",
+            "description": "Rate limit per hour"
+          }
+        },
+        "required": [
+          "name",
+          "campaign_type",
+          "schedule_type"
+        ]
+      },
+      "UpdateWhatsAppCampaignDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Campaign name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Campaign description"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "scheduled",
+              "running",
+              "completed",
+              "paused",
+              "cancelled"
+            ],
+            "description": "Campaign status"
+          },
+          "template_name": {
+            "type": "string",
+            "description": "Template name"
+          },
+          "message_content": {
+            "type": "string",
+            "description": "Message content"
+          },
+          "variables_mapping": {
+            "type": "object",
+            "description": "Variable mapping"
+          },
+          "target_audience": {
+            "type": "object",
+            "description": "Target audience filters"
+          },
+          "lead_filters": {
+            "type": "object",
+            "description": "Lead filters"
+          },
+          "scheduled_at": {
+            "type": "string",
+            "description": "Scheduled date and time"
+          },
+          "max_retries": {
+            "type": "number",
+            "description": "Maximum retries"
+          },
+          "retry_interval_minutes": {
+            "type": "number",
+            "description": "Retry interval in minutes"
+          },
+          "rate_limit_per_hour": {
+            "type": "number",
+            "description": "Rate limit per hour"
+          }
+        }
+      },
+      "CreateWhatsAppDripSequenceDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Sequence name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Sequence description"
+          },
+          "is_active": {
+            "type": "boolean",
+            "description": "Whether the sequence is active"
+          },
+          "enrollment_trigger": {
+            "type": "string",
+            "enum": [
+              "lead_created",
+              "status_change",
+              "manual"
+            ],
+            "description": "Enrollment trigger"
+          },
+          "trigger_conditions": {
+            "type": "object",
+            "description": "Trigger conditions"
+          },
+          "steps": {
+            "type": "array",
+            "description": "Sequence steps",
+            "items": {
+              "type": "object"
+            }
+          },
+          "max_enrollments_per_lead": {
+            "type": "number",
+            "description": "Maximum enrollments per lead"
+          },
+          "cooldown_days": {
+            "type": "number",
+            "description": "Cooldown days between enrollments"
+          }
+        },
+        "required": [
+          "name",
+          "enrollment_trigger",
+          "steps"
+        ]
+      },
+      "UpdateWhatsAppDripSequenceDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Sequence name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Sequence description"
+          },
+          "is_active": {
+            "type": "boolean",
+            "description": "Whether the sequence is active"
+          },
+          "enrollment_trigger": {
+            "type": "string",
+            "enum": [
+              "lead_created",
+              "status_change",
+              "manual"
+            ]
+          },
+          "trigger_conditions": {
+            "type": "object",
+            "description": "Trigger conditions"
+          },
+          "steps": {
+            "description": "Sequence steps",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "max_enrollments_per_lead": {
+            "type": "number",
+            "description": "Maximum enrollments per lead"
+          },
+          "cooldown_days": {
+            "type": "number",
+            "description": "Cooldown days between enrollments"
+          }
+        }
+      },
+      "CreateWhatsAppTemplateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Template name"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "marketing",
+              "utility",
+              "authentication"
+            ],
+            "description": "Template category"
+          },
+          "language": {
+            "type": "string",
+            "description": "Template language",
+            "default": "en_US"
+          },
+          "template_id": {
+            "type": "string",
+            "description": "Template ID from Meta"
+          },
+          "header_type": {
+            "type": "string",
+            "description": "Header type"
+          },
+          "header_content": {
+            "type": "string",
+            "description": "Header content"
+          },
+          "body_text": {
+            "type": "string",
+            "description": "Body text content"
+          },
+          "footer_text": {
+            "type": "string",
+            "description": "Footer text"
+          },
+          "buttons": {
+            "type": "array",
+            "description": "Interactive buttons",
+            "items": {
+              "type": "object"
+            }
+          },
+          "quick_replies": {
+            "type": "array",
+            "description": "Quick replies",
+            "items": {
+              "type": "object"
+            }
+          },
+          "variables": {
+            "type": "array",
+            "description": "Template variables",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "category",
+          "body_text"
+        ]
+      },
+      "UpdateWhatsAppTemplateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Template name"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "marketing",
+              "utility",
+              "authentication"
+            ]
+          },
+          "language": {
+            "type": "string",
+            "description": "Template language"
+          },
+          "template_id": {
+            "type": "string",
+            "description": "Template ID from Meta"
+          },
+          "status": {
+            "type": "string",
+            "description": "Template status"
+          },
+          "header_type": {
+            "type": "string",
+            "description": "Header type"
+          },
+          "header_content": {
+            "type": "string",
+            "description": "Header content"
+          },
+          "body_text": {
+            "type": "string",
+            "description": "Body text content"
+          },
+          "footer_text": {
+            "type": "string",
+            "description": "Footer text"
+          },
+          "buttons": {
+            "description": "Interactive buttons",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "quick_replies": {
+            "description": "Quick replies",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "description": "Template variables",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateWhatsAppAutomationRuleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Rule name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Rule description"
+          },
+          "is_active": {
+            "type": "boolean",
+            "description": "Whether the rule is active"
+          },
+          "trigger_event": {
+            "type": "string",
+            "enum": [
+              "lead_created",
+              "lead_assigned",
+              "lead_status_change",
+              "message_received"
+            ],
+            "description": "Trigger event"
+          },
+          "trigger_conditions": {
+            "type": "object",
+            "description": "Trigger conditions"
+          },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "send_message",
+              "send_template",
+              "enroll_sequence"
+            ],
+            "description": "Action type"
+          },
+          "action_config": {
+            "type": "object",
+            "description": "Action configuration"
+          },
+          "max_executions_per_lead": {
+            "type": "number",
+            "description": "Maximum executions per lead"
+          },
+          "cooldown_minutes": {
+            "type": "number",
+            "description": "Cooldown minutes between executions"
+          },
+          "execution_limit_per_hour": {
+            "type": "number",
+            "description": "Execution limit per hour"
+          },
+          "schedule_config": {
+            "type": "object",
+            "description": "Schedule configuration"
+          }
+        },
+        "required": [
+          "name",
+          "trigger_event",
+          "action_type"
+        ]
+      },
+      "UpdateWhatsAppAutomationRuleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Rule name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Rule description"
+          },
+          "is_active": {
+            "type": "boolean",
+            "description": "Whether the rule is active"
+          },
+          "trigger_event": {
+            "type": "string",
+            "enum": [
+              "lead_created",
+              "lead_assigned",
+              "lead_status_change",
+              "message_received"
+            ]
+          },
+          "trigger_conditions": {
+            "type": "object",
+            "description": "Trigger conditions"
+          },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "send_message",
+              "send_template",
+              "enroll_sequence"
+            ]
+          },
+          "action_config": {
+            "type": "object",
+            "description": "Action configuration"
+          },
+          "max_executions_per_lead": {
+            "type": "number",
+            "description": "Maximum executions per lead"
+          },
+          "cooldown_minutes": {
+            "type": "number",
+            "description": "Cooldown minutes between executions"
+          },
+          "execution_limit_per_hour": {
+            "type": "number",
+            "description": "Execution limit per hour"
+          },
+          "schedule_config": {
+            "type": "object",
+            "description": "Schedule configuration"
           }
         }
       },

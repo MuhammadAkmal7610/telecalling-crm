@@ -69,7 +69,12 @@ export default function WebsiteLeads() {
         try {
             const res = await apiFetch(`/activities?leadId=${leadId}`);
             const result = await res.json();
-            setActivities(result.data || result || []);
+            let activitiesData = result.data || result || [];
+            // Ensure activitiesData is an array
+            if (!Array.isArray(activitiesData)) {
+                activitiesData = [];
+            }
+            setActivities(activitiesData);
         } catch (error) {
             console.error('Error fetching lead activities:', error);
         }

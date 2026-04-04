@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import { useNotification } from '../context/NotificationContext';
 import {
     CloudArrowUpIcon,
     DocumentArrowDownIcon,
@@ -35,6 +36,7 @@ const STEPS = {
 
 export default function ImportLeads() {
     const { currentWorkspace } = useWorkspace();
+    const { success: notifySuccess, error: notifyError, warning: notifyWarning, info: notifyInfo } = useNotification();
     const navigate = useNavigate(); // Added navigate if needed, but keeping existing state
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(STEPS.UPLOAD);
@@ -98,6 +100,7 @@ export default function ImportLeads() {
         } catch (error) {
             console.error('Error fetching users:', error);
             toast.error("Failed to load users for assignment");
+            notifyError('Failed to Load Users', 'Unable to fetch team members for lead assignment.');
         }
     };
 
@@ -117,6 +120,7 @@ export default function ImportLeads() {
 
                 if (jsonData.length === 0) {
                     toast.error("The file is empty.");
+                    notifyWarning('Empty File', 'The selected file contains no data. Please select a file with lead information.');
                     return;
                 }
 
@@ -140,6 +144,7 @@ export default function ImportLeads() {
             } catch (err) {
                 console.error(err);
                 toast.error("Failed to parse file.");
+                notifyError('Parse Error', 'Unable to read the file. Please ensure it is a valid Excel or CSV file.');
             }
         };
         reader.readAsArrayBuffer(file);
@@ -171,6 +176,7 @@ export default function ImportLeads() {
     const startUpload = async () => {
         if (totalAssigned !== fileData.length) {
             toast.error(`Please assign all ${fileData.length} leads. Currently assigned: ${totalAssigned}`);
+            notifyWarning('Incomplete Assignment', `Please assign all ${fileData.length} leads to team members.`);
             return;
         }
 
@@ -209,10 +215,15 @@ export default function ImportLeads() {
             );
 
             toast.success(`Successfully imported ${response.data.inserted} leads!`);
+            notifySuccess(
+                'Import Complete!',
+                `${response.data.inserted} leads have been successfully added to your pipeline.`
+            );
             setCurrentStep(STEPS.SUCCESS);
         } catch (err) {
             console.error(err);
             toast.error(err.response?.data?.message || "Failed to upload leads.");
+            notifyError('Import Failed', err.response?.data?.message || 'An error occurred while uploading leads.');
         } finally {
             setIsUploading(false);
         }

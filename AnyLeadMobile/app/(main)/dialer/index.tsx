@@ -1,765 +1,573 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, useColorScheme, TextInput, FlatList, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Linking,
+  Platform,
+  Vibration,
+  useColorScheme,
+  Animated,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Button } from '@/src/components/common/Card';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '@/src/theme/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { ApiService } from '@/src/services/ApiService';
-import { Ionicons } from '@expo/vector-icons';
-import * as Contacts from 'expo-contacts';
-import * as Linking from 'expo-linking';
-import CommunicationService from '@/src/services/CommunicationService';
+import CommunicationService, { CallActivity } from '@/src/services/CommunicationService';
+import { io, Socket } from 'socket.io-client';
+import Constants from 'expo-constants';
 
-interface CallList {
-  id: string;
-  name: string;
-  leads: Array<{
-    id: string;
-    name: string;
-    phone: string;
-    status: string;
-    priority: 'low' | 'medium' | 'high' | 'urgent';
-    lastCallDate?: string;
-    callAttempts: number;
-    notes?: string;
-  }>;
-  filters: {
-    status?: string[];
-    priority?: string[];
-    source?: string[];
-    dateRange?: {
-      start: string;
-      end: string;
-    };
-  };
-  assignedTo?: string;
-  isActive: boolean;
-  createdAt: string;
-}
-
-interface CallScript {
-  id: string;
-  name: string;
-  leadStatus: string;
-  script: string;
-  keyPoints: string[];
-  objections: Array<{
-    objection: string;
-    response: string;
-  }>;
-  isActive: boolean;
-}
-
-interface CallActivity {
-  id: string;
+interface IncomingCall {
+  callId: string;
   leadId: string;
   leadName: string;
-  phone: string;
-  duration?: number;
-  status: 'completed' | 'missed' | 'busy' | 'failed';
-  recordingUrl?: string;
-  transcript?: string;
-  notes: string;
-  outcome: 'interested' | 'not_interested' | 'follow_up' | 'callback' | 'sale' | 'wrong_number';
-  nextFollowUp?: string;
-  userId: string;
+  leadPhone: string;
+  agentId: string;
+  workspaceId: string;
+  organizationId: string;
   timestamp: string;
+}
+
+interface CallState {
+  status: 'idle' | 'incoming' | 'dialing' | 'connected' | 'ended';
+  duration: number;
+  isMuted: boolean;
+  isSpeakerOn: boolean;
 }
 
 export default function DialerScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const isDark = useColorScheme() === 'dark';
   
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [selectedLead, setSelectedLead] = useState<any>(null);
-  const [callScript, setCallScript] = useState('');
-  const [isDialing, setIsDialing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dialer' | 'lists' | 'scripts' | 'history'>('dialer');
-  const [callLists, setCallLists] = useState<CallList[]>([]);
-  const [callScripts, setCallScripts] = useState<CallScript[]>([]);
-  const [callHistory, setCallHistory] = useState<CallActivity[]>([]);
-  const [selectedList, setSelectedList] = useState<CallList | null>(null);
-  const [currentLeadIndex, setCurrentLeadIndex] = useState(0);
-  const [autoDial, setAutoDial] = useState(false);
+  const [callState, setCallState] = useState<CallState>({
+    status: 'idle',
+    duration: 0,
+    isMuted: false,
+    isSpeakerOn: false,
+  });
+  
+  const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [callNotes, setCallNotes] = useState('');
-  const [callOutcome, setCallOutcome] = useState<string>('');
-
-  const dialerButtons = [
-    ['1', '2', '3'],
-    ['4', '5', '6'],
-    ['7', '8', '9'],
-    ['*', '0', '#']
-  ];
-
-  const tabs = [
-    { key: 'dialer', label: 'Dialer', icon: 'call-outline' },
-    { key: 'lists', label: 'Lists', icon: 'list-outline' },
-    { key: 'scripts', label: 'Scripts', icon: 'document-text-outline' },
-    { key: 'history', label: 'History', icon: 'time-outline' }
-  ];
-
-  const outcomes = [
-    { value: 'interested', label: 'Interested', color: '#10B981' },
-    { value: 'not_interested', label: 'Not Interested', color: '#EF4444' },
-    { value: 'follow_up', label: 'Follow Up', color: '#F59E0B' },
-    { value: 'callback', label: 'Callback', color: '#3B82F6' },
-    { value: 'sale', label: 'Sale', color: '#8B5CF6' },
-    { value: 'wrong_number', label: 'Wrong Number', color: '#6B7280' }
-  ];
+  const [callStatus, setCallStatus] = useState<string>('');
+  
+  const durationInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    loadData();
+    connectToTelephony();
+    return () => {
+      disconnectFromTelephony();
+      if (durationInterval.current) {
+        clearInterval(durationInterval.current);
+      }
+    };
   }, []);
 
-  useEffect(() => {
-    loadCallScript();
-  }, [selectedLead]);
+  const connectToTelephony = () => {
+    if (!user || !session?.access_token) return;
 
-  const loadData = async () => {
+    const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+    const socketUrl = apiBaseUrl.replace('/api/v1', '').replace('https://', 'wss://').replace('http://', 'ws://');
+
     try {
-      await Promise.all([
-        loadCallLists(),
-        loadCallScripts(),
-        loadCallHistory()
-      ]);
+      const newSocket = io(socketUrl, {
+        query: {
+          deviceId: Constants.installationId,
+          agentId: user.id,
+        },
+        auth: { token: session.access_token },
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 2000,
+        path: '/socket.io',
+      });
+
+      newSocket.on('connect', () => {
+        console.log('Connected to telephony gateway');
+        // Register device
+        registerDevice();
+      });
+
+      newSocket.on('incoming_call', (data: IncomingCall) => {
+        console.log('Incoming call:', data);
+        handleIncomingCall(data);
+      });
+
+      newSocket.on('call_status_update', (data: any) => {
+        console.log('Call status update:', data);
+        if (data.status === 'connected') {
+          handleCallConnected();
+        } else if (data.status === 'dialing') {
+          setCallState(prev => ({ ...prev, status: 'dialing' }));
+        }
+      });
+
+      newSocket.on('call_ended', (data: any) => {
+        console.log('Call ended by agent:', data);
+        finishCall(data.status, data.notes);
+      });
+
+      newSocket.on('end_call', (data: any) => {
+        console.log('End call signal received:', data);
+        finishCall(data.status, data.notes);
+      });
+
+      newSocket.on('toggle_mute', (data: any) => {
+        console.log('Toggle mute:', data);
+        setCallState(prev => ({ ...prev, isMuted: data.isMuted }));
+      });
+
+      newSocket.on('toggle_speaker', (data: any) => {
+        console.log('Toggle speaker:', data);
+        setCallState(prev => ({ ...prev, isSpeakerOn: data.isSpeakerOn }));
+      });
+
+      newSocket.on('play_dtmf', (data: any) => {
+        console.log('Play DTMF:', data);
+        // DTMF tone would be played here
+      });
+
+      newSocket.on('disconnect', () => {
+        console.log('Disconnected from telephony gateway');
+      });
+
+      newSocket.on('connect_error', (error: any) => {
+        console.error('Telephony connection error:', error);
+      });
+
+      setSocket(newSocket);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Failed to connect to telephony gateway:', error);
     }
   };
 
-  const loadCallLists = async () => {
-    if (!user?.organization_id) return;
-    try {
-      const lists = await CommunicationService.getCallLists(user.organization_id);
-      setCallLists(lists);
-    } catch (error) {
-      console.error('Error loading call lists:', error);
+  const disconnectFromTelephony = () => {
+    if (socket) {
+      socket.disconnect();
+      setSocket(null);
     }
   };
 
-  const loadCallScripts = async () => {
-    if (!user?.organization_id) return;
-    try {
-      const scripts = await CommunicationService.getCallScripts(user.organization_id);
-      setCallScripts(scripts);
-    } catch (error) {
-      console.error('Error loading call scripts:', error);
-    }
-  };
-
-  const loadCallHistory = async () => {
-    if (!user?.organization_id) return;
-    try {
-      const history = await CommunicationService.getCallHistory(user.organization_id);
-      setCallHistory(history);
-    } catch (error) {
-      console.error('Error loading call history:', error);
-    }
-  };
-
-  const handleNumberPress = (number: string) => {
-    setPhoneNumber(prev => prev + number);
-  };
-
-  const handleDelete = () => {
-    setPhoneNumber(prev => prev.slice(0, -1));
-  };
-
-  const handleCall = async (leadPhone?: string) => {
-    const phoneToCall = leadPhone || phoneNumber;
-    
-    if (!phoneToCall.trim()) {
-      Alert.alert('Error', 'Please enter a phone number');
+  const registerDevice = async () => {
+    if (!user) {
+      console.warn('Cannot register device: user not authenticated');
       return;
     }
-
     try {
-      setIsDialing(true);
-      
-      // Log the call activity
-      if (selectedLead) {
-        await ApiService.createActivity({
-          type: 'call',
-          details: `Called ${selectedLead.name} at ${phoneToCall}`,
-          lead_id: selectedLead.id,
-          user_id: user?.id,
-          organization_id: user?.organization_id,
-          workspace_id: user?.workspace_id,
-        });
-      }
+      await CommunicationService.registerDevice(user.id, Constants.installationId);
+    } catch (error) {
+      console.error('Failed to register device:', error);
+    }
+  };
 
-      // Make the actual phone call
-      const phoneUrl = `tel:${phoneToCall}`;
-      const supported = await Linking.canOpenURL(phoneUrl);
+  const handleIncomingCall = (data: IncomingCall) => {
+    setIncomingCall(data);
+    setCallState({
+      status: 'incoming',
+      duration: 0,
+      isMuted: false,
+      isSpeakerOn: false,
+    });
+    
+    // Start vibration and animation
+    Vibration.vibrate([0, 1000, 500, 1000], true);
+    
+    // Fade in animation
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const acceptCall = async () => {
+    if (!incomingCall || !socket) return;
+
+    // Stop vibration
+    Vibration.cancel();
+
+    // Send accept signal
+    socket.emit('accept_call', {
+      callId: incomingCall.callId,
+      deviceId: Constants.installationId,
+    });
+
+    // Trigger native dialer
+    try {
+      const formattedPhone = formatPhoneNumber(incomingCall.leadPhone);
+      const supported = await Linking.canOpenURL(`tel:${formattedPhone}`);
       
       if (supported) {
-        await Linking.openURL(phoneUrl);
+        await Linking.openURL(`tel:${formattedPhone}`);
         
-        // Navigate to call feedback screen
-        router.push({
-          pathname: '/dialer/feedback',
-          params: { 
-            phoneNumber: phoneToCall, 
-            leadId: selectedLead?.id,
-            leadName: selectedLead?.name 
-          }
-        } as any);
-      } else {
-        Alert.alert('Error', 'Phone calls are not supported on this device');
-      }
-    } catch (error) {
-      console.error('Error making call:', error);
-      Alert.alert('Error', 'Failed to make call');
-    } finally {
-      setIsDialing(false);
-    }
-  };
-
-  const loadCallScript = async () => {
-    if (selectedLead) {
-      try {
-        const script = callScripts.find(cs => cs.leadStatus === selectedLead.status);
-        setCallScript(script ? script.script : getDefaultCallScript(selectedLead.status));
-      } catch (error) {
-        console.error('Error loading call script:', error);
-      }
-    }
-  };
-
-  const getDefaultCallScript = (status: string) => {
-    switch (status) {
-      case 'new':
-        return 'Hello! This is a new lead call script. Introduce yourself and qualify the lead.';
-      case 'follow_up':
-        return 'Hello! This is a follow-up call. Reference previous conversation and move forward.';
-      case 'qualified':
-        return 'Hello! This is a qualified lead call. Focus on closing the deal.';
-      default:
-        return 'Hello! This is a general call script. Adapt based on the conversation.';
-    }
-  };
-
-  const startAutoDialer = async () => {
-    if (!selectedList || selectedList.leads.length === 0) {
-      Alert.alert('Error', 'Please select a call list with leads');
-      return;
-    }
-
-    setAutoDial(true);
-    setCurrentLeadIndex(0);
-    setSelectedLead(selectedList.leads[0]);
-    setPhoneNumber(selectedList.leads[0].phone);
-    Alert.alert('Auto Dialer Started', `Calling ${selectedList.leads[0].name}`);
-  };
-
-  const nextLead = () => {
-    if (selectedList && currentLeadIndex < selectedList.leads.length - 1) {
-      const nextIndex = currentLeadIndex + 1;
-      setCurrentLeadIndex(nextIndex);
-      setSelectedLead(selectedList.leads[nextIndex]);
-      setPhoneNumber(selectedList.leads[nextIndex].phone);
-      setCallNotes('');
-      setCallOutcome('');
-      
-      if (autoDial) {
-        // Auto-dial next lead after a short delay
+        // Update state to dialing
+        setCallState(prev => ({ ...prev, status: 'dialing' }));
+        
+        // After a delay, assume call is connected (in real app, would use call detection)
         setTimeout(() => {
-          handleCall(selectedList.leads[nextIndex].phone);
-        }, 2000);
-      }
-    } else {
-      Alert.alert('Complete', 'You have reached the end of the call list');
-      setAutoDial(false);
-    }
-  };
-
-  const saveCallFeedback = async () => {
-    if (!selectedLead || !callOutcome) {
-      Alert.alert('Error', 'Please select a call outcome');
-      return;
-    }
-
-    try {
-      const callActivity: CallActivity = {
-        id: Date.now().toString(),
-        leadId: selectedLead.id,
-        leadName: selectedLead.name,
-        phone: selectedLead.phone,
-        status: 'completed',
-        notes: callNotes,
-        outcome: callOutcome as any,
-        userId: user?.id || '1',
-        timestamp: new Date().toISOString()
-      };
-
-      setCallHistory(prev => [callActivity, ...prev]);
-      
-      // Update lead call attempts
-      if (selectedList) {
-        const updatedLeads = selectedList.leads.map(lead =>
-          lead.id === selectedLead.id
-            ? { ...lead, callAttempts: lead.callAttempts + 1, lastCallDate: new Date().toISOString() }
-            : lead
-        );
-        setSelectedList({ ...selectedList, leads: updatedLeads });
-        setCallLists(prev => prev.map(list =>
-          list.id === selectedList.id ? { ...list, leads: updatedLeads } : list
-        ));
-      }
-
-      Alert.alert('Success', 'Call feedback saved');
-      
-      if (autoDial) {
-        nextLead();
-      } else {
-        setCallNotes('');
-        setCallOutcome('');
+          handleCallConnected();
+        }, 5000); // 5 second delay to simulate call connection
       }
     } catch (error) {
-      console.error('Error saving feedback:', error);
-      Alert.alert('Error', 'Failed to save feedback');
+      console.error('Failed to open dialer:', error);
+      Alert.alert('Error', 'Failed to open phone dialer');
     }
   };
 
-  const renderDialerTab = () => (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {selectedLead && (
-        <Card style={[styles.leadInfoCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-          <View style={styles.leadInfoHeader}>
-            <View style={styles.leadInfo}>
-              <Text style={[styles.leadName, { color: isDark ? colors.surface : colors.onBackground }]}>
-                {selectedLead.name}
-              </Text>
-              <Text style={[styles.leadPhone, { color: colors.primary }]}>
-                {selectedLead.phone}
-              </Text>
-              <Text style={[styles.leadStatus, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Status: {selectedLead.status} • Attempts: {selectedLead.callAttempts}
-              </Text>
-            </View>
-            <View style={[styles.priorityBadge, { 
-              backgroundColor: selectedLead.priority === 'urgent' ? '#DC262620' :
-                               selectedLead.priority === 'high' ? '#F59E0B20' :
-                               selectedLead.priority === 'medium' ? '#3B82F620' : '#10B98120'
-            }]}>
-              <Text style={[styles.priorityText, { 
-                color: selectedLead.priority === 'urgent' ? '#DC2626' :
-                       selectedLead.priority === 'high' ? '#F59E0B' :
-                       selectedLead.priority === 'medium' ? '#3B82F6' : '#10B981'
-              }]}>
-                {(selectedLead.priority || 'Medium').toUpperCase()}
-              </Text>
-            </View>
-          </View>
+  const rejectCall = () => {
+    if (!incomingCall || !socket) return;
 
-          {selectedLead.notes && (
-            <View style={styles.notesContainer}>
-              <Text style={[styles.notesLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Notes:
-              </Text>
-              <Text style={[styles.notesText, { color: isDark ? colors.surface : colors.onBackground }]}>
-                {selectedLead.notes}
-              </Text>
-            </View>
-          )}
+    Vibration.cancel();
+    
+    // Send reject signal (could be implemented as end_call with status 'rejected')
+    socket.emit('call_ended', {
+      callId: incomingCall.callId,
+      deviceId: Constants.installationId,
+      duration: 0,
+      status: 'rejected',
+    });
 
-          {callScript && (
-            <View style={styles.scriptContainer}>
-              <Text style={[styles.scriptLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Call Script:
-              </Text>
-              <Text style={[styles.scriptText, { color: isDark ? colors.surface : colors.onBackground }]}>
-                {callScript}
-              </Text>
-            </View>
-          )}
-        </Card>
-      )}
+    setIncomingCall(null);
+    setCallState({
+      status: 'idle',
+      duration: 0,
+      isMuted: false,
+      isSpeakerOn: false,
+    });
+  };
 
-      <Card style={[styles.dialerCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-        <View style={styles.phoneDisplay}>
-          <TextInput
-            style={[styles.phoneNumberInput, { 
-              color: isDark ? colors.surface : colors.onBackground,
-              fontSize: 24 
-            }]}
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            placeholder="Enter phone number"
-            placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-            keyboardType="phone-pad"
-            textAlign="center"
-          />
-        </View>
+  const handleCallConnected = () => {
+    if (!incomingCall || !socket) return;
 
-        <View style={styles.dialerButtons}>
-          {dialerButtons.map((row, rowIndex) => (
-            <View key={rowIndex} style={styles.dialerRow}>
-              {row.map((number) => (
-                <TouchableOpacity
-                  key={number}
-                  style={[styles.dialerButton, { 
-                    backgroundColor: isDark ? '#374151' : '#F9FAFB',
-                    borderColor: isDark ? '#4B5563' : '#E5E7EB'
-                  }]}
-                  onPress={() => handleNumberPress(number)}
-                >
-                  <Text style={[styles.dialerButtonText, { 
-                    color: isDark ? colors.surface : colors.onBackground 
-                  }]}>
-                    {number}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))}
-        </View>
+    // Send connected signal
+    socket.emit('call_connected', {
+      callId: incomingCall.callId,
+      deviceId: Constants.installationId,
+    });
 
-        <View style={styles.dialerActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={handleDelete}
-          >
-            <Ionicons name="backspace-outline" size={24} color="#EF4444" />
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, styles.callButton, { backgroundColor: colors.primary }]}
-            onPress={() => handleCall()}
-            disabled={isDialing}
-          >
-            <Ionicons name="call-outline" size={32} color="#FFFFFF" />
-          </TouchableOpacity>
+    // Update state
+    setCallState(prev => ({ ...prev, status: 'connected' }));
+    
+    // Start duration timer
+    durationInterval.current = setInterval(() => {
+      setCallState(prev => ({ ...prev, duration: prev.duration + 1 }));
+    }, 1000);
+  };
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.contactsButton]}
-            onPress={() => Alert.alert('Contacts', 'Contact picker will be implemented')}
-          >
-            <Ionicons name="people-outline" size={24} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-      </Card>
+  const finishCall = (status: string, notes: string) => {
+    if (!socket || !incomingCall) return;
 
-      {(selectedLead || phoneNumber) && (
-        <Card style={[styles.feedbackCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-          <Text style={[styles.feedbackTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-            Call Feedback
-          </Text>
-          
-          <TextInput
-            style={[styles.notesInput, { 
-              backgroundColor: isDark ? '#374151' : '#F9FAFB',
-              color: isDark ? colors.surface : colors.onBackground,
-              borderColor: isDark ? '#4B5563' : '#E5E7EB'
-            }]}
-            value={callNotes}
-            onChangeText={setCallNotes}
-            placeholder="Add call notes..."
-            placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-            multiline
-            numberOfLines={3}
-          />
+    // Stop duration timer
+    if (durationInterval.current) {
+      clearInterval(durationInterval.current);
+    }
 
-          <Text style={[styles.outcomeLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            Call Outcome:
-          </Text>
-          <View style={styles.outcomesContainer}>
-            {outcomes.map((outcome) => (
-              <TouchableOpacity
-                key={outcome.value}
-                style={[
-                  styles.outcomeButton,
-                  callOutcome === outcome.value && styles.selectedOutcome,
-                  { 
-                    backgroundColor: callOutcome === outcome.value ? outcome.color + '20' : (isDark ? '#374151' : '#F9FAFB'),
-                    borderColor: callOutcome === outcome.value ? outcome.color : (isDark ? '#4B5563' : '#E5E7EB')
-                  }
-                ]}
-                onPress={() => setCallOutcome(outcome.value)}
-              >
-                <Text style={[
-                  styles.outcomeText,
-                  callOutcome === outcome.value && styles.selectedOutcomeText,
-                  { color: callOutcome === outcome.value ? outcome.color : (isDark ? colors.surface : colors.onBackground) }
-                ]}>
-                  {outcome.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+    // Log call activity
+    try {
+      CommunicationService.logCallActivity({
+        leadId: incomingCall.leadId,
+        phone: incomingCall.leadPhone,
+        duration: callState.duration,
+        status: 'completed',
+        notes: notes,
+        outcome: status as any || 'interested',
+      });
+    } catch (error) {
+      console.error('Failed to log call activity:', error);
+    }
 
-          <View style={styles.feedbackActions}>
-            {selectedList && (
-              <Button
-                title={autoDial ? "Stop Auto Dial" : "Start Auto Dial"}
-                onPress={autoDial ? () => setAutoDial(false) : startAutoDialer}
-                style={styles.autoDialButton}
-              />
-            )}
-            <Button
-              title="Save Feedback"
-              onPress={saveCallFeedback}
-              style={styles.saveButton}
-            />
-            {selectedList && (
-              <Button
-                title="Next Lead"
-                onPress={nextLead}
-                style={styles.nextButton}
-              />
-            )}
-          </View>
-        </Card>
-      )}
-    </ScrollView>
-  );
+    // Reset state
+    setIncomingCall(null);
+    setCallState({
+      status: 'ended',
+      duration: 0,
+      isMuted: false,
+      isSpeakerOn: false,
+    });
 
-  const renderListsTab = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-          Call Lists ({callLists.length})
-        </Text>
-        <Button
-          title="Create List"
-          onPress={() => router.push('/dialer/lists/create' as any)}
-          style={styles.createButton}
-        />
-      </View>
+    // Reset animation
+    fadeAnim.setValue(0);
 
-      <FlatList
-        data={callLists}
-        renderItem={({ item }) => (
-          <Card style={[styles.listCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-            <View style={styles.listHeader}>
-              <View style={styles.listInfo}>
-                <Text style={[styles.listName, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  {item.name}
-                </Text>
-                <Text style={[styles.listMeta, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  {item.leads.length} leads • Created {new Date(item.createdAt).toLocaleDateString()}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.listActionButton, { backgroundColor: item.isActive ? colors.primary : '#E5E7EB' }]}
-                onPress={() => {
-                  setSelectedList(item);
-                  setActiveTab('dialer');
-                }}
-              >
-                <Text style={[styles.listActionText, { color: item.isActive ? '#FFFFFF' : '#6B7280' }]}>
-                  Start Calling
-                </Text>
-              </TouchableOpacity>
-            </View>
+    // Return to idle after a brief moment
+    setTimeout(() => {
+      setCallState({
+        status: 'idle',
+        duration: 0,
+        isMuted: false,
+        isSpeakerOn: false,
+      });
+    }, 2000);
+  };
 
-            <View style={styles.listStats}>
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  {item.leads.filter(lead => lead.priority === 'urgent').length}
-                </Text>
-                <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Urgent</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  {item.leads.filter(lead => lead.priority === 'high').length}
-                </Text>
-                <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>High</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  {item.leads.filter(lead => lead.status === 'new').length}
-                </Text>
-                <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>New</Text>
-              </View>
-            </View>
-          </Card>
-        )}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
-  );
+  const endCall = async () => {
+    if (!socket || !incomingCall) return;
 
-  const renderScriptsTab = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-          Call Scripts ({callScripts.length})
-        </Text>
-        <Button
-          title="Create Script"
-          onPress={() => router.push('/dialer/scripts/create' as any)}
-          style={styles.createButton}
-        />
-      </View>
+    // Send end call signal
+    socket.emit('call_ended', {
+      callId: incomingCall.callId,
+      deviceId: Constants.installationId,
+      duration: callState.duration,
+      status: callStatus || 'completed',
+      notes: callNotes,
+    });
 
-      <FlatList
-        data={callScripts}
-        renderItem={({ item }) => (
-          <Card style={[styles.scriptCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-            <View style={styles.scriptHeader}>
-              <Text style={[styles.scriptName, { color: isDark ? colors.surface : colors.onBackground }]}>
-                {item.name}
-              </Text>
-              <View style={[styles.statusBadge, { 
-                backgroundColor: item.isActive ? '#10B98120' : '#EF444420'
-              }]}>
-                <Text style={[styles.statusText, { 
-                  color: item.isActive ? '#10B981' : '#EF4444'
-                }]}>
-                  {item.isActive ? 'ACTIVE' : 'INACTIVE'}
-                </Text>
-              </View>
-            </View>
-            
-            <Text style={[styles.scriptStatus, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              For: {item.leadStatus}
-            </Text>
-            
-            <Text style={[styles.scriptPreview, { color: isDark ? colors.surface : colors.onBackground }]} numberOfLines={3}>
-              {item.script}
-            </Text>
+    finishCall(callStatus || 'completed', callNotes);
+  };
 
-            <View style={styles.scriptKeyPoints}>
-              <Text style={[styles.keyPointsLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Key Points:
-              </Text>
-              {item.keyPoints.map((point, index) => (
-                <Text key={index} style={[styles.keyPoint, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  • {point}
-                </Text>
-              ))}
-            </View>
-          </Card>
-        )}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
-  );
+  const toggleMute = () => {
+    if (!socket || !incomingCall) return;
+    
+    setCallState(prev => ({ ...prev, isMuted: !prev.isMuted }));
+    
+    socket.emit('toggle_mute', {
+      callId: incomingCall.callId,
+      isMuted: !callState.isMuted,
+    });
+  };
 
-  const renderHistoryTab = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-          Call History ({callHistory.length})
-        </Text>
-        <Button
-          title="Export"
-          onPress={() => Alert.alert('Export', 'Export functionality will be implemented')}
-          style={styles.exportButton}
-        />
-      </View>
+  const toggleSpeaker = () => {
+    if (!socket || !incomingCall) return;
+    
+    setCallState(prev => ({ ...prev, isSpeakerOn: !prev.isSpeakerOn }));
+    
+    socket.emit('toggle_speaker', {
+      callId: incomingCall.callId,
+      isSpeakerOn: !callState.isSpeakerOn,
+    });
+  };
 
-      <FlatList
-        data={callHistory}
-        renderItem={({ item }) => (
-          <Card style={[styles.historyCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
-            <View style={styles.historyHeader}>
-              <View style={styles.historyInfo}>
-                <Text style={[styles.historyLeadName, { color: isDark ? colors.surface : colors.onBackground }]}>
-                  {item.leadName}
-                </Text>
-                <Text style={[styles.historyPhone, { color: colors.primary }]}>
-                  {item.phone}
-                </Text>
-                <Text style={[styles.historyTime, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  {new Date(item.timestamp).toLocaleString()}
-                  {item.duration && ` • ${Math.floor(item.duration / 60)}m ${item.duration % 60}s`}
-                </Text>
-              </View>
-              <View style={[styles.outcomeBadge, { 
-                backgroundColor: outcomes.find(o => o.value === item.outcome)?.color + '20' || '#6B728020'
-              }]}>
-                <Text style={[styles.outcomeBadgeText, { 
-                  color: outcomes.find(o => o.value === item.outcome)?.color || '#6B7280'
-                }]}>
-                  {(item.outcome || 'Unknown').replace('_', ' ').toUpperCase()}
-                </Text>
-              </View>
-            </View>
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
 
-            {item.notes && (
-              <Text style={[styles.historyNotes, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                Notes: {item.notes}
-              </Text>
-            )}
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
 
-            {item.nextFollowUp && (
-              <Text style={[styles.followUpText, { color: colors.primary }]}>
-                Follow up: {new Date(item.nextFollowUp).toLocaleDateString()}
-              </Text>
-            )}
-          </Card>
-        )}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
-  );
+  const formatPhoneNumber = (phone: string) => {
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 10) return `+91${cleaned}`;
+    if (cleaned.startsWith('91') && cleaned.length === 12) return `+${cleaned}`;
+    if (cleaned.startsWith('0') && cleaned.length === 11) return `+91${cleaned.substring(1)}`;
+    return phone;
+  };
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'dialer':
-        return renderDialerTab();
-      case 'lists':
-        return renderListsTab();
-      case 'scripts':
-        return renderScriptsTab();
-      case 'history':
-        return renderHistoryTab();
-      default:
-        return renderDialerTab();
+  const getStatusColor = () => {
+    switch (callState.status) {
+      case 'incoming': return colors.primary;
+      case 'dialing': return '#F59E0B';
+      case 'connected': return '#10B981';
+      case 'ended': return '#6B7280';
+      default: return colors.onBackground;
     }
   };
 
+  // Render incoming call screen
+  if (callState.status === 'incoming' && incomingCall) {
+    return (
+      <Animated.View style={[styles.incomingContainer, { opacity: fadeAnim }]}>
+        <View style={[styles.incomingCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={styles.incomingAvatar}>
+            <Ionicons name="person" size={64} color={colors.primary} />
+          </View>
+          
+          <Text style={[styles.incomingName, { color: isDark ? colors.surface : colors.onBackground }]}>
+            {incomingCall.leadName}
+          </Text>
+          <Text style={[styles.incomingPhone, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            {incomingCall.leadPhone}
+          </Text>
+          
+          <Text style={[styles.incomingLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            Incoming Call...
+          </Text>
+
+          <View style={styles.incomingActions}>
+            <TouchableOpacity style={styles.rejectButton} onPress={rejectCall}>
+              <Ionicons name="call" size={32} color="#FFFFFF" style={{ transform: [{ rotate: '135deg' }] }} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.acceptButton} onPress={acceptCall}>
+              <Ionicons name="call" size={32} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Animated.View>
+    );
+  }
+
+  // Render active call screen
+  if (callState.status === 'connected' || callState.status === 'dialing') {
+    return (
+      <View style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}>
+        <View style={[styles.callCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+          <View style={styles.callHeader}>
+            <Text style={[styles.callStatus, { color: getStatusColor() }]}>
+              {callState.status === 'dialing' ? 'Dialing...' : 'Connected'}
+            </Text>
+          </View>
+
+          <View style={styles.callAvatar}>
+            <Ionicons name="person" size={80} color={colors.primary} />
+          </View>
+
+          <Text style={[styles.callName, { color: isDark ? colors.surface : colors.onBackground }]}>
+            {incomingCall?.leadName}
+          </Text>
+          <Text style={[styles.callPhone, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            {incomingCall?.leadPhone}
+          </Text>
+
+          {callState.status === 'connected' && (
+            <Text style={[styles.callDuration, { color: isDark ? colors.surface : colors.onBackground }]}>
+              {formatDuration(callState.duration)}
+            </Text>
+          )}
+
+          <View style={styles.callControls}>
+            <TouchableOpacity
+              style={[styles.controlButton, callState.isMuted && styles.controlButtonActive]}
+              onPress={toggleMute}
+            >
+              <Ionicons
+                name={callState.isMuted ? 'mic-off' : 'mic'}
+                size={24}
+                color={callState.isMuted ? '#FFFFFF' : colors.onBackground}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.controlButton, callState.isSpeakerOn && styles.controlButtonActive]}
+              onPress={toggleSpeaker}
+            >
+              <Ionicons
+                name="volume-high"
+                size={24}
+                color={callState.isSpeakerOn ? '#FFFFFF' : colors.onBackground}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.endCallButton} onPress={endCall}>
+              <Ionicons name="call" size={32} color="#FFFFFF" style={{ transform: [{ rotate: '135deg' }] }} />
+            </TouchableOpacity>
+          </View>
+
+          {callState.status === 'connected' && (
+            <View style={styles.callInfo}>
+              <Text style={[styles.infoLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                Mute: {callState.isMuted ? 'On' : 'Off'} | Speaker: {callState.isSpeakerOn ? 'On' : 'Off'}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // Render idle/ended state
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: isDark ? colors.surface : colors.onBackground }]}>
-          1-Click Dialer
+          Dialer
         </Text>
-        {autoDial && (
-          <View style={styles.autoDialIndicator}>
-            <Ionicons name="play-circle" size={16} color="#10B981" />
-            <Text style={styles.autoDialText}>Auto Dial Active</Text>
-          </View>
-        )}
+        <View style={styles.connectionStatus}>
+          <View style={[styles.statusDot, { backgroundColor: socket ? '#10B981' : '#EF4444' }]} />
+          <Text style={[styles.statusText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            {socket ? 'Connected' : 'Disconnected'}
+          </Text>
+        </View>
       </View>
 
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[
-              styles.tabButton,
-              activeTab === tab.key && styles.activeTabButton,
-              { borderColor: isDark ? '#374151' : '#E5E7EB' }
-            ]}
-            onPress={() => setActiveTab(tab.key as any)}
-          >
-            <Ionicons 
-              name={tab.icon as any} 
-              size={16} 
-              color={activeTab === tab.key ? colors.primary : (isDark ? '#6B7280' : '#9CA3AF')} 
-            />
-            <Text style={[
-              styles.tabText,
-              activeTab === tab.key && styles.activeTabText
-            ]}>
-              {tab.label}
+      <View style={[styles.contentCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+        <View style={styles.emptyState}>
+          <Ionicons name="call-outline" size={64} color={colors.primary} />
+          <Text style={[styles.emptyTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+            Ready to Call
+          </Text>
+          <Text style={[styles.emptyText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            Your mobile device is connected and ready to receive call requests from the web dashboard.
+          </Text>
+        </View>
+
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: isDark ? colors.surface : colors.onBackground }]}>
+              {socket ? '✓' : '✗'}
             </Text>
-          </TouchableOpacity>
-        ))}
+            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              WebSocket
+            </Text>
+          </View>
+          
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: isDark ? colors.surface : colors.onBackground }]}>
+              {Constants.installationId ? '✓' : '✗'}
+            </Text>
+            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              Device ID
+            </Text>
+          </View>
+          
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: isDark ? colors.surface : colors.onBackground }]}>
+              {Platform.OS === 'ios' || Platform.OS === 'android' ? '✓' : '✗'}
+            </Text>
+            <Text style={[styles.statLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              Native Dialer
+            </Text>
+          </View>
+        </View>
       </View>
 
-      {/* Tab Content */}
-      <View style={styles.contentContainer}>
-        {renderTabContent()}
+      <View style={[styles.infoCard, { backgroundColor: isDark ? '#1F2937' : '#FFFFFF' }]}>
+        <Text style={[styles.infoTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+          How It Works
+        </Text>
+        
+        <View style={styles.infoItem}>
+          <Ionicons name="phone-portrait-outline" size={24} color={colors.primary} />
+          <View style={styles.infoContent}>
+            <Text style={[styles.infoSubtitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+              Receive Call Requests
+            </Text>
+            <Text style={[styles.infoDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              When someone initiates a call from the web dashboard, you'll receive an incoming call notification.
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.infoItem}>
+          <Ionicons name="call-outline" size={24} color={colors.primary} />
+          <View style={styles.infoContent}>
+            <Text style={[styles.infoSubtitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+              Use Native Dialer
+            </Text>
+            <Text style={[styles.infoDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              Accept the call to automatically open your phone's native dialer with the lead's number.
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.infoItem}>
+          <Ionicons name="stats-chart-outline" size={24} color={colors.primary} />
+          <View style={styles.infoContent}>
+            <Text style={[styles.infoSubtitle, { color: isDark ? colors.surface : colors.onBackground }]}>
+              Call Tracking
+            </Text>
+            <Text style={[styles.infoDescription, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              Call duration and outcomes are automatically tracked and synced with the CRM.
+            </Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -768,413 +576,236 @@ export default function DialerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 20,
+    paddingTop: 60,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 40,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontFamily: fonts.nohemi.bold,
   },
-  autoDialIndicator: {
+  connectionStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#10B98120',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 14,
+    fontFamily: fonts.satoshi.medium,
+  },
+  contentCard: {
     borderRadius: 16,
-  },
-  autoDialText: {
-    fontSize: 12,
-    fontFamily: fonts.nohemi.medium,
-    color: '#10B981',
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    gap: 8,
-  },
-  tabButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 6,
-  },
-  activeTabButton: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  tabText: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.medium,
-    color: '#6B7280',
-  },
-  activeTabText: {
-    color: '#FFFFFF',
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  tabContent: {
-    flex: 1,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    padding: 24,
     marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: fonts.nohemi.semiBold,
-  },
-  createButton: {
-    paddingHorizontal: 16,
-  },
-  exportButton: {
-    paddingHorizontal: 16,
-  },
-  leadInfoCard: {
-    margin: 20,
-    padding: 16,
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  leadInfoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
   },
-  leadInfo: {
-    flex: 1,
-  },
-  leadName: {
-    fontSize: 18,
+  emptyTitle: {
+    fontSize: 20,
     fontFamily: fonts.nohemi.semiBold,
-    marginBottom: 4,
+    marginTop: 16,
   },
-  leadPhone: {
-    fontSize: 16,
-    fontFamily: fonts.satoshi.medium,
-    marginBottom: 4,
-  },
-  leadStatus: {
+  emptyText: {
     fontSize: 14,
     fontFamily: fonts.satoshi.regular,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
   },
-  priorityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  priorityText: {
-    fontSize: 10,
-    fontFamily: fonts.nohemi.bold,
-    textTransform: 'uppercase',
-  },
-  notesContainer: {
-    marginBottom: 12,
-  },
-  notesLabel: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.medium,
-    marginBottom: 4,
-  },
-  notesText: {
-    fontSize: 14,
-    fontFamily: fonts.satoshi.regular,
-  },
-  scriptContainer: {
-    backgroundColor: '#F9FAFB',
-    padding: 12,
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  scriptLabel: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.medium,
-    marginBottom: 4,
-  },
-  scriptText: {
-    fontSize: 14,
-    fontFamily: fonts.satoshi.regular,
-  },
-  dialerCard: {
-    margin: 20,
-    padding: 20,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  phoneDisplay: {
-    marginBottom: 20,
-  },
-  phoneNumberInput: {
-    fontFamily: fonts.nohemi.medium,
-  },
-  dialerButtons: {
-    marginBottom: 20,
-  },
-  dialerRow: {
+  statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  dialerButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  dialerButtonText: {
-    fontSize: 24,
-    fontFamily: fonts.nohemi.bold,
-  },
-  dialerActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  actionButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteButton: {
-    backgroundColor: '#FEE2E2',
-  },
-  callButton: {
-    width: 64,
-    height: 64,
-  },
-  contactsButton: {
-    backgroundColor: colors.primary + '10',
-  },
-  feedbackCard: {
-    margin: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  feedbackTitle: {
-    fontSize: 16,
-    fontFamily: fonts.nohemi.semiBold,
-    marginBottom: 12,
-  },
-  notesInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    fontFamily: fonts.satoshi.regular,
-    marginBottom: 16,
-    minHeight: 80,
-  },
-  outcomeLabel: {
-    fontSize: 14,
-    fontFamily: fonts.satoshi.medium,
-    marginBottom: 8,
-  },
-  outcomesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  outcomeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  selectedOutcome: {
-    borderWidth: 2,
-  },
-  outcomeText: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.medium,
-  },
-  selectedOutcomeText: {
-    fontFamily: fonts.nohemi.semiBold,
-  },
-  feedbackActions: {
-    gap: 8,
-  },
-  autoDialButton: {
-    backgroundColor: '#10B981',
-  },
-  saveButton: {
-    backgroundColor: colors.primary,
-  },
-  nextButton: {
-    backgroundColor: '#3B82F6',
-  },
-  listCard: {
-    margin: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  listInfo: {
-    flex: 1,
-  },
-  listName: {
-    fontSize: 16,
-    fontFamily: fonts.nohemi.medium,
-    marginBottom: 4,
-  },
-  listMeta: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.regular,
-  },
-  listActionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  listActionText: {
-    fontSize: 12,
-    fontFamily: fonts.nohemi.medium,
-  },
-  listStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   statItem: {
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 24,
     fontFamily: fonts.nohemi.bold,
-    marginBottom: 2,
+    color: '#10B981',
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: fonts.satoshi.regular,
-  },
-  scriptCard: {
-    margin: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  scriptHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  scriptName: {
-    fontSize: 16,
-    fontFamily: fonts.nohemi.medium,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  statusText: {
-    fontSize: 10,
-    fontFamily: fonts.nohemi.bold,
-    textTransform: 'uppercase',
-  },
-  scriptStatus: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.regular,
-    marginBottom: 8,
-  },
-  scriptPreview: {
-    fontSize: 14,
-    fontFamily: fonts.satoshi.regular,
-    marginBottom: 12,
-  },
-  scriptKeyPoints: {
-    marginTop: 8,
-  },
-  keyPointsLabel: {
-    fontSize: 12,
     fontFamily: fonts.satoshi.medium,
-    marginBottom: 4,
+    marginTop: 4,
   },
-  keyPoint: {
-    fontSize: 12,
-    fontFamily: fonts.satoshi.regular,
-    marginBottom: 2,
-  },
-  historyCard: {
-    margin: 20,
-    padding: 16,
-    marginBottom: 12,
+  infoCard: {
+    borderRadius: 16,
+    padding: 24,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+  infoTitle: {
+    fontSize: 18,
+    fontFamily: fonts.nohemi.semiBold,
+    marginBottom: 16,
   },
-  historyInfo: {
+  infoItem: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  infoContent: {
     flex: 1,
   },
-  historyLeadName: {
+  infoSubtitle: {
     fontSize: 16,
     fontFamily: fonts.nohemi.medium,
     marginBottom: 4,
   },
-  historyPhone: {
+  infoDescription: {
     fontSize: 14,
-    fontFamily: fonts.satoshi.medium,
-    marginBottom: 4,
-  },
-  historyTime: {
-    fontSize: 12,
     fontFamily: fonts.satoshi.regular,
+    lineHeight: 20,
   },
-  outcomeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  // Incoming call styles
+  incomingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)',
   },
-  outcomeBadgeText: {
-    fontSize: 10,
+  incomingCard: {
+    width: '90%',
+    maxWidth: 400,
+    borderRadius: 24,
+    padding: 40,
+    alignItems: 'center',
+  },
+  incomingAvatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(8, 166, 152, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  incomingName: {
+    fontSize: 24,
     fontFamily: fonts.nohemi.bold,
-    textTransform: 'uppercase',
-  },
-  historyNotes: {
-    fontSize: 14,
-    fontFamily: fonts.satoshi.regular,
     marginBottom: 8,
   },
-  followUpText: {
+  incomingPhone: {
+    fontSize: 16,
+    fontFamily: fonts.satoshi.regular,
+    marginBottom: 24,
+  },
+  incomingLabel: {
+    fontSize: 14,
+    fontFamily: fonts.satoshi.medium,
+    marginBottom: 40,
+  },
+  incomingActions: {
+    flexDirection: 'row',
+    gap: 40,
+  },
+  rejectButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  acceptButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Active call styles
+  callCard: {
+    flex: 1,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  callHeader: {
+    position: 'absolute',
+    top: 24,
+    left: 24,
+  },
+  callStatus: {
+    fontSize: 16,
+    fontFamily: fonts.nohemi.medium,
+  },
+  callAvatar: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(8, 166, 152, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  callName: {
+    fontSize: 24,
+    fontFamily: fonts.nohemi.bold,
+    marginBottom: 8,
+  },
+  callPhone: {
+    fontSize: 16,
+    fontFamily: fonts.satoshi.regular,
+    marginBottom: 16,
+  },
+  callDuration: {
+    fontSize: 32,
+    fontFamily: fonts.satoshi.bold,
+    marginBottom: 40,
+    fontVariant: ['tabular-nums'],
+  },
+  callControls: {
+    flexDirection: 'row',
+    gap: 20,
+    alignItems: 'center',
+  },
+  controlButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  controlButtonActive: {
+    backgroundColor: colors.onBackground,
+  },
+  endCallButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  callInfo: {
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  infoLabel: {
     fontSize: 12,
     fontFamily: fonts.satoshi.medium,
   },
