@@ -186,6 +186,18 @@ export class CreateLeadDto {
     @IsOptional()
     @IsString()
     organizationId?: string;
+
+    @ApiPropertyOptional({ example: 'uuid-of-pipeline' })
+    @IsOptional()
+    @IsUUID()
+    @Transform(({ value }) => value === '' ? undefined : value)
+    pipelineId?: string;
+
+    @ApiPropertyOptional({ example: 'uuid-of-pipeline', description: 'Alias for pipelineId' })
+    @IsOptional()
+    @IsUUID()
+    @Transform(({ value }) => value === '' ? undefined : value)
+    pipeline_id?: string;
 }
 
 export class UpdateLeadDto extends PartialType(CreateLeadDto) {
@@ -287,4 +299,14 @@ export class LeadQueryDto {
     @IsOptional()
     @IsString()
     timeRange?: string;
+
+    @ApiPropertyOptional({ description: 'Filter by pipeline ID' })
+    @IsOptional()
+    @IsUUID()
+    pipelineId?: string;
+
+    @ApiPropertyOptional({ description: 'Alias for pipelineId' })
+    @IsOptional()
+    @IsUUID()
+    pipeline_id?: string;
 }

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, useColorScheme, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Card, Button, Input } from '../../../src/components/common/Card';
-import { colors, fonts, spacing } from '../../../src/theme/theme';
-import { ApiService } from '../../../src/services/ApiService';
-import { useAuth } from '../../../src/contexts/AuthContext';
-import { usePopupMessages } from '../../../src/hooks/usePopupMessages';
-import { Lead } from '../../../src/lib/supabase';
+import { Card, Button, Input } from '@/src/components/common/Card';
+import { colors, fonts, spacing } from '@/src/theme/theme';
+import { ApiService } from '@/src/services/ApiService';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { usePopupMessages } from '@/src/hooks/usePopupMessages';
+import { Lead } from '@/src/lib/supabase';
 
 interface LeadFormData {
   name: string;

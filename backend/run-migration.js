@@ -19,15 +19,23 @@ async function runMigration() {
     try {
         console.log('Running workflow migration...');
         
-        // Read the migration file
-        const migrationPath = path.join(__dirname, 'migrations', '008_enhanced_workflow_engine.sql');
+        // Get file path from command line args
+        const fileArg = process.argv[2] || 'migrations/008_enhanced_workflow_engine.sql';
+        const migrationPath = path.resolve(process.cwd(), fileArg);
+        console.log(`Running migration from: ${migrationPath}`);
         const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
         
+        // Remove lines that start with -- (comments)
+        const sqlWithoutComments = migrationSQL
+            .split('\n')
+            .filter(line => !line.trim().startsWith('--'))
+            .join('\n');
+            
         // Split the SQL into individual statements
-        const statements = migrationSQL
+        const statements = sqlWithoutComments
             .split(';')
             .map(stmt => stmt.trim())
-            .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+            .filter(stmt => stmt.length > 0);
         
         console.log(`Found ${statements.length} SQL statements to execute`);
         
@@ -37,7 +45,8 @@ async function runMigration() {
             console.log(`Executing statement ${i + 1}/${statements.length}...`);
             
             try {
-                const { error } = await supabase.rpc('exec_sql', { sql_query: statement });
+                // Supabase exec_sql could take sql_query or query string parameter named sql
+                const { error } = await supabase.rpc('exec_sql', { sql: statement });
                 if (error) {
                     console.error(`Error executing statement ${i + 1}:`, error);
                     // Continue with other statements

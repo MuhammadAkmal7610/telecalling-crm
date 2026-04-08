@@ -43,6 +43,8 @@ export default function Pipeline() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [columns, setColumns] = useState({});
     const [stages, setStages] = useState([]);
+    const [pipelines, setPipelines] = useState([]);
+    const [selectedPipelineId, setSelectedPipelineId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -66,16 +68,33 @@ export default function Pipeline() {
     const fetchPipelineData = async () => {
         setLoading(true);
         try {
-            const [stagesRes, leadsRes] = await Promise.all([
+            const [stagesRes, leadsRes, pipelinesRes] = await Promise.all([
                 apiFetch('/lead-stages'),
-                apiFetch('/leads?limit=1000')
+                apiFetch('/leads?limit=1000'),
+                apiFetch('/pipeline')
             ]);
 
             const stagesData = await stagesRes.json();
             const leadsData = await leadsRes.json();
+            const pipelinesData = await pipelinesRes.json();
 
-            const stages = Array.isArray(stagesData.data) ? stagesData.data : (Array.isArray(stagesData) ? stagesData : []);
-            const leads = Array.isArray(leadsData.data?.data) ? leadsData.data.data : (Array.isArray(leadsData.data) ? leadsData.data : []);
+            const allStages = Array.isArray(stagesData.data) ? stagesData.data : (Array.isArray(stagesData) ? stagesData : []);
+            const allLeads = Array.isArray(leadsData.data?.data) ? leadsData.data.data : (Array.isArray(leadsData.data) ? leadsData.data : []);
+            const allPipelines = Array.isArray(pipelinesData.data) ? pipelinesData.data : (Array.isArray(pipelinesData) ? pipelinesData : []);
+
+            setPipelines(allPipelines);
+            
+            // Determine active pipeline
+            let activePipelineId = selectedPipelineId;
+            if (allPipelines.length > 0 && !activePipelineId) {
+                const defaultPipe = allPipelines.find(p => p.is_default) || allPipelines[0];
+                activePipelineId = defaultPipe.id;
+                setSelectedPipelineId(activePipelineId);
+            }
+
+            // Filter stages and leads by active pipeline
+            const stages = allStages.filter(s => s.pipeline_id === activePipelineId || !s.pipeline_id);
+            const leads = allLeads.filter(l => l.pipeline_id === activePipelineId || (!l.pipeline_id && activePipelineId === allPipelines.find(p => p.is_default)?.id));
 
             setStages(stages);
             setTotalLeads(leads.length);
@@ -113,7 +132,7 @@ export default function Pipeline() {
 
     useEffect(() => {
         fetchPipelineData();
-    }, [currentWorkspace, searchTerm]);
+    }, [currentWorkspace, searchTerm, selectedPipelineId]);
 
     // Listen for real-time updates
     useEffect(() => {
@@ -305,7 +324,21 @@ export default function Pipeline() {
                         {/* Toolbar */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sticky left-0">
                             <div className="flex items-center gap-3">
-                                <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
+                                <div className="relative inline-block text-left">
+                                    <select
+                                        value={selectedPipelineId || ''}
+                                        onChange={(e) => setSelectedPipelineId(e.target.value)}
+                                        className="appearance-none bg-transparent hover:bg-gray-100 py-1 pl-2 pr-8 rounded-lg text-2xl font-bold text-gray-900 focus:outline-none cursor-pointer transition-colors"
+                                    >
+                                        {pipelines.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                        {pipelines.length === 0 && <option value="" disabled>Loading...</option>}
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-500">
+                                        <svg className="w-5 h-5 text-gray-900 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                </div>
                                 <span className="px-2 py-0.5 rounded-md bg-white border border-gray-200 text-xs font-bold text-gray-500 shadow-sm">
                                     {totalLeads} Leads
                                 </span>

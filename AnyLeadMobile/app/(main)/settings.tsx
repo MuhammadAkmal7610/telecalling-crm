@@ -76,26 +76,29 @@ export default function SettingsScreen() {
       contentContainerStyle={styles.contentContainer}
     >
       {/* User Profile Section */}
-      <Card style={styles.profileCard}>
-        <View style={styles.profileContent}>
-          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-            <Text style={styles.avatarText}>
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
-            </Text>
+      <TouchableOpacity onPress={() => router.push('/settings/profile')}>
+        <Card style={styles.profileCard}>
+          <View style={styles.profileContent}>
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+              <Text style={styles.avatarText}>
+                {user?.name?.charAt(0).toUpperCase() || 'U'}
+              </Text>
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={[styles.profileName, { color: isDark ? colors.surface : colors.onBackground }]}>
+                {user?.name || 'User'}
+              </Text>
+              <Text style={[styles.profileEmail, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                {user?.email}
+              </Text>
+              <Text style={[styles.profileRole, { color: colors.primary }]}>
+                {user?.role || 'User'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? '#6B7280' : '#9CA3AF'} />
           </View>
-          <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, { color: isDark ? colors.surface : colors.onBackground }]}>
-              {user?.name || 'User'}
-            </Text>
-            <Text style={[styles.profileEmail, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              {user?.email}
-            </Text>
-            <Text style={[styles.profileRole, { color: colors.primary }]}>
-              {user?.role || 'User'}
-            </Text>
-          </View>
-        </View>
-      </Card>
+        </Card>
+      </TouchableOpacity>
 
       {/* Account Settings */}
       <View style={styles.section}>
@@ -107,21 +110,21 @@ export default function SettingsScreen() {
           icon="person-outline"
           title="Edit Profile"
           subtitle="Update your personal information"
-          onPress={() => router.push('/settings/profile' as any)}
+          onPress={() => router.push('/settings/profile')}
         />
         
         <SettingItem
           icon="notifications-outline"
           title="Notifications"
           subtitle="Manage your notification preferences"
-          onPress={() => router.push('/settings/notifications' as any)}
+          onPress={() => router.push('/settings/notifications')}
         />
         
         <SettingItem
           icon="lock-closed-outline"
           title="Security"
           subtitle="Password and authentication settings"
-          onPress={() => router.push('/settings/security' as any)}
+          onPress={() => router.push('/settings/security')}
         />
       </View>
 
@@ -135,21 +138,21 @@ export default function SettingsScreen() {
           icon="color-palette-outline"
           title="Appearance"
           subtitle="Theme and display settings"
-          onPress={() => router.push('/settings/appearance' as any)}
+          onPress={() => router.push('/settings/appearance')}
         />
         
         <SettingItem
           icon="language-outline"
           title="Language"
           subtitle="Choose your preferred language"
-          onPress={() => router.push('/settings/language' as any)}
+          onPress={() => router.push('/settings/language')}
         />
         
         <SettingItem
           icon="sync-outline"
           title="Data & Sync"
           subtitle="Manage data synchronization"
-          onPress={() => router.push('/settings/sync' as any)}
+          onPress={() => router.push('/settings/sync')}
         />
       </View>
 
@@ -163,21 +166,21 @@ export default function SettingsScreen() {
           icon="help-circle-outline"
           title="Help Center"
           subtitle="Get help and support"
-          onPress={() => router.push('/settings/help' as any)}
+          onPress={() => router.push('/settings/help')}
         />
         
         <SettingItem
           icon="document-text-outline"
           title="Terms & Privacy"
           subtitle="Legal information and policies"
-          onPress={() => router.push('/settings/legal' as any)}
+          onPress={() => router.push('/settings/legal')}
         />
         
         <SettingItem
           icon="information-circle-outline"
           title="About"
           subtitle="App version and information"
-          onPress={() => router.push('/settings/about' as any)}
+          onPress={() => router.push('/settings/about')}
         />
       </View>
 

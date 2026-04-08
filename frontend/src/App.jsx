@@ -72,8 +72,11 @@ import WhatsApp from './pages/WhatsApp';
 import EmailCampaigns from './pages/EmailCampaigns';
 import Dialer from './pages/Dialer';
 import AdvancedAnalytics from './pages/AdvancedAnalytics';
+import RolesPermissions from './pages/RolesPermissions';
+import LicenseBilling from './pages/LicenseBilling';
+import AuditSecurity from './pages/AuditSecurity';
+import IntegrationHub from './pages/IntegrationHub';
 import { Outlet } from 'react-router-dom';
-
 
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -172,6 +175,10 @@ function App() {
                     <Route path="/dialer" element={<Dialer />} />
                     <Route path="/advanced-analytics" element={<AdvancedAnalytics />} />
                     <Route path="/dialer-settings" element={<DialerSettings />} />
+                    <Route path="/roles-permissions" element={<RolesPermissions />} />
+                    <Route path="/license-billing" element={<LicenseBilling />} />
+                    <Route path="/audit-security" element={<AuditSecurity />} />
+                    <Route path="/integration-hub" element={<IntegrationHub />} />
                   </Route>
                 </Route>
               </Routes>

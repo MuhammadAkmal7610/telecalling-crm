@@ -9,7 +9,8 @@ import {
     PencilIcon,
     TrashIcon,
     PlusIcon,
-    ArrowPathIcon
+    ArrowPathIcon,
+    ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
@@ -75,6 +76,8 @@ export default function LeadStage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [stages, setStages] = useState([]);
     const [lostReasons, setLostReasons] = useState([]);
+    const [pipelines, setPipelines] = useState([]);
+    const [selectedPipelineId, setSelectedPipelineId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [itemToDelete, setItemToDelete] = useState(null);
@@ -91,16 +94,26 @@ export default function LeadStage() {
             if (!session) return;
             const headers = { 'Authorization': `Bearer ${session.access_token}` };
 
-            const [stagesRes, reasonsRes] = await Promise.all([
+            const [stagesRes, reasonsRes, pipelinesRes] = await Promise.all([
                 fetch(`${API_URL}/lead-stages`, { headers }),
-                fetch(`${API_URL}/lead-stages/lost-reasons`, { headers })
+                fetch(`${API_URL}/lead-stages/lost-reasons`, { headers }),
+                fetch(`${API_URL}/pipeline`, { headers })
             ]);
 
             const stagesData = await stagesRes.json();
             const reasonsData = await reasonsRes.json();
+            const pipelinesData = await pipelinesRes.json();
 
             setStages(Array.isArray(stagesData.data) ? stagesData.data : (Array.isArray(stagesData) ? stagesData : []));
             setLostReasons(Array.isArray(reasonsData.data) ? reasonsData.data : (Array.isArray(reasonsData) ? reasonsData : []));
+            
+            const pipes = Array.isArray(pipelinesData.data) ? pipelinesData.data : (Array.isArray(pipelinesData) ? pipelinesData : []);
+            setPipelines(pipes);
+            
+            if (pipes.length > 0 && !selectedPipelineId) {
+                const defaultPipe = pipes.find(p => p.is_default) || pipes[0];
+                setSelectedPipelineId(defaultPipe.id);
+            }
         } catch (error) {
             console.error("Error fetching lead stages:", error);
         } finally {
@@ -140,10 +153,12 @@ export default function LeadStage() {
         }
     };
 
-    const initialStages = stages.filter(s => s.type === 'initial');
-    const activeStages = stages.filter(s => s.type === 'active');
-    const wonStages = stages.filter(s => s.type === 'won');
-    const lostStages = stages.filter(s => s.type === 'lost');
+    const currentPipelineStages = stages.filter(s => s.pipeline_id === selectedPipelineId || !s.pipeline_id);
+
+    const initialStages = currentPipelineStages.filter(s => s.type === 'initial');
+    const activeStages = currentPipelineStages.filter(s => s.type === 'active');
+    const wonStages = currentPipelineStages.filter(s => s.type === 'won');
+    const lostStages = currentPipelineStages.filter(s => s.type === 'lost');
 
     return (
         <div className="flex h-screen bg-white text-[#202124] font-sans antialiased">
@@ -164,9 +179,29 @@ export default function LeadStage() {
                                     <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                                 </button>
                             </div>
-                            <div className="flex items-center gap-2 mb-8 ml-9">
-                                <p className="text-sm text-gray-500">Configure Your Sales Pipeline</p>
-                                <a href="#" className="text-xs text-[#6B21A8] hover:underline font-medium" style={{ color: '#5b21b6' }}>How to use</a>
+                            <div className="flex items-center justify-between mb-8 ml-9">
+                                <div className="flex items-center gap-2">
+                                    <p className="text-sm text-gray-500">Configure Your Sales Pipeline</p>
+                                    <div className="relative inline-block text-left ml-4">
+                                        <select
+                                            value={selectedPipelineId || ''}
+                                            onChange={(e) => setSelectedPipelineId(e.target.value)}
+                                            className="appearance-none bg-white border border-gray-300 text-gray-700 py-1.5 pl-3 pr-8 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#08A698] focus:border-transparent cursor-pointer shadow-sm"
+                                        >
+                                            {pipelines.map(p => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                            {pipelines.length === 0 && <option value="" disabled>Loading pipelines...</option>}
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                            <ChevronDownIcon className="w-4 h-4" />
+                                        </div>
+                                    </div>
+                                    <button className="ml-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-lg transition-colors flex items-center gap-1">
+                                        <PlusIcon className="w-3 h-3" /> New Pipeline
+                                    </button>
+                                </div>
+                                <a href="#" className="text-xs text-[#6B21A8] hover:underline font-medium pr-4" style={{ color: '#5b21b6' }}>How to use</a>
                             </div>
 
                             {loading ? (

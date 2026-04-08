@@ -34,6 +34,11 @@ export class CreateLeadStageDto {
     @IsOptional()
     @IsBoolean()
     isDefault?: boolean;
+
+    @ApiPropertyOptional({ example: 'uuid-of-pipeline' })
+    @IsOptional()
+    @IsString()
+    pipelineId?: string;
 }
 
 export class UpdateLeadStageDto extends PartialType(CreateLeadStageDto) { }

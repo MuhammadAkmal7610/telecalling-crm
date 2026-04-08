@@ -132,10 +132,7 @@ export default function LeadsScreen() {
         </Text>
         <Button
           title="Add Lead"
-          onPress={() => router.push({
-            pathname: '/leads/create',
-            params: { returnTo: 'leads' }
-          } as any)}
+          onPress={() => router.push('/leads/create?returnTo=leads')}
         />
       </View>
 
@@ -158,10 +155,7 @@ export default function LeadsScreen() {
             </Text>
             <Button
               title="Add Your First Lead"
-              onPress={() => router.push({
-                pathname: '/leads/create',
-                params: { returnTo: 'leads' }
-              } as any)}
+              onPress={() => router.push('/leads/create?returnTo=leads')}
               style={styles.emptyButton}
             />
           </View>

@@ -14,7 +14,7 @@ import { Popup } from '@/src/components/common/Popup';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  anchor: '(main)',
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.

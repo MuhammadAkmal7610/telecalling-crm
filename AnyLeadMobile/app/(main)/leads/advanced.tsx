@@ -398,10 +398,7 @@ export default function AdvancedLeadsScreen() {
           </TouchableOpacity>
           <Button
             title="Add Lead"
-            onPress={() => router.push({
-              pathname: '/leads/create',
-              params: { returnTo: 'leads/advanced' }
-            } as any)}
+            onPress={() => router.push('/leads/create?returnTo=leads/advanced')}
             style={styles.addButton}
           />
         </View>
@@ -537,10 +534,7 @@ export default function AdvancedLeadsScreen() {
             </Text>
             <Button
               title="Add Your First Lead"
-              onPress={() => router.push({
-                pathname: '/leads/create',
-                params: { returnTo: 'leads/advanced' }
-              } as any)}
+                onPress={() => router.push('/leads/create?returnTo=leads/advanced')}
             />
           </View>
         }

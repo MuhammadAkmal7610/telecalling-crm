@@ -322,10 +322,7 @@ export default function LeadPipelineScreen() {
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={[styles.quickButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push({
-              pathname: '/leads/create',
-              params: { returnTo: 'leads/pipeline' }
-            } as any)}
+            onPress={() => router.push('/leads/create?returnTo=leads/pipeline')}
           >
             <Ionicons name="add-circle" size={24} color="white" />
             <Text style={styles.quickButtonText}>Add Lead</Text>
