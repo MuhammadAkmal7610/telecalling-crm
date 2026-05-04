@@ -63,14 +63,8 @@ export default function FilterPageTemplate({
     });
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans overflow-hidden">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-            
-            <div className="flex flex-1 flex-col h-full min-w-0">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <div className="flex flex-1 overflow-hidden">
-                    {/* Left Filter Panel */}
+        <div className="flex flex-1 overflow-hidden h-full">
+            {/* Left Filter Panel */}
                     <FilterPanel 
                         isOpen={filterPanelOpen} 
                         onClose={() => setFilterPanelOpen(false)}
@@ -247,8 +241,6 @@ export default function FilterPageTemplate({
                         </div>
 
                     </main>
-                </div>
-            </div>
 
             <BulkAssignModal
                 isOpen={isBulkAssignModalOpen}

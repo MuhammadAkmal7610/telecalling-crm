@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import WorkspaceGuard from '../components/WorkspaceGuard';
 import { CheckCircleIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -100,11 +99,8 @@ const Profile = () => {
     }
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
-            <Sidebar />
-            <div className="flex-1 flex flex-col overflow-hidden relative">
-                <Header />
-                <main className="flex-1 overflow-y-auto bg-gray-50 p-8 scroll-smooth no-scrollbar">
+        <WorkspaceGuard>
+            <main className="flex-1 overflow-y-auto bg-gray-50 p-8 scroll-smooth no-scrollbar h-full">
                     <div className="max-w-4xl mx-auto space-y-8 pb-10">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -214,8 +210,7 @@ const Profile = () => {
                         </div>
                     </div>
                 </main>
-            </div>
-        </div>
+        </WorkspaceGuard>
     );
 };
 

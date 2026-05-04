@@ -107,6 +107,24 @@ export class UsersService {
             throw new BadRequestException(error.message);
         }
 
+        // ── Step 5: Auto-add to Default Workspace ────────────────────────────────
+        const { data: defaultWorkspace } = await supabase
+            .from('workspaces')
+            .select('id')
+            .eq('organization_id', organizationId)
+            .eq('is_default', true)
+            .maybeSingle();
+
+        if (defaultWorkspace) {
+            await supabase
+                .from('workspace_members')
+                .upsert({
+                    workspace_id: defaultWorkspace.id,
+                    user_id: userId,
+                    role: dto.role || 'caller'
+                }, { onConflict: 'workspace_id,user_id' });
+        }
+
         return { message: dto.password ? 'User created successfully' : 'Invitation sent', user: data };
     }
 
@@ -286,21 +304,51 @@ export class UsersService {
     }
 
     /**
-     * Get team members for assignment purposes (accessible to all authenticated users)
-     * Returns limited info: id, name, email, role, initials, phone
-     * Includes all active users (Working or Invited status)
+     * Get team members for assignment purposes
+     * If workspaceId is provided, returns members of that workspace.
+     * Otherwise returns all active users in the organization.
      */
-    async findTeam(organizationId: string) {
+    async findTeam(organizationId: string, workspaceId?: string) {
         const supabase = this.supabaseService.getAdminClient();
-        const { data, error } = await supabase
-            .from(this.TABLE)
-            .select('id, name, email, role, initials, phone, status')
-            .eq('organization_id', organizationId)
-            .in('status', ['Working', 'Invited'])
-            .order('name', { ascending: true });
 
-        if (error) throw new BadRequestException(error.message);
-        return data || [];
+        try {
+            // 1. Try to get workspace members if workspaceId is provided
+            if (workspaceId && workspaceId !== 'all') {
+                const { data, error } = await supabase
+                    .from('workspace_members')
+                    .select('role, user:users!inner(id, name, email, role, initials, phone, status)')
+                    .eq('workspace_id', workspaceId)
+                    .eq('user.organization_id', organizationId)
+                    .neq('user.status', 'Deleted')
+                    .order('name', { foreignTable: 'users', ascending: true });
+
+                if (!error && data && data.length > 0) {
+                    return data.map(m => ({ ...m.user, workspaceRole: m.role }));
+                }
+                
+                if (error) {
+                    this.logger.warn(`Workspace members fetch error: ${error.message}. Falling back to org users.`);
+                }
+            }
+
+            // 2. Fallback: Get all users in the organization
+            const { data, error } = await supabase
+                .from(this.TABLE)
+                .select('id, name, email, role, initials, phone, status')
+                .eq('organization_id', organizationId)
+                .neq('status', 'Deleted')
+                .order('name', { ascending: true });
+
+            if (error) {
+                this.logger.error(`Error in findTeam organization fallback: ${error.message}`);
+                throw new BadRequestException(error.message);
+            }
+            
+            return data || [];
+        } catch (err) {
+            this.logger.error(`findTeam exception: ${err.message}`);
+            throw err;
+        }
     }
 
     async getUserActivity(userId: string, organizationId: string) {

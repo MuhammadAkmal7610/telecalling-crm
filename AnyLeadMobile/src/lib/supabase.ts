@@ -53,6 +53,8 @@ export interface Activity {
   lead_id: string;
   user_id: string;
   type: string;
+  title?: string;
+  subtitle?: string;
   details: string;
   metadata?: any;
   organization_id: string;

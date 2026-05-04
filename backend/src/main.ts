@@ -7,8 +7,11 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import helmet from 'helmet';
 import { ConfigService } from '@nestjs/config';
 
+import { json } from 'express';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.use(json({ limit: '50mb' }));
   const configService = app.get(ConfigService);
 
   const corsOrigins = (configService.get<string>('CORS_ORIGINS') || 'http://localhost:5173,http://localhost:3000,http://localhost:8081')

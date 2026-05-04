@@ -129,6 +129,44 @@ export class WhatsAppService {
     }
   }
 
+  /**
+   * Send a system notification to an agent via WhatsApp
+   */
+  async notifyAgent(userId: string, organizationId: string, message: string) {
+    const supabase = this.supabaseService.getAdminClient();
+    
+    // Get agent phone number
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('phone, workspace_id')
+      .eq('id', userId)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (userError || !user?.phone) {
+      this.logger.warn(`Could not notify agent ${userId}: Phone number missing`);
+      return;
+    }
+
+    // System context for the API call
+    const systemUser = {
+      id: '00000000-0000-0000-0000-000000000000',
+      organizationId,
+      workspaceId: user.workspace_id,
+    };
+
+    try {
+      return await this.sendMessage({
+        to: user.phone,
+        message: `🔔 *Notification:* ${message}`,
+        type: 'text',
+      }, systemUser);
+    } catch (error) {
+      this.logger.error(`Failed to send WhatsApp notification to agent ${userId}: ${error.message}`);
+    }
+  }
+
+
   async sendTemplateMessage(
     to: string,
     templateName: string,

@@ -299,160 +299,161 @@ export default function Pipeline() {
     };
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-            <LeadDetailModal
-                isOpen={isDetailModalOpen}
-                onClose={() => setIsDetailModalOpen(false)}
-                lead={selectedLead}
-            />
-            <LeadFormModal
-                isOpen={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
-                onSuccess={fetchPipelineData}
-            />
-            <PipelineAnalytics
-                isOpen={showAnalytics}
-                onClose={() => setShowAnalytics(false)}
-            />
-
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
+        <WorkspaceGuard>
+            <div className="relative h-full flex flex-col">
+                <LeadDetailModal
+                    isOpen={isDetailModalOpen}
+                    onClose={() => setIsDetailModalOpen(false)}
+                    lead={selectedLead}
+                />
+                <LeadFormModal
+                    isOpen={isAddModalOpen}
+                    onClose={() => setIsAddModalOpen(false)}
+                    onSuccess={fetchPipelineData}
+                />
+                <PipelineAnalytics
+                    isOpen={showAnalytics}
+                    onClose={() => setShowAnalytics(false)}
+                />
 
                 <main className="flex-1 overflow-x-auto overflow-y-hidden p-6 relative">
-                    <WorkspaceGuard>
-                        {/* Toolbar */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sticky left-0">
-                            <div className="flex items-center gap-3">
-                                <div className="relative inline-block text-left">
-                                    <select
-                                        value={selectedPipelineId || ''}
-                                        onChange={(e) => setSelectedPipelineId(e.target.value)}
-                                        className="appearance-none bg-transparent hover:bg-gray-100 py-1 pl-2 pr-8 rounded-lg text-2xl font-bold text-gray-900 focus:outline-none cursor-pointer transition-colors"
-                                    >
-                                        {pipelines.map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                        ))}
-                                        {pipelines.length === 0 && <option value="" disabled>Loading...</option>}
-                                    </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-500">
-                                        <svg className="w-5 h-5 text-gray-900 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                                    </div>
-                                </div>
-                                <span className="px-2 py-0.5 rounded-md bg-white border border-gray-200 text-xs font-bold text-gray-500 shadow-sm">
-                                    {totalLeads} Leads
-                                </span>
-                                {isConnected && (
-                                    <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">Live</span>
-                                )}
-                                <button onClick={fetchPipelineData} className="p-1.5 rounded-lg text-gray-400 hover:text-primary hover:bg-white transition-all shadow-sm">
-                                    <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                                </button>
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                                <div className="relative group">
-                                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#08A698] transition-colors" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search leads..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#08A698] focus:ring-1 focus:ring-[#08A698] w-64 transition-all shadow-sm"
-                                    />
-                                </div>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:border-[#08A698] hover:text-[#08A698] transition-colors shadow-sm">
-                                    <FunnelIcon className="w-4 h-4" /> Filter
-                                </button>
-                                <button 
-                                    onClick={() => setShowAnalytics(!showAnalytics)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:border-[#08A698] hover:text-[#08A698] transition-colors shadow-sm"
+                    {/* Toolbar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sticky left-0">
+                        <div className="flex items-center gap-3">
+                            <div className="relative inline-block text-left">
+                                <select
+                                    value={selectedPipelineId || ''}
+                                    onChange={(e) => setSelectedPipelineId(e.target.value)}
+                                    className="appearance-none bg-transparent hover:bg-white py-1 pl-2 pr-8 rounded-lg text-2xl font-black text-gray-900 focus:outline-none cursor-pointer transition-all border border-transparent hover:border-gray-200"
                                 >
-                                    <ChartBarIcon className="w-4 h-4" /> Analytics
-                                </button>
-                                <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:border-[#08A698] hover:text-[#08A698] transition-colors shadow-sm">
-                                    <AdjustmentsHorizontalIcon className="w-4 h-4" /> Settings
-                                </button>
-                                <button
-                                    onClick={() => setIsAddModalOpen(true)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-[#08A698] hover:bg-[#078F82] text-white rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all"
-                                >
-                                    <PlusIcon className="w-5 h-5" /> Add Lead
-                                </button>
+                                    {pipelines.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                    {pipelines.length === 0 && <option value="" disabled>Loading...</option>}
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-500">
+                                    <svg className="w-5 h-5 text-gray-900 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
                             </div>
+                            <span className="px-3 py-1 rounded-full bg-white border border-gray-200 text-[10px] font-black uppercase tracking-widest text-gray-500 shadow-sm">
+                                {totalLeads} Leads
+                            </span>
+                            {isConnected && (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Live Sync</span>
+                                </div>
+                            )}
+                            <button onClick={fetchPipelineData} className="p-2 rounded-xl text-gray-400 hover:text-teal-600 hover:bg-white transition-all shadow-sm border border-transparent hover:border-gray-100">
+                                <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                            </button>
                         </div>
 
-                        {/* Board with Drag & Drop */}
-                        <DndContext 
-                            sensors={sensors}
-                            collisionDetection={closestCorners}
-                            onDragStart={handleDragStart}
-                            onDragEnd={handleDragEnd}
-                        >
-                            <div className="flex gap-4 h-[calc(100%-80px)] min-w-max pb-4 items-start">
-                                {loading ? (
-                                    <div className="flex gap-4">
-                                        {[1, 2, 3, 4].map(i => (
-                                            <div key={i} className="w-72 h-[600px] bg-gray-50/50 rounded-xl border border-gray-200 border-dashed animate-pulse"></div>
-                                        ))}
-                                    </div>
-                                ) : Object.keys(columns).length === 0 ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-xl border border-dashed border-gray-300 py-20 min-w-[800px]">
-                                        <Bars3CenterLeftIcon className="w-12 h-12 text-gray-200 mb-4" />
-                                        <p className="text-gray-400 font-medium italic">No pipeline stages found</p>
-                                        <p className="text-xs text-gray-300 mt-1">Configure stages in settings to see them here.</p>
-                                    </div>
-                                ) : (
-                                    Object.values(columns).map((column) => (
-                                        <PipelineColumn
-                                            key={column.id}
-                                            stage={column}
-                                            leads={column.items}
-                                            onLeadClick={handleLeadClick}
-                                            onAddLead={handleAddLead}
-                                            onStageEdit={handleStageEdit}
-                                            onStageDelete={handleStageDelete}
-                                        />
-                                    ))
-                                )}
-
-                                {!loading && Object.keys(columns).length > 0 && (
-                                    <button className="w-72 flex-shrink-0 h-14 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center gap-2 text-gray-400 font-bold text-sm hover:bg-white hover:border-primary hover:text-primary transition-all focus:outline-none shadow-sm group">
-                                        <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-teal-50 transition-colors">
-                                            <PlusIcon className="w-5 h-5" />
-                                        </div>
-                                        Add Stage
-                                    </button>
-                                )}
+                        <div className="flex items-center gap-3">
+                            <div className="relative group">
+                                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-teal-600 transition-colors" />
+                                <input
+                                    type="text"
+                                    placeholder="Search leads..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 w-64 transition-all shadow-sm"
+                                />
                             </div>
-                            
-                            <DragOverlay>
-                                {activeLead ? (
-                                    <div className="bg-white p-3.5 rounded-xl border shadow-lg cursor-grabbing opacity-90 w-72">
-                                        <div className="flex justify-between items-start mb-2.5">
-                                            <h3 className="font-bold text-sm text-gray-800 line-clamp-1">{activeLead.name}</h3>
-                                            <div className="w-7 h-7 rounded-lg bg-teal-50 border border-teal-100 text-[#08A698] text-[10px] font-bold flex items-center justify-center shadow-sm shrink-0">
-                                                {activeLead.assigneeInitials}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-1.5 rounded-lg">
-                                            <PhoneIcon className="w-3.5 h-3.5 text-gray-400" />
-                                            <span>{activeLead.phone}</span>
+                            <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:border-teal-500 hover:text-teal-600 transition-all shadow-sm">
+                                <FunnelIcon className="w-4 h-4" /> Filter
+                            </button>
+                            <button 
+                                onClick={() => setShowAnalytics(!showAnalytics)}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:border-teal-500 hover:text-teal-600 transition-all shadow-sm"
+                            >
+                                <ChartBarIcon className="w-4 h-4" /> Analytics
+                            </button>
+                            <button
+                                onClick={() => setIsAddModalOpen(true)}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-black shadow-lg shadow-teal-600/20 hover:shadow-teal-600/40 transition-all"
+                            >
+                                <PlusIcon className="w-5 h-5" /> Add Lead
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Board with Drag & Drop */}
+                    <DndContext 
+                        sensors={sensors}
+                        collisionDetection={closestCorners}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <div className="flex gap-6 h-[calc(100%-80px)] min-w-max pb-4 items-start custom-scrollbar overflow-x-auto">
+                            {loading ? (
+                                <div className="flex gap-6">
+                                    {[1, 2, 3, 4].map(i => (
+                                        <div key={i} className="w-80 h-[600px] bg-white/50 backdrop-blur-sm rounded-3xl border border-white border-dashed animate-pulse"></div>
+                                    ))}
+                                </div>
+                            ) : Object.keys(columns).length === 0 ? (
+                                <div className="flex-1 flex flex-col items-center justify-center bg-white/50 backdrop-blur-md rounded-[2.5rem] border border-dashed border-gray-200 py-32 min-w-[800px]">
+                                    <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mb-6">
+                                        <Bars3CenterLeftIcon className="w-10 h-10 text-gray-300" />
+                                    </div>
+                                    <p className="text-xl font-bold text-gray-900 tracking-tight">No pipeline stages found</p>
+                                    <p className="text-sm text-gray-400 mt-2">Configure your sales stages in settings to start managing leads.</p>
+                                    <button className="mt-8 px-6 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-bold text-gray-600 hover:border-teal-500 hover:text-teal-600 transition-all shadow-sm flex items-center gap-2">
+                                        <PlusIcon className="w-5 h-5" /> Create First Stage
+                                    </button>
+                                </div>
+                            ) : (
+                                Object.values(columns).map((column) => (
+                                    <PipelineColumn
+                                        key={column.id}
+                                        stage={column}
+                                        leads={column.items}
+                                        onLeadClick={handleLeadClick}
+                                        onAddLead={handleAddLead}
+                                        onStageEdit={handleStageEdit}
+                                        onStageDelete={handleStageDelete}
+                                    />
+                                ))
+                            )}
+
+                            {!loading && Object.keys(columns).length > 0 && (
+                                <button className="w-80 flex-shrink-0 h-20 border-2 border-dashed border-gray-200 rounded-[2rem] flex items-center justify-center gap-3 text-gray-400 font-black text-sm hover:bg-white hover:border-teal-500 hover:text-teal-600 transition-all focus:outline-none shadow-sm group">
+                                    <div className="w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center group-hover:bg-teal-50 transition-colors">
+                                        <PlusIcon className="w-6 h-6" />
+                                    </div>
+                                    New Pipeline Stage
+                                </button>
+                            )}
+                        </div>
+                        
+                        <DragOverlay>
+                            {activeLead ? (
+                                <div className="bg-white/90 backdrop-blur-xl p-5 rounded-3xl border border-teal-100 shadow-2xl cursor-grabbing scale-105 rotate-2 transition-transform w-80">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <h3 className="font-black text-gray-900 line-clamp-1">{activeLead.name}</h3>
+                                        <div className="w-8 h-8 rounded-xl bg-teal-50 border border-teal-100 text-teal-600 text-xs font-black flex items-center justify-center shadow-sm shrink-0">
+                                            {activeLead.assigneeInitials}
                                         </div>
                                     </div>
-                                ) : null}
-                            </DragOverlay>
-                        </DndContext>
-                    </WorkspaceGuard>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50/50 p-2 rounded-xl">
+                                        <PhoneIcon className="w-4 h-4 text-gray-400" />
+                                        <span className="font-medium">{activeLead.phone}</span>
+                                    </div>
+                                </div>
+                            ) : null}
+                        </DragOverlay>
+                    </DndContext>
                 </main>
             </div>
 
             <style>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+                .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+                .custom-scrollbar::-webkit-scrollbar-edge { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 20px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.1); }
             `}</style>
-        </div>
+        </WorkspaceGuard>
     );
 }

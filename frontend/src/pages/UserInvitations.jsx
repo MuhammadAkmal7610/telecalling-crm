@@ -715,13 +715,9 @@ export default function UserInvitations() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      <div className="flex flex-1 flex-col h-full min-w-0">
-        <Header setIsSidebarOpen={setSidebarOpen} />
-        <main className="flex-1 overflow-hidden">
-          <WorkspaceGuard>
-            <div className="flex h-full bg-gray-50">
+    <>
+      <WorkspaceGuard>
+        <div className="flex h-full bg-gray-50">
               {/* Inner Management Sidebar */}
               <div className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
                 <div className="p-6">
@@ -766,8 +762,6 @@ export default function UserInvitations() {
               </div>
             </div>
           </WorkspaceGuard>
-        </main>
-      </div>
 
       {/* Invite Modal */}
       {showInviteModal && (
@@ -911,10 +905,10 @@ export default function UserInvitations() {
               >
                 Create Link
               </button>
-            </div>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    )}
+  </>
   );
 }

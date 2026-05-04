@@ -115,140 +115,23 @@ export default function UserInviteScreen() {
   };
 
   const loadInvitations = async () => {
-    // Mock invitations data
-    const mockInvitations: UserInvitation[] = [
-      {
-        id: '1',
-        email: 'john.doe@example.com',
-        name: 'John Doe',
-        role: 'sales',
-        status: 'pending',
-        invitedBy: user?.id || '1',
-        invitedByName: user?.name || 'Current User',
-        organizationId: user?.organization_id || 'org1',
-        organizationName: 'Tech Solutions Inc',
-        workspaceId: 'ws1',
-        workspaceName: 'Main Sales Team',
-        invitationToken: 'inv_123456789',
-        invitedAt: new Date(Date.now() - 86400000).toISOString(),
-        expiresAt: new Date(Date.now() + 604800000).toISOString(),
-        message: 'Join our sales team to help us grow our customer base!',
-        permissions: {
-          canManageUsers: false,
-          canManageSettings: false,
-          canViewReports: true,
-          canManageLeads: true,
-          canManageCampaigns: false
-        }
-      },
-      {
-        id: '2',
-        email: 'sarah.smith@example.com',
-        name: 'Sarah Smith',
-        role: 'manager',
-        status: 'accepted',
-        invitedBy: user?.id || '1',
-        invitedByName: user?.name || 'Current User',
-        organizationId: user?.organization_id || 'org1',
-        organizationName: 'Tech Solutions Inc',
-        invitationToken: 'inv_987654321',
-        invitedAt: new Date(Date.now() - 172800000).toISOString(),
-        expiresAt: new Date(Date.now() + 432000000).toISOString(),
-        acceptedAt: new Date(Date.now() - 3600000).toISOString(),
-        permissions: {
-          canManageUsers: true,
-          canManageSettings: false,
-          canViewReports: true,
-          canManageLeads: true,
-          canManageCampaigns: true
-        }
-      },
-      {
-        id: '3',
-        email: 'mike.wilson@example.com',
-        role: 'agent',
-        status: 'expired',
-        invitedBy: user?.id || '1',
-        invitedByName: user?.name || 'Current User',
-        organizationId: user?.organization_id || 'org1',
-        organizationName: 'Tech Solutions Inc',
-        invitationToken: 'inv_456789123',
-        invitedAt: new Date(Date.now() - 1209600000).toISOString(),
-        expiresAt: new Date(Date.now() - 864000000).toISOString(),
-        permissions: {
-          canManageUsers: false,
-          canManageSettings: false,
-          canViewReports: false,
-          canManageLeads: true,
-          canManageCampaigns: false
-        }
-      }
-    ];
-    setInvitations(mockInvitations);
+    try {
+      const { data, error } = await ApiService.getInvitations();
+      if (error) throw new Error(error.message);
+      setInvitations(data || []);
+    } catch (error) {
+      console.error('Error loading invitations:', error);
+    }
   };
 
   const loadInviteLinks = async () => {
-    // Mock invite links data
-    const mockLinks: InviteLink[] = [
-      {
-        id: '1',
-        name: 'Sales Team Invitation',
-        role: 'sales',
-        workspaceId: 'ws1',
-        workspaceName: 'Main Sales Team',
-        link: 'https://yourcrm.app/invite/sales-team-abc123',
-        isActive: true,
-        uses: 5,
-        maxUses: 10,
-        expiresAt: new Date(Date.now() + 2592000000).toISOString(),
-        createdAt: new Date(Date.now() - 604800000).toISOString(),
-        createdBy: user?.id || '1',
-        permissions: {
-          canManageUsers: false,
-          canManageSettings: false,
-          canViewReports: true,
-          canManageLeads: true,
-          canManageCampaigns: false
-        }
-      },
-      {
-        id: '2',
-        name: 'Manager Role Invitation',
-        role: 'manager',
-        link: 'https://yourcrm.app/invite/manager-def456',
-        isActive: true,
-        uses: 2,
-        maxUses: 3,
-        expiresAt: new Date(Date.now() + 864000000).toISOString(),
-        createdAt: new Date(Date.now() - 259200000).toISOString(),
-        createdBy: user?.id || '1',
-        permissions: {
-          canManageUsers: true,
-          canManageSettings: false,
-          canViewReports: true,
-          canManageLeads: true,
-          canManageCampaigns: true
-        }
-      },
-      {
-        id: '3',
-        name: 'Public Agent Invitation',
-        role: 'agent',
-        link: 'https://yourcrm.app/invite/agent-ghi789',
-        isActive: false,
-        uses: 0,
-        createdAt: new Date(Date.now() - 518400000).toISOString(),
-        createdBy: user?.id || '1',
-        permissions: {
-          canManageUsers: false,
-          canManageSettings: false,
-          canViewReports: false,
-          canManageLeads: true,
-          canManageCampaigns: false
-        }
-      }
-    ];
-    setInviteLinks(mockLinks);
+    try {
+      const { data, error } = await ApiService.getInviteLinks();
+      if (error) throw new Error(error.message);
+      setInviteLinks(data || []);
+    } catch (error) {
+      console.error('Error loading invite links:', error);
+    }
   };
 
   const onRefresh = async () => {
@@ -264,25 +147,15 @@ export default function UserInviteScreen() {
     }
 
     try {
-      const newInvitation: UserInvitation = {
-        id: Date.now().toString(),
+      const { error } = await ApiService.createInvitation({
         email: inviteForm.email,
-        name: inviteForm.name || undefined,
         role: inviteForm.role,
-        status: 'pending',
-        invitedBy: user?.id || '1',
-        invitedByName: user?.name || 'Current User',
-        organizationId: user?.organization_id || 'org1',
-        organizationName: 'Tech Solutions Inc',
-        workspaceId: inviteForm.workspaceId || undefined,
-        invitationToken: `inv_${Date.now()}`,
-        invitedAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 604800000).toISOString(), // 7 days
-        message: inviteForm.message || undefined,
-        permissions: inviteForm.permissions
-      };
+        workspaceId: inviteForm.workspaceId || undefined
+      });
+      
+      if (error) throw new Error(error.message);
 
-      setInvitations(prev => [newInvitation, ...prev]);
+      loadData();
       setInviteForm({
         email: '',
         name: '',
@@ -299,9 +172,9 @@ export default function UserInviteScreen() {
       });
       setShowInviteForm(false);
       Alert.alert('Success', 'Invitation sent successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending invitation:', error);
-      Alert.alert('Error', 'Failed to send invitation');
+      Alert.alert('Error', error.message || 'Failed to send invitation');
     }
   };
 
@@ -316,13 +189,13 @@ export default function UserInviteScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              setInvitations(prev => prev.map(inv => 
-                inv.id === invitationId ? { ...inv, status: 'cancelled' as const } : inv
-              ));
+              const { error } = await ApiService.cancelInvitation(invitationId);
+              if (error) throw new Error(error.message);
+              loadData();
               Alert.alert('Success', 'Invitation cancelled');
-            } catch (error) {
+            } catch (error: any) {
               console.error('Error cancelling invitation:', error);
-              Alert.alert('Error', 'Failed to cancel invitation');
+              Alert.alert('Error', error.message || 'Failed to cancel invitation');
             }
           }
         }
@@ -332,59 +205,41 @@ export default function UserInviteScreen() {
 
   const resendInvitation = async (invitationId: string) => {
     try {
-      const invitation = invitations.find(inv => inv.id === invitationId);
-      if (invitation) {
-        const updatedInvitation = {
-          ...invitation,
-          invitationToken: `inv_${Date.now()}`,
-          invitedAt: new Date().toISOString(),
-          expiresAt: new Date(Date.now() + 604800000).toISOString(),
-          status: 'pending' as const
-        };
-        setInvitations(prev => prev.map(inv => 
-          inv.id === invitationId ? updatedInvitation : inv
-        ));
-        Alert.alert('Success', 'Invitation resent successfully');
-      }
-    } catch (error) {
+      const { error } = await ApiService.resendInvitation(invitationId);
+      if (error) throw new Error(error.message);
+      loadData();
+      Alert.alert('Success', 'Invitation resent successfully');
+    } catch (error: any) {
       console.error('Error resending invitation:', error);
-      Alert.alert('Error', 'Failed to resend invitation');
+      Alert.alert('Error', error.message || 'Failed to resend invitation');
     }
   };
 
   const createInviteLink = async () => {
     try {
-      const newLink: InviteLink = {
-        id: Date.now().toString(),
+      const { error } = await ApiService.createInviteLink({
         name: `New ${inviteForm.role.charAt(0).toUpperCase() + inviteForm.role.slice(1)} Link`,
         role: inviteForm.role,
-        workspaceId: inviteForm.workspaceId || undefined,
-        link: `https://yourcrm.app/invite/${Date.now()}`,
-        isActive: true,
-        uses: 0,
-        maxUses: 10,
-        expiresAt: new Date(Date.now() + 2592000000).toISOString(), // 30 days
-        createdAt: new Date().toISOString(),
-        createdBy: user?.id || '1',
-        permissions: inviteForm.permissions
-      };
-      setInviteLinks(prev => [newLink, ...prev]);
+        maxUses: 10
+      });
+      if (error) throw new Error(error.message);
+      loadData();
       Alert.alert('Success', 'Invite link created successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating invite link:', error);
-      Alert.alert('Error', 'Failed to create invite link');
+      Alert.alert('Error', error.message || 'Failed to create invite link');
     }
   };
 
   const toggleInviteLink = async (linkId: string) => {
     try {
-      setInviteLinks(prev => prev.map(link => 
-        link.id === linkId ? { ...link, isActive: !link.isActive } : link
-      ));
-      Alert.alert('Success', 'Invite link updated');
-    } catch (error) {
+      const { error } = await ApiService.toggleInviteLink(linkId);
+      if (error) throw new Error(error.message);
+      loadData();
+      Alert.alert('Success', 'Invite link status updated');
+    } catch (error: any) {
       console.error('Error toggling invite link:', error);
-      Alert.alert('Error', 'Failed to update invite link');
+      Alert.alert('Error', error.message || 'Failed to update invite link');
     }
   };
 
@@ -399,11 +254,13 @@ export default function UserInviteScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              setInviteLinks(prev => prev.filter(link => link.id !== linkId));
+              const { error } = await ApiService.deleteInviteLink(linkId);
+              if (error) throw new Error(error.message);
+              loadData();
               Alert.alert('Success', 'Invite link deleted');
-            } catch (error) {
+            } catch (error: any) {
               console.error('Error deleting invite link:', error);
-              Alert.alert('Error', 'Failed to delete invite link');
+              Alert.alert('Error', error.message || 'Failed to delete invite link');
             }
           }
         }

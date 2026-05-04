@@ -9,6 +9,8 @@ import { ActivityType } from '../activities/dto/activity.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
+
 @Injectable()
 export class LeadsService {
     private readonly logger = new Logger(LeadsService.name);
@@ -19,7 +21,8 @@ export class LeadsService {
         private readonly workflowsEngineService: WorkflowsEngineService,
         private readonly activitiesService: ActivitiesService,
         private readonly notificationsService: NotificationsService,
-        private readonly notificationsGateway: NotificationsGateway
+        private readonly notificationsGateway: NotificationsGateway,
+        private readonly whatsappService: WhatsAppService,
     ) { }
 
     private mapDtoToDb(dto: CreateLeadDto | UpdateLeadDto) {
@@ -157,6 +160,13 @@ export class LeadsService {
                 data.name,
                 'assigned'
             );
+
+            // ---added by akmal--WhatsApp notification to Agent
+            this.whatsappService.notifyAgent(
+                data.assignee_id,
+                organizationId,
+                `New lead assigned: ${data.name}. Phone: ${data.phone}`
+            ).catch(err => this.logger.error(`Failed to send WhatsApp notification: ${err.message}`));
         }
 
         // Trigger Workflows
@@ -336,28 +346,59 @@ export class LeadsService {
             updated_at: new Date().toISOString(),
         }));
 
-        const { data, error } = await supabase
-            .from(this.TABLE)
-            .insert(mappedLeads)
-            .select();
+        this.logger.log(`Starting bulk import of ${mappedLeads.length} leads for workspace ${workspaceId}`);
 
-        if (error) throw new BadRequestException(error.message);
+        // Process in chunks of 500 to avoid database timeouts and payload issues
+        const CHUNK_SIZE = 500;
+        let totalInserted = 0;
+        const allInsertedLeads: any[] = [];
 
-        // Log activities for each lead
-        if (data && data.length > 0) {
-            data.forEach(lead => {
-                this.activitiesService.create({
-                    type: ActivityType.NOTE,
-                    title: 'Lead Imported',
-                    details: `Lead imported: ${lead.name}`,
-                    leadId: lead.id
-                }, user.id, workspaceId, organizationId).catch((err: Error) =>
-                    this.logger.error(`Failed to log activity for imported lead ${lead.id}: ${err.message}`)
-                );
-            });
+        for (let i = 0; i < mappedLeads.length; i += CHUNK_SIZE) {
+            const chunk = mappedLeads.slice(i, i + CHUNK_SIZE);
+            const { data, error } = await supabase
+                .from(this.TABLE)
+                .insert(chunk)
+                .select();
+
+            if (error) {
+                this.logger.error(`Error importing chunk starting at ${i}: ${error.message}`);
+                throw new BadRequestException(`Import failed at record ${i}: ${error.message}`);
+            }
+
+            if (data) {
+                totalInserted += data.length;
+                allInsertedLeads.push(...data);
+            }
         }
 
-        return { inserted: data?.length || 0, data };
+        // Log activities for each lead (asynchronously in background)
+        if (allInsertedLeads.length > 0) {
+            // We only log for the first few to avoid overwhelming the activity system 
+            // if thousands are imported, or we could create a single bulk activity.
+            // For now, let's stick to the current logic but wrap it carefully.
+            this.logger.log(`Logging activities for ${allInsertedLeads.length} leads...`);
+            
+            // To prevent massive event loop block, we process these in chunks too
+            const logActivities = async () => {
+                for (const lead of allInsertedLeads) {
+                    try {
+                        await this.activitiesService.create({
+                            type: ActivityType.NOTE,
+                            title: 'Lead Imported',
+                            details: `Lead imported: ${lead.name}`,
+                            leadId: lead.id
+                        }, user.id, workspaceId, organizationId);
+                    } catch (err) {
+                        // Just log and continue
+                    }
+                }
+            };
+            
+            // Run in background without await
+            logActivities().catch(err => this.logger.error(`Bulk activity logging failed: ${err.message}`));
+        }
+
+        return { inserted: totalInserted, data: allInsertedLeads };
     }
 
     async bulkAssign(leadIds: string[], assigneeId: string, user: any) {
@@ -394,6 +435,13 @@ export class LeadsService {
                     lead.name,
                     'assigned'
                 ).catch(err => this.logger.error(`Failed to trigger notification: ${err.message}`));
+
+                // ---added by akmal--WhatsApp notification to Agent
+                this.whatsappService.notifyAgent(
+                    assigneeId,
+                    organizationId,
+                    `Bulk assignment: You have been assigned ${lead.name} (one of ${leadIds.length} leads).`
+                ).catch(err => this.logger.error(`Failed to send WhatsApp notification: ${err.message}`));
             });
         }
 

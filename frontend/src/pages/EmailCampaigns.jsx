@@ -38,12 +38,14 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import WorkspaceGuard from '../components/WorkspaceGuard';
+import { useModal } from '../context/ModalContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 export default function EmailCampaigns() {
   const { apiFetch } = useApi();
   const { currentWorkspace } = useWorkspace();
+  const modal = useModal();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('campaigns');
   const [campaigns, setCampaigns] = useState([]);
@@ -166,10 +168,17 @@ export default function EmailCampaigns() {
         if (res.ok) {
           setShowCampaignModal(false);
           fetchCampaigns();
-          alert('Campaign created successfully!');
+          modal.success({
+            title: 'Campaign Created',
+            message: 'Your email campaign has been successfully created and is ready to send.',
+            confirmText: 'Great!'
+          });
         }
       } catch (error) {
-        alert('Failed to create campaign');
+        modal.error({
+          title: 'Failed to Create Campaign',
+          message: error.message || 'An unexpected error occurred.'
+        });
       }
     };
 
@@ -925,10 +934,17 @@ export default function EmailCampaigns() {
         if (res.ok) {
           setShowAutomationModal(false);
           fetchAutomations();
-          alert('Automation saved successfully!');
+          modal.success({
+            title: 'Automation Saved',
+            message: 'Your drip campaign automation has been successfully saved and updated.',
+            confirmText: 'Done'
+          });
         }
       } catch (error) {
-        alert('Failed to save automation');
+        modal.error({
+          title: 'Save Failed',
+          message: error.message || 'An unexpected error occurred while saving the automation.'
+        });
       }
     };
 
@@ -1093,67 +1109,44 @@ export default function EmailCampaigns() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      
-      <div className="flex flex-1 flex-col h-full min-w-0">
-        <Header setIsSidebarOpen={setSidebarOpen} />
-        
-        <main className="flex-1 overflow-y-auto bg-gray-50/50">
-          <WorkspaceGuard>
-            <div className="min-h-full">
-              {/* Internal Navigation Header */}
-              <div className="bg-white border-b border-gray-200">
-                <div className="px-6 py-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Mail className="w-4 h-4" />
-                    <span>Email Marketing</span>
-                    <ArrowRight className="w-4 h-4" />
-                    <span className="text-gray-900 font-medium">
-                      {tabs.find(tab => tab.id === activeTab)?.label}
-                    </span>
-                  </div>
-                </div>
-              </div>
+    <div className="relative">
+      <WorkspaceGuard>
+        <div className="flex flex-col bg-white border-b border-gray-200">
+          <div className="px-6 md:px-8">
+            <nav className="-mb-px flex space-x-8">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`
+                      flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                      ${isActive
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+                    `}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
 
-              {/* Tabs */}
-              <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-                <div className="px-6">
-                  <nav className="flex space-x-8">
-                    {tabs.map((tab) => {
-                      const Icon = tab.icon;
-                      return (
-                        <button
-                          key={tab.id}
-                          onClick={() => setActiveTab(tab.id)}
-                          className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-all ${
-                            activeTab === tab.id
-                              ? 'border-[#08A698] text-[#08A698]'
-                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200'
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                          {tab.label}
-                        </button>
-                      );
-                    })}
-                  </nav>
-                </div>
-              </div>
-
-              {/* Content Area */}
-              <div className="p-6 md:p-8">
-                <div className="mx-auto max-w-7xl">
-                  {activeTab === 'campaigns' && renderCampaigns()}
-                  {activeTab === 'templates' && renderTemplates()}
-                  {activeTab === 'automation' && renderAutomation()}
-                  {activeTab === 'analytics' && renderAnalytics()}
-                </div>
-              </div>
-            </div>
-          </WorkspaceGuard>
-        </main>
-      </div>
+        {/* Content Area */}
+        <div className="p-6 md:p-8">
+          <div className="mx-auto max-w-7xl">
+            {activeTab === 'campaigns' && renderCampaigns()}
+            {activeTab === 'templates' && renderTemplates()}
+            {activeTab === 'automation' && renderAutomation()}
+            {activeTab === 'analytics' && renderAnalytics()}
+          </div>
+        </div>
+      </WorkspaceGuard>
 
       {/* Modals outside main for stacking context */}
       {showCampaignModal && <CampaignModal />}

@@ -39,11 +39,10 @@ export class UsersController {
         return this.usersService.getMySettings(user.id, user.organizationId);
     }
 
-    /** GET /users/team — any authenticated user can see team members for assignment */
     @Get('team')
     @ApiOperation({ summary: 'List team members for assignment (accessible to all authenticated users)' })
     getTeam(@CurrentUser() user: any) {
-        return this.usersService.findTeam(user.organizationId);
+        return this.usersService.findTeam(user.organizationId, user.workspaceId);
     }
 
     /** PATCH /users/me/settings — update persisted user preferences */

@@ -27,7 +27,7 @@ export default function IntegrationCard({ name, description, icon: Icon, color, 
                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${styles.iconBg} group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500`}>
                             {Icon && <Icon className="w-6 h-6 drop-shadow-md" />}
                         </div>
-                        <h3 className="font-extrabold text-gray-900 text-xl tracking-tight">{name}</h3>
+                        <h3 className="font-black text-gray-900 text-xl tracking-tight">{name}</h3>
                     </div>
                 </div>
                 <p className="text-gray-500/90 text-sm mb-5 leading-relaxed font-medium">{description}</p>

@@ -159,7 +159,7 @@ export default function DialerScreen() {
       return;
     }
     try {
-      await CommunicationService.registerDevice(user.id, Constants.installationId);
+      await CommunicationService.registerDevice(user.id);
     } catch (error) {
       console.error('Failed to register device:', error);
     }

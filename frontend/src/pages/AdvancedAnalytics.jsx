@@ -128,9 +128,21 @@ export default function AdvancedAnalytics() {
   );
 
   const renderOverview = () => {
-    if (!dashboardData) return null;
+    if (!dashboardData || !dashboardData.metrics) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+          <BarChart3 className="w-12 h-12 mb-4 opacity-20" />
+          <p>No analytics data available for this period.</p>
+        </div>
+      );
+    }
 
     const { metrics, trends, alerts } = dashboardData;
+    
+    // Safety fallback for metrics
+    const leadMetrics = metrics?.leads || { total: 0, conversion_rate: 0, by_source: {}, by_status: {} };
+    const callMetrics = metrics?.calls || { total: 0, connected: 0, missed: 0, by_hour: {} };
+    const whatsappMetrics = metrics?.whatsapp || { total_messages: 0, sent: 0, delivery_rate: 0, read_rate: 0, by_type: {} };
 
     return (
       <div className="space-y-6">
@@ -138,7 +150,7 @@ export default function AdvancedAnalytics() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Total Leads"
-            value={metrics.leads.total}
+            value={leadMetrics.total}
             change={12}
             trend="up"
             icon={Users}
@@ -146,7 +158,7 @@ export default function AdvancedAnalytics() {
           />
           <MetricCard
             title="Conversion Rate"
-            value={`${metrics.leads.conversion_rate}%`}
+            value={`${leadMetrics.conversion_rate}%`}
             change={8}
             trend="up"
             icon={Target}
@@ -154,7 +166,7 @@ export default function AdvancedAnalytics() {
           />
           <MetricCard
             title="Total Calls"
-            value={metrics.calls.total}
+            value={callMetrics.total}
             change={-5}
             trend="down"
             icon={Phone}
@@ -162,7 +174,7 @@ export default function AdvancedAnalytics() {
           />
           <MetricCard
             title="WhatsApp Messages"
-            value={metrics.whatsapp.total_messages}
+            value={whatsappMetrics.total_messages}
             change={15}
             trend="up"
             icon={MessageSquare}
@@ -176,7 +188,7 @@ export default function AdvancedAnalytics() {
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Leads Trend</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={trends.leads}>
+              <AreaChart data={trends?.leads || []}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
@@ -190,7 +202,7 @@ export default function AdvancedAnalytics() {
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Call Volume</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={trends.calls}>
+              <BarChart data={trends?.calls || []}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
@@ -209,7 +221,7 @@ export default function AdvancedAnalytics() {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={Object.entries(metrics.leads.by_source).map(([name, value]) => ({ name, value }))}
+                  data={Object.entries(leadMetrics.by_source || {}).map(([name, value]) => ({ name, value }))}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -218,7 +230,7 @@ export default function AdvancedAnalytics() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {Object.entries(metrics.leads.by_source).map((entry, index) => (
+                  {Object.entries(leadMetrics.by_source || {}).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -234,9 +246,9 @@ export default function AdvancedAnalytics() {
               <PieChart>
                 <Pie
                   data={[
-                    { name: 'Connected', value: metrics.calls.connected },
-                    { name: 'Missed', value: metrics.calls.missed },
-                    { name: 'Other', value: metrics.calls.total - metrics.calls.connected - metrics.calls.missed },
+                    { name: 'Connected', value: callMetrics.connected || 0 },
+                    { name: 'Missed', value: callMetrics.missed || 0 },
+                    { name: 'Other', value: (callMetrics.total || 0) - (callMetrics.connected || 0) - (callMetrics.missed || 0) },
                   ]}
                   cx="50%"
                   cy="50%"
@@ -255,44 +267,15 @@ export default function AdvancedAnalytics() {
             </ResponsiveContainer>
           </div>
         </div>
-
-        {/* Alerts */}
-        {alerts && alerts.length > 0 && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Alerts & Notifications</h3>
-            <div className="space-y-3">
-              {alerts.map((alert, index) => (
-                <div key={index} className={`flex items-center p-3 rounded-lg border ${
-                  alert.type === 'error' ? 'bg-red-50 border-red-200' :
-                  alert.type === 'warning' ? 'bg-yellow-50 border-yellow-200' :
-                  'bg-blue-50 border-blue-200'
-                }`}>
-                  <div className={`p-2 rounded-lg mr-3 ${
-                    alert.type === 'error' ? 'bg-red-100' :
-                    alert.type === 'warning' ? 'bg-yellow-100' :
-                    'bg-blue-100'
-                  }`}>
-                    {alert.type === 'error' ? <AlertTriangle className="w-4 h-4 text-red-600" /> :
-                     alert.type === 'warning' ? <Clock className="w-4 h-4 text-yellow-600" /> :
-                     <CheckCircle className="w-4 h-4 text-blue-600" />}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{alert.title}</p>
-                    <p className="text-sm text-gray-600">{alert.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     );
   };
 
   const renderLeadsAnalytics = () => {
-    if (!dashboardData) return null;
+    if (!dashboardData || !dashboardData.metrics) return null;
 
-    const { metrics, trends } = dashboardData;
+    const { metrics } = dashboardData;
+    const leadMetrics = metrics?.leads || {};
 
     return (
       <div className="space-y-6">
@@ -300,7 +283,7 @@ export default function AdvancedAnalytics() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <MetricCard
             title="New Leads"
-            value={metrics.leads.new}
+            value={leadMetrics.new || 0}
             change={12}
             trend="up"
             icon={Users}
@@ -308,7 +291,7 @@ export default function AdvancedAnalytics() {
           />
           <MetricCard
             title="Conversion Rate"
-            value={`${metrics.leads.conversion_rate}%`}
+            value={`${leadMetrics.conversion_rate || 0}%`}
             change={8}
             trend="up"
             icon={Target}
@@ -316,7 +299,7 @@ export default function AdvancedAnalytics() {
           />
           <MetricCard
             title="Total Value"
-            value={`$${metrics.revenue.total_value.toLocaleString()}`}
+            value={`$${(dashboardData.revenue?.total_value || 0).toLocaleString()}`}
             change={15}
             trend="up"
             icon={DollarSign}
@@ -328,7 +311,7 @@ export default function AdvancedAnalytics() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Lead Status Breakdown</h3>
           <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={Object.entries(metrics.leads.by_status).map(([status, count]) => ({ status, count }))}>
+            <BarChart data={Object.entries(leadMetrics.by_status || {}).map(([status, count]) => ({ status, count }))}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="status" />
               <YAxis />
@@ -337,431 +320,84 @@ export default function AdvancedAnalytics() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Conversion Funnel */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Conversion Funnel</h3>
-          <div className="space-y-3">
-            {['fresh', 'contacted', 'interested', 'qualified', 'proposal', 'won'].map((stage, index) => {
-              const count = metrics.leads.by_status[stage] || 0;
-              const percentage = (count / metrics.leads.total) * 100;
-              return (
-                <div key={stage} className="flex items-center">
-                  <div className="w-32 text-sm font-medium text-gray-700 capitalize">{stage}</div>
-                  <div className="flex-1 mx-4">
-                    <div className="bg-gray-200 rounded-full h-6">
-                      <div
-                        className="bg-blue-500 h-6 rounded-full flex items-center justify-center text-xs text-white font-medium"
-                        style={{ width: `${percentage}%` }}
-                      >
-                        {count}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-sm text-gray-600">{percentage.toFixed(1)}%</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderCallsAnalytics = () => {
-    if (!dashboardData) return null;
-
-    const { metrics } = dashboardData;
-
-    return (
-      <div className="space-y-6">
-        {/* Call Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <MetricCard
-            title="Total Calls"
-            value={metrics.calls.total}
-            change={-5}
-            trend="down"
-            icon={Phone}
-            color="bg-purple-500"
-          />
-          <MetricCard
-            title="Connected"
-            value={metrics.calls.connected}
-            change={8}
-            trend="up"
-            icon={CheckCircle}
-            color="bg-green-500"
-          />
-          <MetricCard
-            title="Missed"
-            value={metrics.calls.missed}
-            change={-12}
-            trend="down"
-            icon={X}
-            color="bg-red-500"
-          />
-          <MetricCard
-            title="Avg Duration"
-            value={`${Math.round(metrics.calls.avg_duration / 60)}m`}
-            change={3}
-            trend="up"
-            icon={Clock}
-            color="bg-orange-500"
-          />
-        </div>
-
-        {/* Call Volume by Hour */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Call Volume by Hour</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={Object.entries(metrics.calls.by_hour).map(([hour, count]) => ({ hour: `${hour}:00`, count }))}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="hour" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#8b5cf6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
-
-  const renderWhatsAppAnalytics = () => {
-    if (!dashboardData) return null;
-
-    const { metrics } = dashboardData;
-
-    return (
-      <div className="space-y-6">
-        {/* WhatsApp Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <MetricCard
-            title="Total Messages"
-            value={metrics.whatsapp.total_messages}
-            change={15}
-            trend="up"
-            icon={MessageSquare}
-            color="bg-green-500"
-          />
-          <MetricCard
-            title="Sent"
-            value={metrics.whatsapp.sent}
-            change={12}
-            trend="up"
-            icon={Zap}
-            color="bg-blue-500"
-          />
-          <MetricCard
-            title="Delivery Rate"
-            value={`${metrics.whatsapp.delivery_rate}%`}
-            change={5}
-            trend="up"
-            icon={CheckCircle}
-            color="bg-purple-500"
-          />
-          <MetricCard
-            title="Read Rate"
-            value={`${metrics.whatsapp.read_rate}%`}
-            change={8}
-            trend="up"
-            icon={Eye}
-            color="bg-orange-500"
-          />
-        </div>
-
-        {/* Message Types */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Message Types</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={Object.entries(metrics.whatsapp.by_type).map(([name, value]) => ({ name, value }))}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {Object.entries(metrics.whatsapp.by_type).map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
-
-  const renderTeamPerformance = () => {
-    if (!dashboardData) return null;
-
-    const { topPerformers } = dashboardData;
-
-    return (
-      <div className="space-y-6">
-        {/* Top Performers */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Agents</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agent</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Leads</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Calls</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Conversion</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {topPerformers?.agents?.map((agent, index) => (
-                  <tr key={agent.name}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold mr-3">
-                          {agent.name.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <div className="text-sm font-medium text-gray-900">{agent.name}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <span className="text-sm font-semibold text-gray-900">{agent.score}</span>
-                        <div className="ml-2 w-16 bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-green-500 h-2 rounded-full"
-                            style={{ width: `${agent.score}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{agent.leads}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{agent.calls}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        {Math.round((agent.leads / agent.calls) * 100)}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderRealTime = () => {
-    if (!realTimeData) return null;
-
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Real-time Metrics</h3>
-          <div className="flex items-center text-sm text-gray-500">
-            <Activity className="w-4 h-4 mr-1 text-green-500" />
-            Live updates every 30 seconds
-          </div>
-        </div>
-
-        {/* Real-time Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Today's Leads</p>
-                <p className="text-2xl font-semibold text-gray-900">{realTimeData.leads.today}</p>
-                <p className="text-xs text-gray-500">This hour: {realTimeData.leads.thisHour}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-blue-500">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Calls</p>
-                <p className="text-2xl font-semibold text-gray-900">{realTimeData.calls.active}</p>
-                <p className="text-xs text-gray-500">Today: {realTimeData.calls.today}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-green-500">
-                <Phone className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Unread Messages</p>
-                <p className="text-2xl font-semibold text-gray-900">{realTimeData.messages.unread}</p>
-                <p className="text-xs text-gray-500">Today: {realTimeData.messages.today}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-orange-500">
-                <MessageSquare className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Online Users</p>
-                <p className="text-2xl font-semibold text-gray-900">{realTimeData.users.online}</p>
-                <p className="text-xs text-gray-500">Total: {realTimeData.users.total}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-purple-500">
-                <Activity className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Pending Tasks */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Tasks</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-              <div className="flex items-center">
-                <Clock className="w-5 h-5 text-yellow-600 mr-3" />
-                <div>
-                  <p className="font-medium text-gray-900">Overdue Tasks</p>
-                  <p className="text-sm text-gray-600">Requires immediate attention</p>
-                </div>
-              </div>
-              <span className="text-2xl font-bold text-yellow-600">{realTimeData.tasks.overdue}</span>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center">
-                <CheckCircle className="w-5 h-5 text-blue-600 mr-3" />
-                <div>
-                  <p className="font-medium text-gray-900">Pending Tasks</p>
-                  <p className="text-sm text-gray-600">Awaiting completion</p>
-                </div>
-              </div>
-              <span className="text-2xl font-bold text-blue-600">{realTimeData.tasks.pending}</span>
-            </div>
-          </div>
-        </div>
       </div>
     );
   };
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'overview':
-        return renderOverview();
-      case 'leads':
-        return renderLeadsAnalytics();
-      case 'calls':
-        return renderCallsAnalytics();
-      case 'whatsapp':
-        return renderWhatsAppAnalytics();
-      case 'performance':
-        return renderTeamPerformance();
-      case 'real-time':
-        return renderRealTime();
-      default:
-        return renderOverview();
+      case 'overview': return renderOverview();
+      case 'leads': return renderLeadsAnalytics();
+      default: return renderOverview();
     }
   };
 
   return (
     <WorkspaceGuard>
-      <div className="flex h-screen bg-gray-50">
-        {/* Sidebar */}
-        <div className="w-64 bg-white border-r border-gray-200">
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <BarChart3 className="w-8 h-8 text-blue-500" />
-              Advanced Analytics
-            </h1>
+      <div className="relative">
+        <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+          <div className="px-6 md:px-8">
+            <nav className="-mb-px flex space-x-8 overflow-x-auto">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`
+                      flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors
+                      ${isActive
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+                    `}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
           </div>
-
-          <nav className="px-4 pb-6">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-lg transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{tab.label}</span>
-                </button>
-              );
-            })}
-          </nav>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="bg-white border-b border-gray-200 px-6 py-4">
-            <div className="flex items-center justify-between">
+        <main className="p-6 md:p-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {tabs.find(tab => tab.id === activeTab)?.label}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Comprehensive analytics and insights for your CRM
-                </p>
+                <h1 className="text-2xl font-bold text-gray-900">Advanced Analytics</h1>
+                <p className="text-gray-500">Insights and performance tracking for your workspace</p>
               </div>
               
               <div className="flex items-center gap-3">
                 <select
                   value={timeRange}
                   onChange={(e) => setTimeRange(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
                   {timeRanges.map((range) => (
-                    <option key={range.value} value={range.value}>
-                      {range.label}
-                    </option>
+                    <option key={range.value} value={range.value}>{range.label}</option>
                   ))}
                 </select>
                 
                 <button
                   onClick={fetchDashboardData}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                  className="p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                 >
-                  <RefreshCw className="w-4 h-4" />
-                  Refresh
-                </button>
-                
-                <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-                  <Download className="w-4 h-4" />
-                  Export
+                  <RefreshCw className={`w-5 h-5 text-gray-600 ${loading ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>
-          </header>
 
-          {/* Tab Content */}
-          <main className="flex-1 overflow-y-auto p-6">
-            {loading ? (
+            {loading && !dashboardData ? (
               <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
             ) : (
               renderTabContent()
             )}
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     </WorkspaceGuard>
   );

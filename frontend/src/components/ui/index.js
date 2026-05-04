@@ -11,3 +11,5 @@ export { default as EmptyState } from './EmptyState';
 export { default as SearchBar } from './SearchBar';
 export { default as Skeleton } from './Skeleton';
 export { default as TableHeader } from './TableHeader';
+export { default as Button } from './Button';
+export { default as Input } from './Input';

@@ -97,224 +97,23 @@ export default function IntegrationsScreen() {
   };
 
   const loadIntegrations = async () => {
-    // Mock integrations data
-    const mockIntegrations: Integration[] = [
-      {
-        id: '1',
-        name: 'Slack',
-        description: 'Get notifications and updates in your Slack channels',
-        category: 'communication',
-        icon: 'logo-slack',
-        status: 'connected',
-        features: ['Real-time notifications', 'Channel updates', 'Direct messages'],
-        pricing: 'freemium',
-        setupRequired: false,
-        lastSync: new Date().toISOString(),
-        usage: {
-          requestsThisMonth: 234,
-          limit: 1000
-        }
-      },
-      {
-        id: '2',
-        name: 'Google Calendar',
-        description: 'Sync meetings and schedules with Google Calendar',
-        category: 'productivity',
-        icon: 'calendar-outline',
-        status: 'connected',
-        features: ['Meeting sync', 'Event creation', 'Availability checking'],
-        pricing: 'free',
-        setupRequired: false,
-        lastSync: new Date(Date.now() - 3600000).toISOString()
-      },
-      {
-        id: '3',
-        name: 'Mailchimp',
-        description: 'Email marketing and campaign management',
-        category: 'marketing',
-        icon: 'mail-outline',
-        status: 'disconnected',
-        features: ['Email campaigns', 'List management', 'Analytics'],
-        pricing: 'freemium',
-        setupRequired: true
-      },
-      {
-        id: '4',
-        name: 'Zapier',
-        description: 'Connect with 3000+ apps for automation',
-        category: 'productivity',
-        icon: 'flash-outline',
-        status: 'connected',
-        features: ['Workflow automation', 'Multi-app connections', 'Custom triggers'],
-        pricing: 'paid',
-        setupRequired: false,
-        usage: {
-          requestsThisMonth: 567,
-          limit: 5000
-        }
-      },
-      {
-        id: '5',
-        name: 'Google Drive',
-        description: 'Store and share files in Google Drive',
-        category: 'storage',
-        icon: 'folder-outline',
-        status: 'error',
-        features: ['File storage', 'Document sharing', 'Backup'],
-        pricing: 'free',
-        setupRequired: true
-      },
-      {
-        id: '6',
-        name: 'Salesforce',
-        description: 'Sync data with Salesforce CRM',
-        category: 'crm',
-        icon: 'business-outline',
-        status: 'disconnected',
-        features: ['Lead sync', 'Contact management', 'Deal tracking'],
-        pricing: 'paid',
-        setupRequired: true
-      },
-      {
-        id: '7',
-        name: 'Google Analytics',
-        description: 'Track website and app analytics',
-        category: 'analytics',
-        icon: 'bar-chart-outline',
-        status: 'connected',
-        features: ['Traffic analysis', 'Conversion tracking', 'Custom reports'],
-        pricing: 'free',
-        setupRequired: false,
-        lastSync: new Date(Date.now() - 1800000).toISOString()
-      }
-    ];
-    setIntegrations(mockIntegrations);
+    try {
+      const { data, error } = await ApiService.getIntegrations();
+      if (error) throw new Error(error.message);
+      setIntegrations(data || []);
+    } catch (error) {
+      console.error('Error loading integrations:', error);
+    }
   };
 
   const loadAPITemplates = async () => {
-    // Mock API templates data
-    const mockAPITemplates: APITemplate[] = [
-      {
-        id: '1',
-        name: 'Create Lead',
-        description: 'Create a new lead in the CRM',
-        method: 'POST',
-        endpoint: '/api/v1/leads',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer YOUR_API_KEY'
-        },
-        parameters: [
-          {
-            name: 'name',
-            type: 'string',
-            required: true,
-            description: 'Lead full name'
-          },
-          {
-            name: 'email',
-            type: 'string',
-            required: true,
-            description: 'Lead email address'
-          },
-          {
-            name: 'phone',
-            type: 'string',
-            required: false,
-            description: 'Lead phone number'
-          }
-        ],
-        response: {
-          successCode: 201,
-          sampleData: {
-            id: 'lead_123',
-            name: 'John Doe',
-            email: 'john@example.com',
-            created_at: '2024-01-01T00:00:00Z'
-          }
-        },
-        category: 'Leads',
-        usage: 145,
-        isPublic: true,
-        createdBy: 'system',
-        createdAt: new Date(Date.now() - 2592000000).toISOString()
-      },
-      {
-        id: '2',
-        name: 'Update Lead Status',
-        description: 'Update the status of an existing lead',
-        method: 'PUT',
-        endpoint: '/api/v1/leads/{id}',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer YOUR_API_KEY'
-        },
-        parameters: [
-          {
-            name: 'status',
-            type: 'string',
-            required: true,
-            description: 'New lead status'
-          }
-        ],
-        response: {
-          successCode: 200,
-          sampleData: {
-            id: 'lead_123',
-            status: 'qualified',
-            updated_at: '2024-01-01T00:00:00Z'
-          }
-        },
-        category: 'Leads',
-        usage: 89,
-        isPublic: true,
-        createdBy: 'system',
-        createdAt: new Date(Date.now() - 5184000000).toISOString()
-      },
-      {
-        id: '3',
-        name: 'Get Activities',
-        description: 'Retrieve activities for a specific lead or user',
-        method: 'GET',
-        endpoint: '/api/v1/activities',
-        headers: {
-          'Authorization': 'Bearer YOUR_API_KEY'
-        },
-        parameters: [
-          {
-            name: 'lead_id',
-            type: 'string',
-            required: false,
-            description: 'Filter by lead ID'
-          },
-          {
-            name: 'limit',
-            type: 'number',
-            required: false,
-            description: 'Number of results to return'
-          }
-        ],
-        response: {
-          successCode: 200,
-          sampleData: {
-            activities: [
-              {
-                id: 'act_123',
-                type: 'call',
-                description: 'Initial call with prospect',
-                created_at: '2024-01-01T00:00:00Z'
-              }
-            ]
-          }
-        },
-        category: 'Activities',
-        usage: 234,
-        isPublic: true,
-        createdBy: 'system',
-        createdAt: new Date(Date.now() - 7776000000).toISOString()
-      }
-    ];
-    setApiTemplates(mockAPITemplates);
+    try {
+      const { data, error } = await ApiService.getApiTemplates();
+      if (error) throw new Error(error.message);
+      setApiTemplates(data || []);
+    } catch (error) {
+      console.error('Error loading API templates:', error);
+    }
   };
 
   const onRefresh = async () => {

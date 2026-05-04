@@ -9,11 +9,7 @@ export default function UnderConstruction() {
     const navigate = useNavigate();
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
+        <div className="flex-1 bg-gray-50/50 flex flex-col items-center justify-center p-6 min-h-screen">
 
                 <main className="flex-1 overflow-y-auto bg-gray-50/50 flex flex-col items-center justify-center p-6">
                     <div className="max-w-md w-full text-center">
@@ -62,6 +58,5 @@ export default function UnderConstruction() {
                     </div>
                 </main>
             </div>
-        </div>
     );
 }

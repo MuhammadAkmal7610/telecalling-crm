@@ -1,5 +1,3 @@
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
 import { supabase } from '../lib/supabaseClient';
 import { useEffect, useState } from 'react';
 import { useApi } from '../hooks/useApi';
@@ -16,7 +14,8 @@ import {
     CheckCircleIcon,
     ClockIcon,
     ArrowPathIcon,
-    EllipsisHorizontalIcon
+    EllipsisHorizontalIcon,
+    SparklesIcon
 } from '@heroicons/react/24/outline';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
@@ -188,122 +187,128 @@ export default function Activities() {
     };
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased overflow-hidden">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+        <WorkspaceGuard>
+            <div className="relative">
+                <main className="p-6 md:p-8">
+                    <div className="mx-auto max-w-5xl space-y-6">
 
-            <div className="flex flex-1 flex-col h-full min-w-0">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-gray-50/50">
-                    <WorkspaceGuard>
-                        <div className="mx-auto max-w-5xl space-y-6">
-
-                            {/* Page Header */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div>
-                                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Activities</h1>
-                                    <p className="text-sm text-gray-500 mt-1">Track all interactions and updates.</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="relative">
-                                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        <input
-                                            type="text"
-                                            placeholder="Search activities..."
-                                            className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full sm:w-72 transition-all shadow-sm"
-                                        />
-                                    </div>
-                                    <button className="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-primary hover:border-primary transition-colors shadow-sm">
-                                        <FunnelIcon className="w-5 h-5" />
-                                    </button>
-                                </div>
+                        {/* Page Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Activities</h1>
+                                <p className="text-sm text-gray-500 mt-1">Track all interactions and updates.</p>
                             </div>
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search activities..."
+                                        className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full sm:w-72 transition-all shadow-sm"
+                                    />
+                                </div>
+                                <button className="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-primary hover:border-primary transition-colors shadow-sm">
+                                    <FunnelIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
 
-                            {/* Timeline */}
-                            <div className="space-y-8 relative">
-                                {/* Vertical Line for Timeline */}
-                                <div className="absolute left-[27px] top-4 bottom-4 w-px bg-gray-200 hidden sm:block"></div>
+                        {/* Timeline */}
+                        <div className="space-y-8 relative">
+                            {/* Vertical Line for Timeline */}
+                            <div className="absolute left-[27px] top-4 bottom-4 w-px bg-gray-200 hidden sm:block"></div>
 
-                                {loading ? (
-                                    <div className="space-y-6">
-                                        {[1, 2].map(i => (
-                                            <div key={i} className="animate-pulse flex items-start gap-4">
-                                                <div className="w-10 h-10 bg-gray-100 rounded-full flex-shrink-0"></div>
-                                                <div className="flex-1 space-y-3 py-1">
-                                                    <div className="h-4 bg-gray-100 rounded w-1/4"></div>
-                                                    <div className="h-20 bg-gray-100 rounded"></div>
+                            {loading ? (
+                                <div className="space-y-6">
+                                    {[1, 2].map(i => (
+                                        <div key={i} className="animate-pulse flex items-start gap-4">
+                                            <div className="w-10 h-10 bg-gray-100 rounded-full flex-shrink-0"></div>
+                                            <div className="flex-1 space-y-3 py-1">
+                                                <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                                                <div className="h-20 bg-gray-100 rounded"></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : activities.length === 0 ? (
+                                <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+                                    <ClockIcon className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                                    <p className="text-gray-400 font-medium italic">No activities logged yet</p>
+                                </div>
+                            ) : activities.map((group, groupIdx) => (
+                                <div key={groupIdx} className="relative">
+                                    {/* Date Label */}
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="w-[54px] hidden sm:flex justify-center">
+                                            <div className="w-3 h-3 rounded-full bg-gray-300 ring-4 ring-[#F8F9FA]"></div>
+                                        </div>
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider bg-[#F8F9FA] pr-2 z-10">{group.date}</h3>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {group.items.map((item) => (
+                                            <div key={item.id} className="relative sm:pl-14 group">
+                                                {/* Connector Line (Mobile hidden) */}
+
+                                                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm transition-all hover:shadow-md hover:border-teal-100 min-h-[100px] flex flex-col sm:flex-row gap-4">
+
+                                                    {/* Icon */}
+                                                    <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border ${item.badgeColor}`}>
+                                                        <ActivityIcon type={item.type} />
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <div>
+                                                                <h4 className="text-sm font-bold text-gray-900">{item.title} <span className="font-normal text-gray-500 mx-1">•</span> <span className="font-medium text-gray-700">{item.subtitle}</span></h4>
+                                                                <p className="text-sm text-gray-600 mt-1 leading-relaxed">{item.description}</p>
+                                                            </div>
+                                                            <div className="flex items-center text-xs text-gray-500 gap-1.5 whitespace-nowrap font-medium">
+                                                                <ClockIcon className="w-4 h-4" />
+                                                                {item.time}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3 mt-4">
+                                                            <div className="flex items-center gap-2 text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
+                                                                <UserCircleIcon className="w-3.5 h-3.5" />
+                                                                {item.user}
+                                                            </div>
+                                                            {item.duration && (
+                                                                <div className="text-xs text-gray-400 flex items-center gap-1">
+                                                                    Duration: <span className="text-gray-600 font-medium">{item.duration}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* AI Summary Section */}
+                                                        {item.description?.startsWith('🤖 AI Summary:') && (
+                                                            <div className="mt-3 p-3 bg-teal-50/50 border border-teal-100 rounded-lg">
+                                                                <p className="text-xs font-bold text-teal-700 flex items-center gap-1 mb-1">
+                                                                    <SparklesIcon className="w-3 h-3" /> AI INSIGHT
+                                                                </p>
+                                                                <p className="text-sm text-teal-900 leading-relaxed italic">
+                                                                    {item.description.replace('🤖 AI Summary: ', '')}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Action Menu Placeholder */}
+                                                    <button className="self-start sm:self-center p-1 text-gray-300 hover:text-gray-500 transition-colors">
+                                                        <EllipsisHorizontalIcon className="w-5 h-5" />
+                                                    </button>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
-                                ) : activities.length === 0 ? (
-                                    <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
-                                        <ClockIcon className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                                        <p className="text-gray-400 font-medium italic">No activities logged yet</p>
-                                    </div>
-                                ) : activities.map((group, groupIdx) => (
-                                    <div key={groupIdx} className="relative">
-                                        {/* Date Label */}
-                                        <div className="flex items-center gap-4 mb-4">
-                                            <div className="w-[54px] hidden sm:flex justify-center">
-                                                <div className="w-3 h-3 rounded-full bg-gray-300 ring-4 ring-[#F8F9FA]"></div>
-                                            </div>
-                                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider bg-[#F8F9FA] pr-2 z-10">{group.date}</h3>
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            {group.items.map((item) => (
-                                                <div key={item.id} className="relative sm:pl-14 group">
-                                                    {/* Connector Line (Mobile hidden) */}
-
-                                                    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm transition-all hover:shadow-md hover:border-teal-100 min-h-[100px] flex flex-col sm:flex-row gap-4">
-
-                                                        {/* Icon */}
-                                                        <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border ${item.badgeColor}`}>
-                                                            <ActivityIcon type={item.type} />
-                                                        </div>
-
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-start justify-between gap-4">
-                                                                <div>
-                                                                    <h4 className="text-sm font-bold text-gray-900">{item.title} <span className="font-normal text-gray-500 mx-1">•</span> <span className="font-medium text-gray-700">{item.subtitle}</span></h4>
-                                                                    <p className="text-sm text-gray-600 mt-1 leading-relaxed">{item.description}</p>
-                                                                </div>
-                                                                <div className="flex items-center text-xs text-gray-500 gap-1.5 whitespace-nowrap font-medium">
-                                                                    <ClockIcon className="w-4 h-4" />
-                                                                    {item.time}
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex items-center gap-3 mt-4">
-                                                                <div className="flex items-center gap-2 text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
-                                                                    <UserCircleIcon className="w-3.5 h-3.5" />
-                                                                    {item.user}
-                                                                </div>
-                                                                {item.duration && (
-                                                                    <div className="text-xs text-gray-400 flex items-center gap-1">
-                                                                        Duration: <span className="text-gray-600 font-medium">{item.duration}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Action Menu Placeholder */}
-                                                        <button className="self-start sm:self-center p-1 text-gray-300 hover:text-gray-500 transition-colors">
-                                                            <EllipsisHorizontalIcon className="w-5 h-5" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
+                                </div>
+                            ))}
                         </div>
-                    </WorkspaceGuard>
+
+                    </div>
                 </main>
             </div>
-        </div>
+        </WorkspaceGuard>
     );
 }

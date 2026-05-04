@@ -10,8 +10,8 @@ export class ApiService {
 
   private static getBaseUrl() {
     let url = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
-    if (Platform.OS === 'web' && url.includes('10.0.2.2')) {
-      return url.replace('10.0.2.2', 'localhost');
+    if (Platform.OS === 'web' && url.includes('10.')) {
+      return url.replace(/10\.\d+\.\d+\.\d+/, 'localhost').replace('10.0.2.2', 'localhost');
     }
     return url;
   }
@@ -192,6 +192,12 @@ export class ApiService {
     });
   }
 
+  static async deleteCampaign(id: string) {
+    return this.request(`/campaigns/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
   // Activities
   static async getActivities(leadId?: string, workspaceId?: string) {
     let path = '/activities?limit=50';
@@ -342,5 +348,97 @@ export class ApiService {
 
   static async getTopPerformers(timeRange: string = 'week') {
     return this.request(`/analytics/top-performers?timeRange=${timeRange}`);
+  }
+
+  // Notifications
+  static async getNotifications() {
+    return this.request('/notifications');
+  }
+
+  static async markNotificationRead(id: string) {
+    return this.request(`/notifications/${id}/read`, { method: 'PATCH' });
+  }
+
+  static async markAllNotificationsRead() {
+    return this.request('/notifications/mark-all-read', { method: 'POST' });
+  }
+
+  // ── Invitations ──────────────────────────────────────────────────────────
+
+  static async getInvitations() {
+    return this.request('/invitations/pending');
+  }
+
+  static async createInvitation(data: { email: string; role: string; workspaceId?: string }) {
+    return this.request('/invitations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async resendInvitation(id: string) {
+    return this.request(`/invitations/${id}/resend`, { method: 'POST' });
+  }
+
+  static async cancelInvitation(id: string) {
+    return this.request(`/invitations/${id}`, { method: 'DELETE' });
+  }
+
+  static async getInviteLinks() {
+    return this.request('/invitations/links');
+  }
+
+  static async createInviteLink(data: { name: string; role: string; maxUses?: number; expiresAt?: string }) {
+    return this.request('/invitations/links', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async toggleInviteLink(id: string) {
+    return this.request(`/invitations/links/${id}/toggle`, { method: 'POST' });
+  }
+
+  static async deleteInviteLink(id: string) {
+    return this.request(`/invitations/links/${id}`, { method: 'DELETE' });
+  }
+
+  static async getInvitationSettings() {
+    return this.request('/invitations/settings');
+  }
+
+  static async updateInvitationSettings(settings: any) {
+    return this.request('/invitations/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  // ── Enterprise & Integrations ──────────────────────────────────────────
+
+  static async getIntegrations() {
+    return this.request('/integrations');
+  }
+
+  static async getApiTemplates() {
+    return this.request('/api-templates');
+  }
+
+  static async getRoles() {
+    return this.request('/users/roles'); // Adjusted to match common pattern
+  }
+
+  static async getTeams() {
+    return this.request('/users/teams');
+  }
+
+  // Tasks
+  static async getTasks(query: any = {}) {
+    const params = new URLSearchParams();
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined) params.append(key, String(value));
+    });
+    const queryString = params.toString();
+    return this.request(`/tasks${queryString ? `?${queryString}` : ''}`);
   }
 }

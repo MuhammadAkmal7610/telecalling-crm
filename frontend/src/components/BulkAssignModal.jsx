@@ -28,8 +28,8 @@ export default function BulkAssignModal({ isOpen, onClose, selectedLeadIds, onSu
             const res = await axios.get(`${API_URL}/users/team`, {
                 headers: { Authorization: `Bearer ${session.access_token}` }
             });
-            const userData = res.data || [];
-            const validUsers = (Array.isArray(userData) ? userData : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
+            const data = res.data.data || res.data || [];
+            const validUsers = (Array.isArray(data) ? data : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
             setUsers(validUsers);
         } catch (error) {
             console.error('Error fetching users:', error);

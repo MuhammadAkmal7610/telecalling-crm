@@ -41,8 +41,8 @@ function setSidebarOpen(open) { sidebarOpen = open; }
 
 // Reusable Input Component - Moved outside to prevent re-creation on each render
 const InputField = ({ label, placeholder, icon: Icon, type = "text", value, onChange, required = false }) => (
-    <div className="mb-5">
-        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">
+    <div className="mb-3">
+        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1 ml-1">
             {label}
             {required && <span className="text-red-500 ml-1">*</span>}
         </label>
@@ -54,7 +54,7 @@ const InputField = ({ label, placeholder, icon: Icon, type = "text", value, onCh
                 type={type}
                 value={value || ''}
                 onChange={onChange}
-                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:border-[#08A698] focus:ring-1 focus:ring-[#08A698] transition-all bg-white text-gray-700 shadow-sm hover:border-gray-300"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:border-[#08A698] focus:ring-1 focus:ring-[#08A698] transition-all bg-white text-gray-700 shadow-sm hover:border-gray-300"
                 placeholder={placeholder}
             />
         </div>
@@ -63,8 +63,8 @@ const InputField = ({ label, placeholder, icon: Icon, type = "text", value, onCh
 
 // Reusable Select Component - Moved outside to prevent re-creation on each render
 const SelectField = ({ label, options, value, onChange, icon: Icon = Bars3Icon, required = false }) => (
-    <div className="mb-5">
-        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">
+    <div className="mb-3">
+        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1 ml-1">
             {label}
             {required && <span className="text-red-500 ml-1">*</span>}
         </label>
@@ -75,11 +75,13 @@ const SelectField = ({ label, options, value, onChange, icon: Icon = Bars3Icon, 
             <select
                 value={value || ''}
                 onChange={onChange}
-                className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-[#08A698] focus:ring-1 focus:ring-[#08A698] transition-all bg-white appearance-none cursor-pointer shadow-sm hover:border-gray-300"
+                className="block w-full pl-10 pr-10 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-[#08A698] focus:ring-1 focus:ring-[#08A698] transition-all bg-white appearance-none cursor-pointer shadow-sm hover:border-gray-300"
             >
                 <option value="">Select</option>
                 {options.map((opt, idx) => (
-                    <option key={idx} value={opt.id || opt}>{opt.name || opt}</option>
+                    <option key={idx} value={opt.id || opt}>
+                        {opt.name || opt.email || (typeof opt === 'string' ? opt : 'User')}
+                    </option>
                 ))}
             </select>
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -111,7 +113,7 @@ export default function AddLead() {
         fetchFields();
         fetchUsers();
         fetchStages();
-    }, []);
+    }, [currentWorkspace?.id]);
 
     const fetchStages = async () => {
         try {
@@ -150,8 +152,8 @@ export default function AddLead() {
             if (!session) return;
             const axiosInstance = await createAuthAxios(workspaceId);
             const res = await axiosInstance.get(`${API_URL}/users/team`);
-            const data = res.data || [];
-            const validUsers = (Array.isArray(data) ? data : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
+            const data = res.data.data?.data || res.data.data || res.data || [];
+            const validUsers = Array.isArray(data) ? data : [];
             setUsers(validUsers);
             setFormData(prev => ({ ...prev, assigneeId: session.user.id }));
         } catch (error) {
@@ -250,32 +252,25 @@ export default function AddLead() {
     };
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <main className="flex-1 overflow-y-auto bg-gray-50/50">
-                    <WorkspaceGuard>
-                        <form onSubmit={handleSubmit} className="max-w-5xl mx-auto px-4 py-8 lg:px-8">
-                            <div className="mb-6">
-                                <h1 className="text-2xl font-bold text-gray-900">Add Leads</h1>
-                                <p className="text-sm text-gray-500 mt-1">Add individual leads to your CRM manually.</p>
+        <WorkspaceGuard>
+            <form onSubmit={handleSubmit} className="max-w-5xl mx-auto px-4 py-4 lg:px-8 h-full flex flex-col">
+                            <div className="mb-3">
+                                <h1 className="text-xl font-bold text-gray-900">Add Leads</h1>
+                                <p className="text-xs text-gray-500">Add individual leads to your CRM manually.</p>
                             </div>
 
-                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 lg:p-10 space-y-8">
-                                <div className="flex items-center gap-2 pb-4 border-b border-gray-100 mb-2">
-                                    <h2 className="text-lg font-bold text-gray-800">Add New Lead</h2>
-                                    <span className="bg-teal-50 text-[#08A698] text-xs font-bold px-2 py-0.5 rounded border border-teal-100">Details</span>
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 lg:p-6 space-y-4 flex-1 overflow-hidden flex flex-col">
+                                <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                                    <h2 className="text-md font-bold text-gray-800">Add New Lead</h2>
+                                    <span className="bg-teal-50 text-[#08A698] text-[10px] font-bold px-2 py-0.5 rounded border border-teal-100">Details</span>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0 overflow-y-auto pr-2 custom-scrollbar">
                                     {/* Map dynamic fields that are set to show in quick add (default fields) */}
                                     {fields.filter(f => f.show_in_quick_add).sort((a, b) => a.position - b.position).map((field) => (
                                         field.name === 'phone' ? (
-                                            <div key={field.id} className="mb-5">
-                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">
+                                            <div key={field.id} className="mb-3">
+                                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1 ml-1">
                                                     {field.label} <span className="text-red-500">*</span>
                                                 </label>
                                                 <div className="flex group relative">
@@ -288,7 +283,7 @@ export default function AddLead() {
                                                         value={formData[field.name] || ''}
                                                         onChange={(e) => handleInputChange(field.name, e.target.value)}
                                                         placeholder="300 1234567"
-                                                        className="flex-1 block w-full px-4 py-3 border border-gray-200 bg-white rounded-r-lg text-sm placeholder-gray-400 focus:outline-none focus:border-[#08A698] focus:ring-1 focus:ring-[#08A698] transition-all text-gray-700 shadow-sm"
+                                                        className="flex-1 block w-full px-4 py-2 border border-gray-200 bg-white rounded-r-lg text-sm placeholder-gray-400 focus:outline-none focus:border-[#08A698] focus:ring-1 focus:ring-[#08A698] transition-all text-gray-700 shadow-sm"
                                                     />
                                                 </div>
                                             </div>
@@ -330,11 +325,11 @@ export default function AddLead() {
                                     />
                                 </div>
 
-                                <div className="pt-8 flex justify-center sticky bottom-0 bg-white/95 backdrop-blur-sm p-4 border-t border-gray-100 -mx-6 -mb-6 lg:-mx-10 lg:-mb-10 rounded-b-xl z-20">
+                                <div className="pt-4 flex justify-center bg-white border-t border-gray-100 -mx-6 -mb-6 lg:-mx-6 lg:-mb-6 rounded-b-xl z-20">
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="bg-[#08A698] text-white px-16 py-3.5 rounded-lg text-sm font-bold tracking-wide hover:bg-teal-700 transition-all duration-300 shadow-lg shadow-teal-100 transform hover:-translate-y-0.5 disabled:opacity-50"
+                                        className="bg-[#08A698] text-white px-16 py-3 rounded-lg text-sm font-bold tracking-wide hover:bg-teal-700 transition-all duration-300 shadow-lg shadow-teal-100 transform hover:-translate-y-0.5 disabled:opacity-50"
                                     >
                                         {loading ? 'ADDING...' : '+ ADD LEAD'}
                                     </button>
@@ -342,8 +337,5 @@ export default function AddLead() {
                             </div>
                         </form>
                     </WorkspaceGuard>
-                </main>
-            </div>
-        </div>
     );
 }

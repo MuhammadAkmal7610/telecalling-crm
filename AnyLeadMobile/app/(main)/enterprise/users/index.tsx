@@ -102,8 +102,11 @@ export default function UserManagementScreen() {
     try {
       const response = await ApiService.getUsers();
       if (response && response.data) {
-        // Backend returns `{ data, total, page, limit }`
-        const backendUsers = response.data.data || [];
+        // Handle both raw array and paginated response structure
+        const backendUsers = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data.data || []);
+          
         const mappedUsers: User[] = backendUsers.map((u: any) => ({
           id: u.id,
           name: u.name || u.email,
@@ -135,81 +138,23 @@ export default function UserManagementScreen() {
   };
 
   const loadRoles = async () => {
-    // Mock roles data
-    const mockRoles: Role[] = [
-      {
-        id: '1',
-        name: 'Super Admin',
-        description: 'Full system access with all permissions',
-        permissions: ['*'],
-        userCount: 1,
-        isSystem: true
-      },
-      {
-        id: '2',
-        name: 'Admin',
-        description: 'Organization and workspace management',
-        permissions: ['user_management', 'workspace_management', 'billing_management', 'report_view'],
-        userCount: 2,
-        isSystem: true
-      },
-      {
-        id: '3',
-        name: 'Manager',
-        description: 'Team management and lead oversight',
-        permissions: ['team_management', 'lead_management', 'report_view', 'activity_view'],
-        userCount: 5,
-        isSystem: false
-      },
-      {
-        id: '4',
-        name: 'Sales',
-        description: 'Lead management and sales activities',
-        permissions: ['lead_management', 'activity_logging', 'report_view'],
-        userCount: 12,
-        isSystem: false
-      },
-      {
-        id: '5',
-        name: 'Agent',
-        description: 'Basic lead viewing and activity logging',
-        permissions: ['lead_view', 'activity_logging'],
-        userCount: 8,
-        isSystem: false
-      }
-    ];
-    setRoles(mockRoles);
+    try {
+      const { data, error } = await ApiService.getRoles();
+      if (error) throw new Error(error.message);
+      setRoles(data || []);
+    } catch (error) {
+      console.error('Error loading roles:', error);
+    }
   };
 
   const loadTeams = async () => {
-    // Mock teams data
-    const mockTeams: Team[] = [
-      {
-        id: '1',
-        name: 'Sales Team',
-        description: 'Main sales team handling enterprise clients',
-        memberCount: 8,
-        lead: 'Sarah Johnson',
-        createdAt: new Date(Date.now() - 25920000000).toISOString()
-      },
-      {
-        id: '2',
-        name: 'Support Team',
-        description: 'Customer support and service team',
-        memberCount: 5,
-        lead: 'John Smith',
-        createdAt: new Date(Date.now() - 51840000000).toISOString()
-      },
-      {
-        id: '3',
-        name: 'Marketing Team',
-        description: 'Marketing and lead generation team',
-        memberCount: 4,
-        lead: 'Michael Chen',
-        createdAt: new Date(Date.now() - 77760000000).toISOString()
-      }
-    ];
-    setTeams(mockTeams);
+    try {
+      const { data, error } = await ApiService.getTeams();
+      if (error) throw new Error(error.message);
+      setTeams(data || []);
+    } catch (error) {
+      console.error('Error loading teams:', error);
+    }
   };
 
   const onRefresh = async () => {

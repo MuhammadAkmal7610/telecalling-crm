@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import { useNavigate } from 'react-router-dom';
 import WorkspaceModal from '../components/WorkspaceModal';
 import ConfirmModal from '../components/ConfirmModal';
 import { supabase } from '../lib/supabaseClient';
@@ -14,13 +13,12 @@ import {
     ArrowPathIcon,
     TrashIcon
 } from '@heroicons/react/24/outline';
-import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { useModal } from '../context/ModalContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 const ManageWorkspaces = () => {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [workspaces, setWorkspaces] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
@@ -30,6 +28,7 @@ const ManageWorkspaces = () => {
 
     const navigate = useNavigate();
     const { can } = usePermission();
+    const modal = useModal();
 
     useEffect(() => {
         fetchWorkspaces();
@@ -59,40 +58,56 @@ const ManageWorkspaces = () => {
 
     const handleWorkspaceCreated = (newWorkspace) => {
         setWorkspaces([...workspaces, newWorkspace]);
-        toast.success('Workspace created successfully!');
+        modal.success({
+            title: 'Workspace Created',
+            message: `The workspace "${newWorkspace.name}" is now ready for your team.`,
+            confirmText: 'Excellent'
+        });
     };
 
-    const handleDeleteClick = (e, workspace) => {
+    const handleDeleteClick = async (e, workspace) => {
         e.stopPropagation();
         if (workspace.is_default) {
-            return toast.error('Default workspace cannot be deleted');
+            return modal.error({
+                title: 'Action Denied',
+                message: 'The default workspace cannot be deleted to ensure platform stability.'
+            });
         }
-        setWorkspaceToDelete(workspace);
-        setDeleteModalOpen(true);
-    };
+        
+        const isConfirmed = await modal.confirm({
+            title: 'Delete Workspace?',
+            message: `Are you sure you want to delete "${workspace.name}"? This will permanently remove all associated leads, campaigns, and tasks. This action is irreversible.`,
+            confirmText: 'Delete Workspace',
+            type: 'danger'
+        });
 
-    const confirmDelete = async () => {
-        if (!workspaceToDelete) return;
-        setDeleting(true);
+        if (!isConfirmed) return;
+
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            const response = await fetch(`${API_URL}/workspaces/${workspaceToDelete.id}`, {
+            const response = await fetch(`${API_URL}/workspaces/${workspace.id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
 
             if (response.ok) {
-                setWorkspaces(workspaces.filter(w => w.id !== workspaceToDelete.id));
-                toast.success('Workspace deleted successfully');
-                setDeleteModalOpen(false);
+                setWorkspaces(workspaces.filter(w => w.id !== workspace.id));
+                modal.success({
+                    title: 'Workspace Deleted',
+                    message: 'The workspace has been successfully removed.'
+                });
             } else {
                 const err = await response.json();
-                toast.error(err.message || 'Failed to delete workspace');
+                modal.error({
+                    title: 'Deletion Failed',
+                    message: err.message || 'Could not delete the workspace. Please ensure it is empty.'
+                });
             }
         } catch (error) {
-            toast.error('An error occurred');
-        } finally {
-            setDeleting(false);
+            modal.error({
+                title: 'Error',
+                message: 'An unexpected error occurred during the deletion process.'
+            });
         }
     };
 
@@ -102,14 +117,9 @@ const ManageWorkspaces = () => {
     };
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <main className="flex-1 overflow-y-auto p-6 lg:p-10">
-                    <div className="max-w-5xl mx-auto space-y-10">
+        <>
+            <div className="flex-1 overflow-y-auto p-6 lg:p-10">
+                <div className="max-w-5xl mx-auto space-y-10">
 
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                             <div className='flex items-center gap-4'>
@@ -210,10 +220,8 @@ const ManageWorkspaces = () => {
                                     </button>
                                 </div>
                             )}
-                        </div>
-
                     </div>
-                </main>
+                </div>
             </div>
 
             <WorkspaceModal
@@ -221,18 +229,7 @@ const ManageWorkspaces = () => {
                 onClose={() => setModalOpen(false)}
                 onCreated={handleWorkspaceCreated}
             />
-
-            <ConfirmModal
-                isOpen={deleteModalOpen}
-                onClose={() => setDeleteModalOpen(false)}
-                onConfirm={confirmDelete}
-                loading={deleting}
-                title="Delete Workspace?"
-                message={`Are you sure you want to delete "${workspaceToDelete?.name}"? Note that only empty workspaces (with no leads, tasks, or campaigns) can be deleted. This action cannot be undone.`}
-                confirmText="Delete Workspace"
-                type="danger"
-            />
-        </div>
+        </>
     );
 };
 

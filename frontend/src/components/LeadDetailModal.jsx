@@ -4,6 +4,7 @@ import { XMarkIcon, PhoneIcon, ChatBubbleLeftRightIcon, CalendarIcon, UserCircle
 import { useDialer } from '../context/DialerContext';
 import { toast } from 'react-hot-toast';
 import { useApi } from '../hooks/useApi';
+import { useModal } from '../context/ModalContext';
 import TaskModal from './TaskModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
@@ -11,6 +12,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
     const { startCallLog } = useDialer();
     const { apiFetch } = useApi();
+    const modal = useModal();
     const [isScheduling, setIsScheduling] = useState(false);
     const [activeTab, setActiveTab] = useState('Activity');
     const [note, setNote] = useState('');
@@ -74,7 +76,7 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
             const res = await apiFetch('/users/team');
             if (res.ok) {
                 const result = await res.json();
-                const data = result || [];
+                const data = result.data || result || [];
                 const validUsers = (Array.isArray(data) ? data : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
                 setUsers(validUsers);
             }
@@ -149,7 +151,16 @@ export default function LeadDetailModal({ isOpen, onClose, lead, onUpdate }) {
                         assigneeId: selectedAssignee
                     })
                 });
-                toast.success('Lead updated!');
+                
+                if (selectedStatus === 'Won') {
+                    modal.success({
+                        title: 'Congratulations!',
+                        message: `Lead ${lead.name} has been successfully converted to WON!`,
+                        confirmText: 'Celebrate'
+                    });
+                } else {
+                    toast.success('Lead updated!');
+                }
             }
 
             toast.success('Activity saved!');

@@ -55,8 +55,7 @@ export default function CampaignsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Note: You'll need to implement deleteCampaign in ApiService
-              // await ApiService.deleteCampaign(campaignId);
+              await ApiService.deleteCampaign(campaignId);
               loadCampaigns();
             } catch (error) {
               Alert.alert('Error', 'Failed to delete campaign');

@@ -41,6 +41,8 @@ import { InvitationsModule } from './modules/invitations/invitations.module';
 import { ApiTemplatesModule } from './modules/api-templates/api-templates.module';
 import { DevicesModule } from './modules/devices/devices.module';
 
+import { AiModule } from './modules/ai/ai.module';
+
 @Module({
   imports: [
     // ---added by akmal--Global config module - reads .env automatically
@@ -97,7 +99,9 @@ import { DevicesModule } from './modules/devices/devices.module';
     InvitationsModule,
     ApiTemplatesModule,
     DevicesModule,
+    AiModule,
   ],
+
   controllers: [AppController],
   providers: [
     AppService,

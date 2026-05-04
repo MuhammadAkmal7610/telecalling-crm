@@ -74,6 +74,8 @@ export interface WorkflowTemplate {
   updated_at: string;
 }
 
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
+
 @Injectable()
 export class WorkflowBuilderService {
   private readonly logger = new Logger(WorkflowBuilderService.name);
@@ -88,6 +90,7 @@ export class WorkflowBuilderService {
     private readonly supabaseService: SupabaseService,
     private readonly emailService: EmailService,
     private readonly notificationsService: NotificationsService,
+    private readonly whatsappService: WhatsAppService,
   ) {}
 
   // ==================== WORKFLOW DEFINITIONS ====================
@@ -446,8 +449,34 @@ export class WorkflowBuilderService {
   }
 
   private async processWhatsAppNode(node: WorkflowNode, context: Record<string, any>, workflow: WorkflowDefinition) {
-    // WhatsApp implementation would go here
-    return { whatsapp_sent: true };
+    const { to, message, template_name, type = 'text' } = node.config;
+    
+    const recipient = this.replaceVariables(to, context);
+    const content = this.replaceVariables(message, context);
+
+    // System context for the API call
+    const systemUser = {
+      id: '00000000-0000-0000-0000-000000000000',
+      organizationId: workflow.organization_id,
+      workspaceId: workflow.workspace_id,
+    };
+
+    if (type === 'template') {
+      await this.whatsappService.sendTemplateMessage(
+        recipient,
+        template_name,
+        context, // use context as variables
+        systemUser
+      );
+    } else {
+      await this.whatsappService.sendMessage({
+        to: recipient,
+        message: content,
+        type: 'text',
+      }, systemUser);
+    }
+    
+    return { whatsapp_sent: true, to: recipient };
   }
 
   private async processTaskNode(node: WorkflowNode, context: Record<string, any>, workflow: WorkflowDefinition) {

@@ -46,21 +46,44 @@ interface StatCardProps {
 export function StatCard({ title, value, subtitle, color = colors.primary, gradient }: StatCardProps) {
   const isDark = useColorScheme() === 'dark';
 
-  return (
-    <Card style={styles.statCard}>
-      <Text style={[styles.statTitle, { color: isDark ? colors.darkMuted : colors.muted }]}>
-        {title}
-      </Text>
-      <Text style={[styles.statValue, { color }]}>
+  const content = (
+    <View style={styles.statCardContent}>
+      <View style={styles.statHeader}>
+        <Text style={[styles.statTitle, { color: gradient ? 'rgba(255,255,255,0.8)' : (isDark ? colors.darkMuted : colors.muted) }]}>
+          {title}
+        </Text>
+      </View>
+      <Text style={[styles.statValue, { color: gradient ? '#FFFFFF' : color }]}>
         {value}
       </Text>
       {subtitle && (
         <View style={styles.subtitleContainer}>
-          <Text style={[styles.statSubtitle, { color: isDark ? colors.darkMuted : colors.muted }]}>
+          <Text style={[styles.statSubtitle, { color: gradient ? 'rgba(255,255,255,0.9)' : (isDark ? colors.darkMuted : colors.muted) }]}>
             {subtitle}
           </Text>
         </View>
       )}
+    </View>
+  );
+
+  if (gradient) {
+    return (
+      <TouchableOpacity activeOpacity={0.9} style={styles.statCardWrapper}>
+        <LinearGradient
+          colors={gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.card, styles.statCard, { borderWidth: 0 }]}
+        >
+          {content}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <Card style={styles.statCard}>
+      {content}
     </Card>
   );
 }
@@ -122,11 +145,16 @@ interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   icon?: React.ReactNode;
+  showPasswordToggle?: boolean;
 }
 
-export function Input({ label, error, icon, style, ...props }: InputProps) {
+export function Input({ label, error, icon, style, secureTextEntry, showPasswordToggle, ...props }: InputProps) {
   const isDark = useColorScheme() === 'dark';
   const [isFocused, setIsFocused] = React.useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = React.useState(false);
+
+  // If secureTextEntry is true and toggle is enabled, we use isPasswordVisible
+  const actualSecureTextEntry = secureTextEntry && showPasswordToggle ? !isPasswordVisible : secureTextEntry;
 
   return (
     <View style={styles.inputWrapper}>
@@ -154,8 +182,22 @@ export function Input({ label, error, icon, style, ...props }: InputProps) {
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholderTextColor={isDark ? colors.darkMuted : colors.muted}
+          secureTextEntry={actualSecureTextEntry}
           {...props}
         />
+        {secureTextEntry && showPasswordToggle && (
+          <TouchableOpacity 
+            style={styles.eyeToggle} 
+            onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+            activeOpacity={0.7}
+          >
+            <View style={{ padding: 4 }}>
+              <Text style={{ fontSize: 20 }}>
+                {isPasswordVisible ? '👁️' : '🙈'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
       {error && (
         <Text style={styles.errorText}>
@@ -211,31 +253,43 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
-  statCard: {
-    alignItems: 'center',
+  statCardWrapper: {
     flex: 1,
     marginHorizontal: 4,
-    paddingVertical: spacing.lg,
   },
-  statTitle: {
-    fontSize: 10,
-    fontFamily: fonts.satoshi.medium,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  statCard: {
+    alignItems: 'flex-start',
+    flex: 1,
+    marginHorizontal: 4,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  statCardContent: {
+    width: '100%',
+  },
+  statHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.xs,
   },
+  statTitle: {
+    fontSize: 11,
+    fontFamily: fonts.satoshi.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   statValue: {
-    fontSize: 28,
+    fontSize: 26,
     fontFamily: fonts.nohemi.bold,
-    marginVertical: spacing.xs,
+    marginVertical: 2,
   },
   subtitleContainer: {
-    marginTop: spacing.xs,
+    marginTop: 4,
   },
   statSubtitle: {
-    fontSize: 11,
-    fontFamily: fonts.satoshi.regular,
-    textAlign: 'center',
+    fontSize: 10,
+    fontFamily: fonts.satoshi.medium,
   },
   button: {
     paddingVertical: 14,
@@ -271,6 +325,11 @@ const styles = StyleSheet.create({
   },
   inputIcon: {
     marginRight: 12,
+  },
+  eyeToggle: {
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   input: {
     flex: 1,

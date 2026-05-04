@@ -11,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '@/src/contexts/ToastContext';
 import { usePopupMessages } from '@/src/hooks/usePopupMessages';
 
+import { LeadCard } from '@/src/components/leads/LeadCard';
+
 export default function LeadsScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -70,53 +72,11 @@ export default function LeadsScreen() {
   };
 
   const renderLeadItem = ({ item }: { item: Lead }) => (
-    <Card
-      style={styles.leadCard}
+    <LeadCard
+      lead={item}
       onPress={() => router.push(`/leads/${item.id}` as any)}
-    >
-      <View style={styles.leadHeader}>
-        <View style={styles.leadInfo}>
-          <Text style={[styles.leadName, { color: isDark ? colors.surface : colors.onBackground }]}>
-            {item.name}
-          </Text>
-          {item.company && (
-            <Text style={[styles.leadCompany, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              {item.company}
-            </Text>
-          )}
-          {item.email && (
-            <Text style={[styles.leadEmail, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              {item.email}
-            </Text>
-          )}
-          {item.phone && (
-            <Text style={[styles.leadPhone, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              {item.phone}
-            </Text>
-          )}
-        </View>
-        <View style={styles.leadActions}>
-          <LeadStatusBadge status={item.status} />
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleDeleteLead(item.id)}
-          >
-            <Ionicons name="trash-outline" size={20} color="#EF4444" />
-          </TouchableOpacity>
-        </View>
-      </View>
-      <View style={styles.leadFooter}>
-        <View style={styles.sourceTag}>
-          <Ionicons name="funnel-outline" size={12} color={isDark ? colors.darkMuted : colors.muted} />
-          <Text style={[styles.leadSource, { color: isDark ? colors.darkMuted : colors.muted }]}>
-            {item.source}
-          </Text>
-        </View>
-        <Text style={[styles.leadDate, { color: isDark ? colors.darkMuted : colors.muted }]}>
-          {new Date(item.created_at).toLocaleDateString()}
-        </Text>
-      </View>
-    </Card>
+      onDelete={() => handleDeleteLead(item.id)}
+    />
   );
 
   if (!loading && (!user || !user.workspace_id)) {
@@ -127,13 +87,45 @@ export default function LeadsScreen() {
     <View style={[styles.container, { backgroundColor: isDark ? '#121212' : colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: isDark ? colors.surface : colors.onBackground }]}>
-          Leads
-        </Text>
-        <Button
-          title="Add Lead"
+        <View>
+          <Text style={[styles.title, { color: isDark ? colors.surface : colors.onBackground }]}>
+            Leads
+          </Text>
+          <Text style={[styles.subtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+            Manage and track your prospects
+          </Text>
+        </View>
+        <TouchableOpacity 
+          style={[styles.addButton, { backgroundColor: colors.primary }]}
           onPress={() => router.push('/leads/create?returnTo=leads')}
-        />
+        >
+          <Ionicons name="add" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Sub Navigation */}
+      <View style={styles.subDashboard}>
+        <TouchableOpacity 
+          style={[styles.subNavItem, { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' }]}
+          onPress={() => router.push('/leads/advanced')}
+        >
+          <Ionicons name="search" size={20} color={colors.primary} />
+          <Text style={[styles.subNavText, { color: isDark ? '#E2E8F0' : '#475569' }]}>Advanced</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.subNavItem, { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' }]}
+          onPress={() => router.push('/leads/pipeline')}
+        >
+          <Ionicons name="funnel" size={20} color="#10B981" />
+          <Text style={[styles.subNavText, { color: isDark ? '#E2E8F0' : '#475569' }]}>Pipeline</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.subNavItem, { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' }]}
+          onPress={() => router.push('/leads/import-export')}
+        >
+          <Ionicons name="swap-vertical" size={20} color="#6366F1" />
+          <Text style={[styles.subNavText, { color: isDark ? '#E2E8F0' : '#475569' }]}>Sync</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Leads List */}
@@ -173,12 +165,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
     paddingTop: 60,
+    paddingBottom: 10,
   },
   title: {
     fontSize: 28,
     fontFamily: fonts.nohemi.bold,
+  },
+  subtitle: {
+    fontSize: 14,
+    fontFamily: fonts.satoshi.regular,
+    marginTop: 2,
+  },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  subDashboard: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: 12,
+  },
+  subNavItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  subNavText: {
+    fontSize: 13,
+    fontFamily: fonts.satoshi.bold,
   },
   listContainer: {
     padding: spacing.lg,

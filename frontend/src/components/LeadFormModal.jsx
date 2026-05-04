@@ -3,6 +3,8 @@ import { XMarkIcon, UserCircleIcon, PhoneIcon, EnvelopeIcon, MapPinIcon, Briefca
 import { supabase } from '../lib/supabaseClient';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { useModal } from '../context/ModalContext';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
@@ -12,6 +14,7 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
     const [stages, setStages] = useState([]);
     const [formData, setFormData] = useState({});
     const [loading, setLoading] = useState(false);
+    const modal = useModal();
 
     useEffect(() => {
         if (isOpen) {
@@ -62,7 +65,7 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
             const res = await axios.get(`${API_URL}/users/team`, {
                 headers: { Authorization: `Bearer ${session.access_token}` }
             });
-            const data = res.data || [];
+            const data = res.data.data || res.data || [];
             const validUsers = (Array.isArray(data) ? data : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
             setUsers(validUsers);
             // Set default assignee to current user
@@ -96,12 +99,19 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
                 headers: { Authorization: `Bearer ${session.access_token}` }
             });
 
-            toast.success('Lead added successfully!');
             onSuccess?.();
             onClose();
+            modal.success({
+                title: 'Lead Created!',
+                message: `${formData.name || 'The lead'} has been added to your pipeline successfully.`,
+                confirmText: 'Fantastic'
+            });
         } catch (error) {
             console.error('Error adding lead:', error);
-            toast.error(error.response?.data?.message || 'Failed to add lead');
+            modal.error({
+                title: 'Submission Failed',
+                message: error.response?.data?.message || 'Failed to add lead. Please check your connection and try again.'
+            });
         } finally {
             setLoading(false);
         }

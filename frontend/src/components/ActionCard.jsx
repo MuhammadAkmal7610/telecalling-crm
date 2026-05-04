@@ -13,7 +13,7 @@ export default function ActionCard({ title, description, icon: Icon, buttonText,
                 <Icon className="h-8 w-8 text-teal-600 group-hover:text-teal-500 transition-colors duration-300 drop-shadow-sm" />
             </div>
 
-            <h3 className="font-extrabold text-gray-900 text-lg mb-3 tracking-tight relative z-10">{title}</h3>
+            <h3 className="font-black text-gray-900 text-lg mb-3 tracking-tight relative z-10">{title}</h3>
 
             <p className="text-gray-500/90 text-sm mb-auto px-2 leading-relaxed font-medium relative z-10">{description}</p>
 

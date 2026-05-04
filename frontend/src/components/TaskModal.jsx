@@ -39,7 +39,7 @@ export default function TaskModal({ isOpen, onClose, onSuccess, leadId = null, l
             });
             if (res.ok) {
                 const result = await res.json();
-                const userList = result || [];
+                const userList = result.data || result || [];
                 const validUsers = (Array.isArray(userList) ? userList : []).filter(u => u.role !== 'root' && u.role !== 'billing_admin');
                 setUsers(validUsers);
 

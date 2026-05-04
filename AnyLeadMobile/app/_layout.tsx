@@ -8,6 +8,8 @@ import { AuthProvider } from '@/src/contexts/AuthContext';
 import { WorkspaceProvider } from '@/src/contexts/WorkspaceContext';
 import { ToastProvider } from '@/src/contexts/ToastContext';
 import { PopupProvider } from '@/src/contexts/PopupContext';
+import { NotificationProvider } from '@/src/contexts/NotificationContext';
+import { CallTrackerProvider } from '@/src/contexts/CallTrackerContext';
 import { Toast } from '@/src/components/common/Toast';
 import { Popup } from '@/src/components/common/Popup';
 
@@ -32,17 +34,21 @@ export default function RootLayout() {
     <AuthProvider>
       <ToastProvider>
         <PopupProvider>
-          <WorkspaceProvider>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <Stack>
-                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                <Stack.Screen name="(main)" options={{ headerShown: false }} />
-                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-              </Stack>
-              <StatusBar style="auto" />
-              <Toast />
-            </ThemeProvider>
-          </WorkspaceProvider>
+          <NotificationProvider>
+            <CallTrackerProvider>
+              <WorkspaceProvider>
+                <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                  <Stack>
+                    <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                    <Stack.Screen name="(main)" options={{ headerShown: false }} />
+                    <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+                  </Stack>
+                  <StatusBar style="auto" />
+                  <Toast />
+                </ThemeProvider>
+              </WorkspaceProvider>
+            </CallTrackerProvider>
+          </NotificationProvider>
         </PopupProvider>
       </ToastProvider>
     </AuthProvider>

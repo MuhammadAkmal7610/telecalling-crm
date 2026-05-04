@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, useColorScheme, RefreshControl, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card, Button } from '@/src/components/common/Card';
-import { colors, fonts } from '@/src/theme/theme';
+import { colors, fonts, shadows } from '@/src/theme/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface LeaderboardUser {
   id: string;
@@ -212,38 +213,36 @@ export default function LeaderboardScreen() {
     const selectedMetricData = metrics.find(m => m.key === selectedMetric);
 
     return (
-      <Card style={styles.topPerformerCard}>
-        <View style={styles.topPerformerHeader}>
-          <View style={[styles.crownContainer, { backgroundColor: '#FFD70020' }]}>
-            <Ionicons name="trophy" size={32} color="#FFD700" />
+      <View style={styles.topPerformerContainer}>
+        <LinearGradient
+          colors={colors.gradientRoyal}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.topPerformerGradient}
+        >
+          <View style={styles.topPerformerContent}>
+            <View style={styles.crownWrapper}>
+              <View style={styles.crownCircle}>
+                <Ionicons name="trophy" size={40} color="#FFD700" />
+              </View>
+              <View style={styles.rankOneBadge}>
+                <Text style={styles.rankOneText}>1</Text>
+              </View>
+            </View>
+            
+            <View style={styles.topUserInfo}>
+              <Text style={styles.topPerformerLabel}>TOP PERFORMER</Text>
+              <Text style={styles.topPerformerName}>{topPerformer.name}</Text>
+              <Text style={styles.topPerformerRole}>{topPerformer.role}</Text>
+            </View>
+
+            <View style={styles.topMetricBox}>
+              <Text style={styles.topMetricValue}>{getMetricValue(topPerformer)}</Text>
+              <Text style={styles.topMetricLabel}>{selectedMetricData?.label}</Text>
+            </View>
           </View>
-          <View style={styles.topPerformerInfo}>
-            <Text style={[styles.topPerformerTitle, { color: isDark ? colors.surface : colors.onBackground }]}>
-              Top Performer
-            </Text>
-            <Text style={[styles.topPerformerName, { color: isDark ? colors.surface : colors.onBackground }]}>
-              {topPerformer.name}
-            </Text>
-            <Text style={[styles.topPerformerRole, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              {topPerformer.role}
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.topPerformerMetric}>
-          <Ionicons 
-            name={selectedMetricData?.icon as any} 
-            size={24} 
-            color={selectedMetricData?.color} 
-          />
-          <Text style={[styles.topPerformerValue, { color: isDark ? colors.surface : colors.onBackground }]}>
-            {getMetricValue(topPerformer)}
-          </Text>
-          <Text style={[styles.topPerformerMetricLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-            {selectedMetricData?.label}
-          </Text>
-        </View>
-      </Card>
+        </LinearGradient>
+      </View>
     );
   };
 
@@ -357,61 +356,93 @@ const styles = StyleSheet.create({
     fontFamily: fonts.nohemi.bold,
   },
   shareButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: colors.primary + '10',
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: colors.primary + '15',
   },
-  topPerformerCard: {
-    margin: 20,
-    padding: 20,
+  topPerformerContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
-  topPerformerHeader: {
+  topPerformerGradient: {
+    borderRadius: 24,
+    padding: 24,
+    ...shadows.lg,
+  },
+  topPerformerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  crownContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  crownWrapper: {
+    position: 'relative',
+    marginRight: 20,
+  },
+  crownCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,215,0,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,215,0,0.5)',
   },
-  topPerformerInfo: {
+  rankOneBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: '#FFD700',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  rankOneText: {
+    color: '#000',
+    fontSize: 14,
+    fontFamily: fonts.nohemi.bold,
+  },
+  topUserInfo: {
     flex: 1,
   },
-  topPerformerTitle: {
-    fontSize: 14,
-    fontFamily: fonts.satoshi.medium,
+  topPerformerLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 10,
+    fontFamily: fonts.satoshi.bold,
+    letterSpacing: 1,
     marginBottom: 4,
   },
   topPerformerName: {
-    fontSize: 20,
+    color: '#FFFFFF',
+    fontSize: 22,
     fontFamily: fonts.nohemi.bold,
     marginBottom: 2,
   },
   topPerformerRole: {
-    fontSize: 14,
-    fontFamily: fonts.satoshi.regular,
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 13,
+    fontFamily: fonts.satoshi.medium,
   },
-  topPerformerMetric: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+  topMetricBox: {
+    alignItems: 'flex-end',
   },
-  topPerformerValue: {
+  topMetricValue: {
+    color: '#FFFFFF',
     fontSize: 24,
     fontFamily: fonts.nohemi.bold,
   },
-  topPerformerMetricLabel: {
-    fontSize: 12,
+  topMetricLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 10,
     fontFamily: fonts.satoshi.medium,
+    textAlign: 'right',
   },
   timeRangeContainer: {
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   timeRangeButton: {
     paddingHorizontal: 16,

@@ -6,6 +6,7 @@ import { colors, fonts } from '@/src/theme/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { ApiService } from '@/src/services/ApiService';
 import { Ionicons } from '@expo/vector-icons';
+import { CommunicationService } from '@/src/services/CommunicationService';
 
 interface Lead {
   id: string;
@@ -266,14 +267,14 @@ export default function LeadSearchScreen() {
       <View style={styles.leadActions}>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: colors.primary }]}
-          onPress={() => router.push(`/communication/whatsapp?phone=${item.phone}&name=${item.name}` as any)}
+          onPress={() => CommunicationService.getInstance().triggerWhatsApp(item.phone, item.id, item.name)}
         >
           <Ionicons name="logo-whatsapp" size={16} color="white" />
           <Text style={styles.actionText}>WhatsApp</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
-          onPress={() => router.push(`/communication/dialer?phone=${item.phone}&name=${item.name}` as any)}
+          onPress={() => CommunicationService.getInstance().triggerNativeDialer(item.phone, item.id, item.name)}
         >
           <Ionicons name="call" size={16} color="white" />
           <Text style={styles.actionText}>Call</Text>

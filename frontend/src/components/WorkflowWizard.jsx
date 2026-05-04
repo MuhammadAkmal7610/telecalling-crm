@@ -3,10 +3,12 @@ import { XMarkIcon, PlusIcon, TrashIcon, PlayIcon, PauseIcon, CheckIcon } from '
 import { supabase } from '../lib/supabaseClient';
 import { useApi } from '../hooks/useApi';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useModal } from '../context/ModalContext';
 
 const WorkflowWizard = ({ isOpen, onClose, onSuccess, workflow = null }) => {
     const { currentWorkspace } = useWorkspace();
     const { apiFetch } = useApi();
+    const modal = useModal();
     
     const [currentStep, setCurrentStep] = useState(1);
     const [isTestMode, setIsTestMode] = useState(false);
@@ -105,7 +107,10 @@ const WorkflowWizard = ({ isOpen, onClose, onSuccess, workflow = null }) => {
             }
         } catch (error) {
             console.error('Error saving workflow:', error);
-            alert('Error saving workflow: ' + error.message);
+            modal.error({
+                title: 'Save Failed',
+                message: error.message || 'Could not save the workflow. Please try again.'
+            });
         } finally {
             setIsSaving(false);
         }
@@ -122,13 +127,20 @@ const WorkflowWizard = ({ isOpen, onClose, onSuccess, workflow = null }) => {
 
             if (response.ok) {
                 const result = await response.json();
-                alert('Test successful! ' + JSON.stringify(result, null, 2));
+                modal.success({
+                    title: 'Test Successful',
+                    message: 'The workflow has been tested successfully! ' + (result.message || 'Execution completed without errors.'),
+                    confirmText: 'Awesome'
+                });
             } else {
                 throw new Error('Test failed');
             }
         } catch (error) {
             console.error('Error testing workflow:', error);
-            alert('Test failed: ' + error.message);
+            modal.error({
+                title: 'Test Failed',
+                message: error.message || 'The workflow test encountered an error.'
+            });
         } finally {
             setIsTestMode(false);
         }

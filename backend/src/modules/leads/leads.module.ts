@@ -5,9 +5,10 @@ import { SupabaseModule } from '../supabase/supabase.module';
 import { WorkflowsModule } from '../workflows/workflows.module';
 import { ActivitiesModule } from '../activities/activities.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { WhatsAppModule } from '../whatsapp/whatsapp.module';
 
 @Module({
-  imports: [SupabaseModule, WorkflowsModule, ActivitiesModule, NotificationsModule],
+  imports: [SupabaseModule, WorkflowsModule, ActivitiesModule, NotificationsModule, WhatsAppModule],
   controllers: [LeadsController],
   providers: [LeadsService],
   exports: [LeadsService],

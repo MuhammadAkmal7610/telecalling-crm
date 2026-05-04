@@ -92,12 +92,7 @@ const UserPreferences = () => {
     };
 
     return (
-        <div className="flex h-screen bg-gray-50 font-sans">
-            <Sidebar />
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <Header />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
-                    <div className="max-w-5xl mx-auto space-y-6">
+        <div className="max-w-5xl mx-auto space-y-6 p-6">
                         <h1 className="text-xl font-medium text-gray-500">My Preferences</h1>
 
                         {/* Desktop Preferences Section */}
@@ -221,9 +216,6 @@ const UserPreferences = () => {
                             </button>
                         </div>
                     </div>
-                </main>
-            </div>
-        </div>
     );
 };
 

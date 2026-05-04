@@ -6,6 +6,7 @@ import { ActivitiesService } from '../activities/activities.service';
 import { ActivityType } from '../activities/dto/activity.dto';
 import { LeadsService } from '../leads/leads.service';
 import { LeadStatus } from '../leads/dto/lead.dto';
+import { AiService } from '../ai/ai.service';
 
 export interface CreateCallDto {
     lead_id: string;
@@ -41,6 +42,7 @@ export class TelephonyService {
         private readonly notificationsGateway: NotificationsGateway,
         private readonly activitiesService: ActivitiesService,
         private readonly leadsService: LeadsService,
+        private readonly aiService: AiService,
     ) { }
 
     async initiateCall(createCallDto: CreateCallDto, user: any) {
@@ -106,6 +108,11 @@ export class TelephonyService {
             .single();
 
         if (error) throw new BadRequestException(error.message);
+
+        // ---added by akmal--AI PROCESSING TRIGGER
+        if (updateCallDto.status === 'ended' && (updateCallDto.recording_url || existingCall.recording_url)) {
+            this.processAiSummary(callId, updateCallDto.recording_url || existingCall.recording_url, userId);
+        }
 
         // Log activity based on status
         if (updateCallDto.status === 'ended') {
@@ -414,6 +421,45 @@ export class TelephonyService {
         }, createCallDto.agent_id, createCallDto.workspace_id, createCallDto.organization_id);
 
         return call;
+    }
+
+    private async processAiSummary(callId: string, recordingUrl: string, userId: string) {
+        try {
+            this.logger.log(`Starting AI processing for call ${callId}`);
+            
+            // 1. Fetch the audio file
+            const response = await fetch(recordingUrl);
+            const buffer = Buffer.from(await response.arrayBuffer());
+
+            // 2. Transcribe and Summarize
+            const { transcription, summary } = await this.aiService.analyzeCall(buffer);
+
+            // 3. Update Call Record
+            const supabase = this.supabaseService.getAdminClient();
+            await supabase
+                .from(this.CALLS_TABLE)
+                .update({
+                    transcript: transcription,
+                    ai_summary: summary,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', callId);
+
+            // 4. Update Activity Log
+            const { data: call } = await supabase.from(this.CALLS_TABLE).select('*').eq('id', callId).single();
+            if (call) {
+                await this.activitiesService.create({
+                    type: ActivityType.NOTE,
+                    title: 'AI Call Summary',
+                    details: `🤖 AI Summary: ${summary}`,
+                    leadId: call.lead_id,
+                }, userId, call.workspace_id, call.organization_id);
+            }
+
+            this.logger.log(`AI processing completed for call ${callId}`);
+        } catch (error) {
+            this.logger.error(`AI processing failed for call ${callId}: ${error.message}`);
+        }
     }
 
     private formatDuration(seconds: number): string {

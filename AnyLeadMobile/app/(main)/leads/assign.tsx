@@ -52,7 +52,11 @@ export default function LeadAssignmentScreen() {
       setLoading(true);
       const response = await ApiService.getUsers();
       if (response && response.data) {
-        const backendUsers = response.data.data || [];
+        // Handle both raw array and paginated response structure
+        const backendUsers = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data.data || []);
+          
         const mappedUsers: User[] = backendUsers.map((u: any) => ({
           id: u.id,
           name: u.name || u.email,
@@ -114,7 +118,7 @@ export default function LeadAssignmentScreen() {
         // Log assignment activity
         await ApiService.createActivity({
           type: 'assignment',
-          description: `Assigned lead to ${users.find(u => u.id === selectedUser)?.name}`,
+          details: `Assigned lead to ${users.find(u => u.id === selectedUser)?.name}`,
           lead_id: leadId,
           user_id: user?.id,
           organization_id: user?.organization_id,

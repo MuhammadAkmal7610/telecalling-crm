@@ -89,12 +89,13 @@ export default function LeadImportExportScreen() {
   };
 
   const processImportFile = async (file: any) => {
+    console.log('--- Starting processImportFile ---');
     setImporting(true);
     try {
       let data: any[] = [];
       
       if (Platform.OS === 'web') {
-        // More robust approach for Web: use fetch to get blob
+        console.log('Web platform: processing file...');
         const response = await fetch(file.uri);
         const blob = await response.blob();
         
@@ -117,22 +118,24 @@ export default function LeadImportExportScreen() {
         reader.readAsBinaryString(blob);
         data = await promise;
       } else {
-        // Native approach: use FileSystem
+        console.log('Mobile platform: reading file...');
         const base64 = await FileSystem.readAsStringAsync(file.uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
+        console.log('File read successfully, parsing with XLSX...');
         const workbook = XLSX.read(base64, { type: 'base64' });
         const firstSheet = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheet];
         data = XLSX.utils.sheet_to_json(worksheet);
       }
 
+      console.log('Parsed Data Count:', data.length);
       if (data.length === 0) {
         Alert.alert('Error', 'File is empty or invalid');
+        setImporting(false);
         return;
       }
 
-      console.log('Parsed Data Count:', data.length);
       const sheetHeaders = Object.keys(data[0]);
       setHeaders(sheetHeaders);
       setFileData(data);
@@ -150,13 +153,20 @@ export default function LeadImportExportScreen() {
       });
       setMapping(initialMapping);
 
-      await fetchLeadFields();
+      console.log('Fetching lead fields...');
+      try {
+        await fetchLeadFields();
+      } catch (fError) {
+        console.warn('Failed to fetch lead fields, using defaults:', fError);
+      }
+      
       setCurrentStep(STEPS.MAPPING);
     } catch (error) {
       console.error('Error processing file:', error);
-      Alert.alert('Error', 'Failed to process file with XLSX parser. Please check the console for details.');
+      Alert.alert('Error', 'Failed to process file. Please ensure it is a valid CSV or Excel file.');
     } finally {
       setImporting(false);
+      console.log('--- processImportFile Finished ---');
     }
   };
 
@@ -168,6 +178,7 @@ export default function LeadImportExportScreen() {
     }
 
     setLoading(true);
+    console.log(`Starting upload of ${fileData.length} leads...`);
     try {
       const allLeads: any[] = [];
       let offset = 0;
@@ -192,9 +203,16 @@ export default function LeadImportExportScreen() {
         offset += count;
       }
 
+      console.log(`Sending ${allLeads.length} leads to backend...`);
       const { data, error } = await ApiService.bulkImportLeads(allLeads, user?.workspace_id);
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Backend responded with error:', error);
+        throw error;
+      }
 
+      console.log('Import response data:', data);
+      
       setImportResult({
         total: allLeads.length,
         imported: data.inserted || allLeads.length,
@@ -205,10 +223,11 @@ export default function LeadImportExportScreen() {
       setCurrentStep(STEPS.SUCCESS);
       Alert.alert('Success', `Successfully imported ${allLeads.length} leads!`);
     } catch (error: any) {
-      console.error('Import error:', error);
-      Alert.alert('Error', error.message || 'Failed to upload leads');
+      console.error('Import error details:', error);
+      Alert.alert('Import Failed', error.message || 'The server took too long to respond or the file was too large. Try importing in smaller batches.');
     } finally {
       setLoading(false);
+      console.log('--- Upload Finished ---');
     }
   };
 

@@ -95,14 +95,8 @@ export default function FacebookLeads() {
     };
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <main className="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
-                    <WorkspaceGuard>
+        <WorkspaceGuard>
+            <div className="flex flex-1 overflow-hidden h-full flex-col lg:flex-row relative">
 
                         {!isReportColumnOpen && (
                             <button
@@ -317,18 +311,16 @@ export default function FacebookLeads() {
                             ) : (
                                 <div className="flex-1 flex items-center justify-center text-gray-400 italic">Select a lead to view details</div>
                             )}
-                        </div>
-                    </WorkspaceGuard>
-                </main>
+                <style>{`
+                    .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+                    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+                    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                `}</style>
             </div>
-            <style>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-            `}</style>
         </div>
-    );
+    </WorkspaceGuard>
+);
 }
 
 // ... Shared components would typically go here or be imported ... 

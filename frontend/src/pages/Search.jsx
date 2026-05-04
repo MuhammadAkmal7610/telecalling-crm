@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '../hooks/useApi';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import {
     MagnifyingGlassIcon,
@@ -24,7 +22,6 @@ const filters = [
 ];
 
 const Search = () => {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [activeFilter, setActiveFilter] = useState('All');
     const [searchValue, setSearchValue] = useState('');
 
@@ -58,15 +55,9 @@ const Search = () => {
     };
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased overflow-hidden">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col h-full min-w-0">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-gray-50/50">
-                    <WorkspaceGuard>
-                        <div className="max-w-3xl mx-auto space-y-8 mt-4">
+        <WorkspaceGuard>
+            <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-gray-50/50 h-full">
+                    <div className="max-w-3xl mx-auto space-y-8 mt-4">
 
                             {/* Page Title & Intro */}
                             <div className="text-center space-y-2">
@@ -183,10 +174,8 @@ const Search = () => {
                             </div>
 
                         </div>
-                    </WorkspaceGuard>
                 </main>
-            </div>
-        </div>
+            </WorkspaceGuard>
     );
 };
 

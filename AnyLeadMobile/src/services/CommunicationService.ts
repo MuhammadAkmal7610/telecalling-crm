@@ -2,6 +2,9 @@ import { ApiService } from './ApiService';
 import { Linking, Alert, Platform } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import Constants from 'expo-constants';
+import * as Device from 'expo-device';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+// Removed uuid and random-values polyfill to fix crash
 
 export interface WhatsAppMessage {
   id: string;
@@ -583,20 +586,71 @@ export class CommunicationService {
   }
 
   // Dialer Native Integration
-  async triggerNativeDialer(phoneNumber: string): Promise<void> {
+  async triggerNativeDialer(phoneNumber: string, leadId?: string, leadName?: string): Promise<void> {
     try {
       const formattedPhone = this.formatPhoneNumber(phoneNumber);
       const url = `tel:${formattedPhone}`;
       const supported = await Linking.canOpenURL(url);
       
       if (supported) {
+        // Prepare call context for post-call tracking
+        if (leadId) {
+          this.currentCallContext = {
+            leadId,
+            leadName: leadName || 'Unknown Lead',
+            workspaceId: '', // Will be filled from current workspace context if needed
+            organizationId: '',
+            startTime: new Date().toISOString()
+          };
+          
+          // Optionally log the "attempt" immediately
+          try {
+            await ApiService.createActivity({
+              lead_id: leadId,
+              type: 'call',
+              details: `Call attempted to ${leadName || phoneNumber} (Status: pending)`,
+            });
+          } catch (e) {
+            console.error('Failed to log call attempt:', e);
+          }
+        }
+        
         await Linking.openURL(url);
       } else {
         console.error('Phone dialer not supported on this device');
+        Alert.alert('Error', 'Phone dialer not supported on this device');
       }
     } catch (error) {
       console.error('Error opening native dialer:', error);
       throw error;
+    }
+  }
+
+  async triggerWhatsApp(phoneNumber: string, leadId?: string, leadName?: string, message?: string): Promise<void> {
+    try {
+      let phone = phoneNumber.replace(/[^0-9]/g, '');
+      if (phone.length === 10) phone = '91' + phone;
+      
+      const defaultMessage = message || `Hello ${leadName || ''}, I'm calling from AnyLead CRM regarding your inquiry.`;
+      const waUrl = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(defaultMessage)}`;
+      
+      const supported = await Linking.canOpenURL(waUrl);
+      if (supported) {
+        if (leadId) {
+          await ApiService.createActivity({
+            lead_id: leadId,
+            type: 'whatsapp',
+            details: `WhatsApp message initiated to ${leadName || phoneNumber}`,
+          });
+        }
+        await Linking.openURL(waUrl);
+      } else {
+        const webWaUrl = `https://wa.me/${phone}?text=${encodeURIComponent(defaultMessage)}`;
+        await Linking.openURL(webWaUrl);
+      }
+    } catch (error) {
+      console.error('Error opening WhatsApp:', error);
+      Alert.alert('Error', 'Failed to open WhatsApp');
     }
   }
 
@@ -615,24 +669,34 @@ export class CommunicationService {
     
     const socketUrl = apiBaseUrl.replace('/api/v1', '');
     
+    // Ensure we have a deviceId (fallback to persistent storage)
+    const getSafeDeviceId = async (): Promise<string> => {
+      if (deviceId) return deviceId;
+      let storedId = await AsyncStorage.getItem('device_id') as string | null;
+      if (!storedId) {
+        storedId = Math.random().toString(36).substring(2, 15) + '_' + Date.now();
+        await AsyncStorage.setItem('device_id', storedId);
+      }
+      return storedId;
+    };
+
     try {
       console.log(`Connecting to Dialer WebSocket: ${socketUrl}`);
-      this.socket = io(socketUrl, {
-        query: { userId, token, deviceId },
-        auth: { token },
-        transports: ['polling', 'websocket'],
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 2000,
-      });
+      getSafeDeviceId().then(safeId => {
+        this.socket = io(socketUrl, {
+          query: { userId, token, deviceId: safeId },
+          auth: { token },
+          transports: ['polling', 'websocket'],
+          reconnection: true,
+          reconnectionAttempts: 10,
+          reconnectionDelay: 2000,
+        });
 
-      this.socket.on('connect', () => {
-        console.log('Connected to WebSocket');
-        // Register device after connection
-        if (deviceId) {
-          this.registerDevice(userId, deviceId).catch(console.error);
-        }
-      });
+        this.socket.on('connect', () => {
+          console.log('Connected to WebSocket');
+          // Register device after connection
+          this.registerDevice(userId, safeId).catch(console.error);
+        });
 
       this.socket.on('new_lead_to_call', async (data: { leadId: string, leadName: string, leadPhone: string }) => {
         console.log('Received lead to call:', data);
@@ -664,12 +728,13 @@ export class CommunicationService {
         };
       });
 
-      this.socket.on('disconnect', () => {
-        console.log('Disconnected from WebSocket');
-      });
+        this.socket.on('disconnect', () => {
+          console.log('Disconnected from WebSocket');
+        });
 
-      this.socket.on('connect_error', (error) => {
-        console.error('WebSocket connection error:', error);
+        this.socket.on('connect_error', (error) => {
+          console.error('WebSocket connection error:', error);
+        });
       });
     } catch (error) {
       console.error('Failed to setup WebSocket:', error);
@@ -684,13 +749,22 @@ export class CommunicationService {
     startTime: string;
   } | null = null;
 
-  async registerDevice(userId: string, deviceId: string): Promise<void> {
+  async registerDevice(userId: string, deviceId?: string): Promise<void> {
     try {
+      let finalDeviceId = deviceId;
+      if (!finalDeviceId) {
+        finalDeviceId = (await AsyncStorage.getItem('device_id')) || '';
+        if (!finalDeviceId) {
+          finalDeviceId = Math.random().toString(36).substring(2, 15) + '_' + Date.now();
+          await AsyncStorage.setItem('device_id', finalDeviceId);
+        }
+      }
+
       const response = await ApiService.post('/devices/register', {
-        device_token: deviceId,
-        device_type: Platform.OS as 'ios' | 'android',
-        device_name: `${Platform.OS} Device`,
-        push_token: await this.getPushToken(),
+        deviceToken: finalDeviceId,
+        deviceType: Platform.OS as 'ios' | 'android',
+        deviceName: `${Device.modelName || Platform.OS} Device`,
+        pushToken: await this.getPushToken(),
       });
       console.log('Device registered:', response.data);
     } catch (error) {

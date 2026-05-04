@@ -42,8 +42,8 @@ export default function Reports() {
                 to={hasAccess ? link.path : '#'}
                 onClick={(e) => !hasAccess && e.preventDefault()}
                 className={`group flex flex-col bg-white p-6 rounded-2xl border transition-all duration-300 relative overflow-hidden ${hasAccess
-                        ? 'border-gray-200 shadow-sm hover:shadow-xl hover:shadow-teal-100/50 hover:border-teal-200 hover:-translate-y-1'
-                        : 'border-gray-100 bg-gray-50/50 cursor-not-allowed grayscale'
+                    ? 'border-gray-200 shadow-sm hover:shadow-xl hover:shadow-teal-100/50 hover:border-teal-200 hover:-translate-y-1'
+                    : 'border-gray-100 bg-gray-50/50 cursor-not-allowed grayscale'
                     }`}
             >
                 {!hasAccess && (
@@ -60,8 +60,8 @@ export default function Reports() {
                 )}
                 <div className="flex items-center gap-4 mb-4">
                     <div className={`p-3 rounded-xl transition-all duration-300 ${hasAccess
-                            ? 'bg-teal-50 text-[#08A698] group-hover:bg-[#08A698] group-hover:text-white group-hover:scale-110'
-                            : 'bg-gray-100 text-gray-400'
+                        ? 'bg-teal-50 text-[#08A698] group-hover:bg-[#08A698] group-hover:text-white group-hover:scale-110'
+                        : 'bg-gray-100 text-gray-400'
                         }`}>
                         <link.icon className="w-6 h-6" />
                     </div>
@@ -78,49 +78,44 @@ export default function Reports() {
     };
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <main className="flex-1 overflow-y-auto bg-gray-50/50 p-6 lg:p-10">
-                    <WorkspaceGuard>
-                        <div className="max-w-7xl mx-auto space-y-12">
-                            <div>
-                                <h1 className="text-4xl font-black text-gray-900 tracking-tight">Analytics & Reports</h1>
-                                <p className="text-gray-500 mt-2 text-lg">Comprehensive insights across your workspaces and organization.</p>
-                            </div>
-
-                            {/* Workspace Section */}
-                            <section>
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="h-8 w-1.5 bg-[#08A698] rounded-full"></div>
-                                    <h2 className="text-xl font-extrabold text-gray-800 uppercase tracking-widest text-sm">Workspace Insights</h2>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {workspaceReports.map((link) => (
-                                        <ReportCard key={link.name} link={link} />
-                                    ))}
-                                </div>
-                            </section>
-
-                            {/* Org Section */}
-                            <section className="pt-4 border-t border-gray-200/60">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="h-8 w-1.5 bg-indigo-500 rounded-full"></div>
-                                    <h2 className="text-xl font-extrabold text-gray-800 uppercase tracking-widest text-sm">Organization Intelligence</h2>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {orgReports.map((link) => (
-                                        <ReportCard key={link.name} link={link} />
-                                    ))}
-                                </div>
-                            </section>
+        <WorkspaceGuard>
+            <div className="relative">
+                <main className="p-6 lg:p-10">
+                    <div className="max-w-7xl mx-auto space-y-12">
+                        <div>
+                            <h1 className="text-4xl font-black text-gray-900 tracking-tight">Analytics & Reports</h1>
+                            <p className="text-gray-500 mt-2 text-lg">Comprehensive insights across your workspaces and organization.</p>
                         </div>
-                    </WorkspaceGuard>
+
+                        {/* Workspace Section */}
+                        <section>
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="h-8 w-1.5 bg-[#08A698] rounded-full"></div>
+                                <h2 className="text-xl font-extrabold text-gray-800 uppercase tracking-widest text-sm">Workspace Insights</h2>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {workspaceReports.map((link) => (
+                                    <ReportCard key={link.name} link={link} />
+                                ))}
+                            </div>
+                        </section>
+
+                        {/* Org Section */}
+                        <section className="pt-4 border-t border-gray-200/60">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="h-8 w-1.5 bg-indigo-500 rounded-full"></div>
+                                <h2 className="text-xl font-extrabold text-gray-800 uppercase tracking-widest text-sm">Organization Intelligence</h2>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {orgReports.map((link) => (
+                                    <ReportCard key={link.name} link={link} />
+                                ))}
+                            </div>
+                        </section>
+                    </div>
                 </main>
             </div>
-        </div>
+        </WorkspaceGuard>
     );
 }
+
