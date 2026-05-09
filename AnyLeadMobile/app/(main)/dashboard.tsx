@@ -92,7 +92,7 @@ export default function DashboardScreen() {
       }
 
       if (tasksRes.data) {
-        setTasks(tasksRes.data);
+        setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : (tasksRes.data.tasks || tasksRes.data.data || []));
       }
 
       if (activitiesRes && activitiesRes.data) {
@@ -131,25 +131,77 @@ export default function DashboardScreen() {
   );
 
   const renderTaskAlerts = () => {
-    const overdueCount = tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length;
-    if (overdueCount === 0) return null;
+    const safeTasks = Array.isArray(tasks) ? tasks : [];
+    const overdueCount = safeTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length;
 
     return (
-      <TouchableOpacity 
-        style={styles.alertBanner}
-        onPress={() => router.push('/automation/schedules' as any)}
-      >
-        <LinearGradient
-          colors={['#EF4444', '#DC2626']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.alertGradient}
+      <View style={{ marginBottom: 20 }}>
+        {/* AI Insights Banner */}
+        <TouchableOpacity 
+          style={[styles.alertBanner, { marginBottom: overdueCount > 0 ? 12 : 0 }]}
+          onPress={() => showToast({ message: 'AI Analysis generated!', type: 'success' })}
         >
-          <Ionicons name="warning" size={20} color="#FFF" />
-          <Text style={styles.alertText}>{overdueCount} tasks are overdue! Take action now.</Text>
-          <Ionicons name="arrow-forward" size={18} color="#FFF" />
-        </LinearGradient>
-      </TouchableOpacity>
+          <LinearGradient
+            colors={['#8B5CF6', '#6D28D9']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.aiGradient}
+          >
+            <View style={styles.aiIconContainer}>
+              <Ionicons name="sparkles" size={20} color="#FFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.aiTitle}>AI Assistant Insights</Text>
+              <Text style={styles.aiText}>You have 3 hot leads with 85% conversion probability. Follow up recommended.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#E2E8F0" />
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {overdueCount > 0 && (
+          <TouchableOpacity 
+            style={styles.alertBanner}
+            onPress={() => router.push('/automation/schedules' as any)}
+          >
+            <LinearGradient
+              colors={['#FEF2F2', '#FEE2E2']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.alertGradient, { borderWidth: 1, borderColor: '#FECACA' }]}
+            >
+              <Ionicons name="warning" size={20} color="#EF4444" />
+              <Text style={[styles.alertText, { color: '#B91C1C' }]}>{overdueCount} tasks are overdue! Take action now.</Text>
+              <Ionicons name="arrow-forward" size={18} color="#EF4444" />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
+  const renderFieldTracking = () => {
+    return (
+      <View style={styles.sectionArea}>
+        {renderSectionHeader('Field Operations', () => showToast({ message: 'Opening map view...', type: 'info' }), 'View Map')}
+        <Card style={styles.fieldCard}>
+          <View style={styles.fieldHeader}>
+            <View style={styles.fieldStatus}>
+              <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
+              <Text style={[styles.statusText, { color: isDark ? '#E2E8F0' : '#1E293B' }]}>3 Active Agents</Text>
+            </View>
+            <View style={styles.fieldStatus}>
+              <View style={[styles.statusDot, { backgroundColor: '#F59E0B' }]} />
+              <Text style={[styles.statusText, { color: isDark ? '#E2E8F0' : '#1E293B' }]}>2 On Route</Text>
+            </View>
+          </View>
+          <View style={styles.mapPlaceholder}>
+            <LinearGradient colors={isDark ? ['#1E293B', '#0F172A'] : ['#E2E8F0', '#F1F5F9']} style={styles.mapGradient}>
+              <Ionicons name="map" size={32} color={isDark ? '#475569' : '#94A3B8'} />
+              <Text style={{ color: isDark ? '#475569' : '#94A3B8', marginTop: 8, fontFamily: fonts.satoshi.medium, fontSize: 12 }}>GPS Tracking Active</Text>
+            </LinearGradient>
+          </View>
+        </Card>
+      </View>
     );
   };
 
@@ -313,7 +365,7 @@ export default function DashboardScreen() {
             />
             <StatCard
               title="Revenue"
-              value={data?.metrics.revenue.total_value ? `$${data.metrics.revenue.total_value.toLocaleString()}` : '$0'}
+              value={data?.metrics.revenue.total ? `$${data.metrics.revenue.total.toLocaleString()}` : '$0'}
               subtitle="Closed sales"
               gradient={['#F59E0B', '#D97706']}
             />
@@ -323,33 +375,46 @@ export default function DashboardScreen() {
         {/* Quick Actions */}
         <View style={styles.sectionArea}>
           {renderSectionHeader('Quick Actions')}
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/leads/create')}>
-              <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.actionIconBg}>
-                <Ionicons name="person-add" size={24} color="#4F46E5" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionsScroll}>
+            <TouchableOpacity style={styles.actionCircleBtn} onPress={() => router.push('/leads/create' as any)}>
+              <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.actionCircleBg}>
+                <Ionicons name="person-add" size={22} color="#FFF" />
               </LinearGradient>
-              <Text style={[styles.actionLabel, { color: isDark ? '#E2E8F0' : '#1E293B' }]}>Add Lead</Text>
+              <Text style={[styles.actionCircleLabel, { color: isDark ? '#E2E8F0' : '#1E293B' }]}>Add Lead</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/dialer')}>
-              <LinearGradient colors={['#EFF6FF', '#DBEAFE']} style={styles.actionIconBg}>
-                <Ionicons name="call" size={24} color="#2563EB" />
+            
+            <TouchableOpacity style={styles.actionCircleBtn} onPress={() => router.push('/dialer' as any)}>
+              <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.actionCircleBg}>
+                <Ionicons name="call" size={22} color="#FFF" />
               </LinearGradient>
-              <Text style={[styles.actionLabel, { color: isDark ? '#E2E8F0' : '#1E293B' }]}>Dialer</Text>
+              <Text style={[styles.actionCircleLabel, { color: isDark ? '#E2E8F0' : '#1E293B' }]}>Dialer</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/messages')}>
-              <LinearGradient colors={['#ECFDF5', '#D1FAE5']} style={styles.actionIconBg}>
-                <Ionicons name="chatbubble" size={24} color="#059669" />
+            
+            <TouchableOpacity style={styles.actionCircleBtn} onPress={() => router.push('/messages' as any)}>
+              <LinearGradient colors={['#10B981', '#059669']} style={styles.actionCircleBg}>
+                <Ionicons name="logo-whatsapp" size={22} color="#FFF" />
               </LinearGradient>
-              <Text style={[styles.actionLabel, { color: isDark ? '#E2E8F0' : '#1E293B' }]}>Messages</Text>
+              <Text style={[styles.actionCircleLabel, { color: isDark ? '#E2E8F0' : '#1E293B' }]}>WhatsApp</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/automation/index')}>
-              <LinearGradient colors={['#FFFBEB', '#FEF3C7']} style={styles.actionIconBg}>
-                <Ionicons name="flash" size={24} color="#D97706" />
+            
+            <TouchableOpacity style={styles.actionCircleBtn} onPress={() => router.push('/automation/index' as any)}>
+              <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.actionCircleBg}>
+                <Ionicons name="flash" size={22} color="#FFF" />
               </LinearGradient>
-              <Text style={[styles.actionLabel, { color: isDark ? '#E2E8F0' : '#1E293B' }]}>Auto</Text>
+              <Text style={[styles.actionCircleLabel, { color: isDark ? '#E2E8F0' : '#1E293B' }]}>Bots</Text>
             </TouchableOpacity>
-          </View>
+
+            <TouchableOpacity style={styles.actionCircleBtn} onPress={() => showToast({ message: 'Opening reports...', type: 'success' })}>
+              <LinearGradient colors={['#EC4899', '#DB2777']} style={styles.actionCircleBg}>
+                <Ionicons name="bar-chart" size={22} color="#FFF" />
+              </LinearGradient>
+              <Text style={[styles.actionCircleLabel, { color: isDark ? '#E2E8F0' : '#1E293B' }]}>Reports</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
+
+        {/* Field Tracking Widget */}
+        {renderFieldTracking()}
 
         {/* Leaderboard for Everyone (Motivation) */}
         {renderLeaderboard()}
@@ -397,9 +462,9 @@ export default function DashboardScreen() {
         <View style={styles.sectionArea}>
           {renderSectionHeader('Upcoming Tasks', () => router.push('/automation/schedules' as any))}
           <Card style={styles.taskCard}>
-            {tasks.length > 0 ? (
+            {Array.isArray(tasks) && tasks.length > 0 ? (
               tasks.map((task, index) => (
-                <View key={task.id} style={[styles.taskRow, index !== tasks.length - 1 && styles.borderBottom]}>
+                <View key={task.id || index} style={[styles.taskRow, index !== tasks.length - 1 && styles.borderBottom]}>
                   <View style={styles.taskIcon}>
                     <Ionicons 
                       name={task.priority === 'high' ? 'alert-circle' : 'calendar'} 
@@ -413,7 +478,7 @@ export default function DashboardScreen() {
                       Due: {new Date(task.dueDate).toLocaleDateString()}
                     </Text>
                   </View>
-                  <TouchableOpacity onPress={() => showToast('Task completion coming soon', 'info')}>
+                  <TouchableOpacity onPress={() => showToast({ message: 'Task completion coming soon', type: 'info' })}>
                     <Ionicons name="checkbox-outline" size={24} color="#CBD5E1" />
                   </TouchableOpacity>
                 </View>
@@ -604,26 +669,92 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.satoshi.bold,
   },
-  actionsGrid: {
+  aiGradient: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  actionBtn: {
     alignItems: 'center',
-    width: (width - 60) / 4,
+    padding: 16,
+    gap: 12,
   },
-  actionIconBg: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
+  aiIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiTitle: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontFamily: fonts.satoshi.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  aiText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: fonts.satoshi.medium,
+    lineHeight: 20,
+  },
+  actionsScroll: {
+    paddingRight: 20,
+    gap: 16,
+  },
+  actionCircleBtn: {
+    alignItems: 'center',
+    width: 65,
+  },
+  actionCircleBg: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
-    ...shadows.sm,
+    ...shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  actionLabel: {
+  actionCircleLabel: {
     fontSize: 11,
     fontFamily: fonts.satoshi.bold,
+    textAlign: 'center',
+  },
+  fieldCard: {
+    padding: 15,
+  },
+  fieldHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  fieldStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontFamily: fonts.satoshi.bold,
+  },
+  mapPlaceholder: {
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  mapGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 12,
   },
   funnelCard: {
     padding: 15,
@@ -712,6 +843,14 @@ const styles = StyleSheet.create({
     padding: 15,
     gap: 12,
   },
+  taskIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   taskInfo: {
     flex: 1,
   },
@@ -736,6 +875,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     gap: 10,
+  },
+  activityIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   activityText: {
     flex: 1,

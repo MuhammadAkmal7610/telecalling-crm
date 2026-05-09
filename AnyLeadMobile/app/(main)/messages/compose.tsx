@@ -167,7 +167,7 @@ export default function MessageComposerScreen() {
     try {
       await ApiService.createActivity({
         type: 'message',
-        description: `Sent ${type.toUpperCase()} to ${selectedLead?.name}: ${content.substring(0, 100)}...`,
+        details: `Sent ${type.toUpperCase()} to ${selectedLead?.name}: ${content.substring(0, 100)}...`,
         lead_id: selectedLead?.id,
         user_id: user?.id,
         organization_id: user?.organization_id,

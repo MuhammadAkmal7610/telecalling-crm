@@ -631,7 +631,7 @@ export class CommunicationService {
       let phone = phoneNumber.replace(/[^0-9]/g, '');
       if (phone.length === 10) phone = '91' + phone;
       
-      const defaultMessage = message || `Hello ${leadName || ''}, I'm calling from AnyLead CRM regarding your inquiry.`;
+      const defaultMessage = message || `Hello ${leadName || ''}, I'm calling from Wave regarding your inquiry.`;
       const waUrl = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(defaultMessage)}`;
       
       const supported = await Linking.canOpenURL(waUrl);

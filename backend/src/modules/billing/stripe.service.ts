@@ -14,7 +14,7 @@ export class StripeService {
     });
   }
 
-  async createCheckoutSession(organizationId: string, plan: string, customerEmail?: string) {
+  async createCheckoutSession(organizationId: string, plan: string, customerEmail?: string, quantity: number = 1) {
     try {
       const priceId = this.getPriceIdForPlan(plan);
       
@@ -23,16 +23,17 @@ export class StripeService {
         line_items: [
           {
             price: priceId,
-            quantity: 1,
+            quantity: quantity,
           },
         ],
         mode: 'subscription',
-        success_url: `${this.configService.get('FRONTEND_URL')}/billing?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${this.configService.get('FRONTEND_URL')}/billing`,
+        success_url: `${this.configService.get('FRONTEND_URL')}/billing?session_id={CHECKOUT_SESSION_ID}&success=true`,
+        cancel_url: `${this.configService.get('FRONTEND_URL')}/billing?success=false`,
         customer_email: customerEmail,
         metadata: {
           organizationId,
           plan,
+          quantity: quantity.toString(),
         },
       });
 

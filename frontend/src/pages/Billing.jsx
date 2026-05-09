@@ -2,6 +2,7 @@ import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabaseClient';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import {
     PencilSquareIcon,
@@ -11,7 +12,8 @@ import {
     CheckIcon,
     EyeIcon,
     XMarkIcon,
-    ChevronDownIcon
+    ChevronDownIcon,
+    UserGroupIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../assets/Logo.png';
 import { toast } from 'react-hot-toast';
@@ -287,6 +289,7 @@ const ViewBillingModal = ({ isOpen, onClose, onEdit, billingData }) => {
 };
 
 export default function Billing() {
+    const navigate = useNavigate();
     const { apiFetch } = useApi();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [billingCycle, setBillingCycle] = useState('Annual');
@@ -298,6 +301,7 @@ export default function Billing() {
     const [billingData, setBillingData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
+    const [quantities, setQuantities] = useState({ 1: 1, 2: 1 }); // Track quantities per license item
 
     useEffect(() => {
         const getUser = async () => {
@@ -368,11 +372,11 @@ export default function Billing() {
         }
     };
 
-    const handleCheckout = async (plan) => {
         try {
+            const quantity = quantities[plan === 'pro' ? 1 : (plan === 'plus' ? 2 : 3)] || 1;
             const res = await apiFetch('/billing/checkout', {
                 method: 'POST',
-                body: JSON.stringify({ plan })
+                body: JSON.stringify({ plan, quantity })
             });
 
             const result = await res.json();
@@ -419,9 +423,18 @@ export default function Billing() {
 
                 <main className="flex-1 overflow-y-auto p-6 lg:p-8">
                     <div className="max-w-7xl mx-auto">
-                        <div className="mb-6">
-                            <h1 className="text-2xl font-bold text-gray-900">Buy Licenses</h1>
-                            <p className="text-gray-500 text-sm mt-1">Manage your billing</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900">Buy Licenses</h1>
+                                <p className="text-gray-500 text-sm mt-1">Manage your billing</p>
+                            </div>
+                            <button 
+                                onClick={() => navigate('/license-billing')}
+                                className="flex items-center gap-2 px-4 py-2 bg-teal-50 text-[#08A698] font-semibold rounded-xl border border-teal-100 hover:bg-teal-100 transition-all shadow-sm"
+                            >
+                                <UserGroupIcon className="w-5 h-5" />
+                                View Seat Usage
+                            </button>
                         </div>
 
                         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
@@ -463,12 +476,25 @@ export default function Billing() {
                                                         <div className="text-xs text-gray-500">Expiry Date : {item.expiry}</div>
                                                     </div>
                                                 </div>
-                                                <button 
-                                                    onClick={() => handleCheckout(item.id === 1 ? 'pro' : 'plus')}
-                                                    className="self-start sm:self-center px-6 py-2 border border-[#08A698] text-[#08A698] font-medium text-sm rounded-lg hover:bg-[#08A698] hover:text-white transition-all shadow-sm active:scale-95"
-                                                >
-                                                    Add
-                                                </button>
+                                                <div className="flex items-center gap-3 self-start sm:self-center">
+                                                    <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden h-9">
+                                                        <button 
+                                                            onClick={() => setQuantities({ ...quantities, [item.id]: Math.max(1, (quantities[item.id] || 1) - 1) })}
+                                                            className="px-2 bg-gray-50 hover:bg-gray-100 border-r border-gray-200 text-gray-600"
+                                                        >-</button>
+                                                        <div className="px-3 text-sm font-medium w-8 text-center">{quantities[item.id] || 1}</div>
+                                                        <button 
+                                                            onClick={() => setQuantities({ ...quantities, [item.id]: (quantities[item.id] || 1) + 1 })}
+                                                            className="px-2 bg-gray-50 hover:bg-gray-100 border-l border-gray-200 text-gray-600"
+                                                        >+</button>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => handleCheckout(item.id === 1 ? 'pro' : 'plus')}
+                                                        className="px-6 py-2 border border-[#08A698] text-[#08A698] font-medium text-sm rounded-lg hover:bg-[#08A698] hover:text-white transition-all shadow-sm active:scale-95"
+                                                    >
+                                                        Add
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

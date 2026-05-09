@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { BillingService } from '../billing/billing.service';
 import { EmailService } from '../email/email.service';
 import * as crypto from 'crypto';
 
@@ -11,6 +12,7 @@ export class InvitationsService {
     constructor(
         private readonly supabaseService: SupabaseService,
         private readonly emailService: EmailService,
+        private readonly billingService: BillingService,
     ) { }
 
     async createInvitation(dto: { email: string; role: string; workspaceId?: string }, user: any) {
@@ -32,6 +34,12 @@ export class InvitationsService {
 
         if (existingUser) {
             throw new ConflictException('User is already a member of this organization');
+        }
+
+        // --- Seat-based license check ---
+        const usage = await this.billingService.getSeatUsage(organizationId);
+        if (usage.availableSeats <= 0) {
+            throw new BadRequestException(`No available licenses. Your organization has used all ${usage.totalLicenses} licenses. Please upgrade your plan or purchase more seats.`);
         }
 
         // Generate token and expiry (7 days)
@@ -428,6 +436,21 @@ export class InvitationsService {
         const link = await this.getInviteLinkByToken(token);
         const supabase = this.supabaseService.getAdminClient();
 
+        // Check if user already in org
+        const { data: existing } = await supabase
+            .from('users')
+            .select('organization_id')
+            .eq('id', userId)
+            .maybeSingle();
+        
+        if (existing?.organization_id !== link.organization_id) {
+            // New user to this org, check license
+            const usage = await this.billingService.getSeatUsage(link.organization_id);
+            if (usage.availableSeats <= 0) {
+                throw new BadRequestException(`This organization has no available licenses. Please contact the administrator.`);
+            }
+        }
+
         // 1. Link user to organization
         const { error: userUpdateError } = await supabase
             .from('users')
@@ -535,8 +558,15 @@ export class InvitationsService {
         const senderEmail = process.env.SENDER_EMAIL || process.env.SMTP_USER || 'noreply@crm.com';
         const senderName = process.env.SENDER_NAME || 'CRM Invitations';
 
+        const usage = await this.billingService.getSeatUsage(organizationId);
+        let availableSeats = usage.availableSeats;
+
         for (const userData of users) {
             try {
+                if (availableSeats <= 0) {
+                    results.failed.push({ email: userData.email, reason: 'No available licenses' });
+                    continue;
+                }
                 // Check if user already exists
                 const { data: existingUser } = await supabase
                     .from('users')
@@ -573,6 +603,8 @@ export class InvitationsService {
                     results.failed.push({ email: userData.email, reason: error.message });
                     continue;
                 }
+
+                availableSeats--;
 
                 // Send email
                 const inviteUrl = `${frontendUrl}/invite/${token}`;

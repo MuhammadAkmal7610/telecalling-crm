@@ -17,7 +17,7 @@ export default function ProfileScreen() {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    phone: user?.phone || '',
+    phone: (user as any)?.phone || '',
   });
   
   const [loading, setLoading] = useState(false);

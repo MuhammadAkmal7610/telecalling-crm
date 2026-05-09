@@ -218,7 +218,7 @@ export default function DialerSettingsScreen() {
                   ];
                   const currentIndex = options.findIndex(opt => opt.value === settings.callDistribution);
                   const nextIndex = (currentIndex + 1) % options.length;
-                  setSettings(prev => prev ? { ...prev, callDistribution: options[nextIndex].value } : null);
+                  setSettings(prev => prev ? { ...prev, callDistribution: options[nextIndex].value as any } : null);
                 }}
               >
                 <Text style={[styles.dropdownText, { color: isDark ? colors.surface : colors.onBackground }]}>

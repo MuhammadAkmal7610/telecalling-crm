@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import {
@@ -7,14 +8,15 @@ import {
     CheckCircleIcon,
     UserGroupIcon
 } from '@heroicons/react/24/outline';
-import { supabase } from '../lib/supabaseClient';
+import { useApi } from '../hooks/useApi';
+import { toast } from 'react-hot-toast';
 
 export default function LicenseBilling() {
+    const navigate = useNavigate();
+    const { apiFetch } = useApi();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [billingInfo, setBillingInfo] = useState(null);
     const [loading, setLoading] = useState(true);
-
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
     useEffect(() => {
         fetchBillingInfo();
@@ -23,16 +25,24 @@ export default function LicenseBilling() {
     const fetchBillingInfo = async () => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            // Assuming this endpoint exists, or fake the response
-            const res = await fetch(`${API_URL}/license`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setBillingInfo(data);
+            const [subRes, usageRes] = await Promise.all([
+                apiFetch('/billing/subscription'),
+                apiFetch('/billing/usage')
+            ]);
+
+            if (subRes.ok && usageRes.ok) {
+                const subData = await subRes.json();
+                const usageData = await usageRes.json();
+                
+                setBillingInfo({
+                    plan: subData.plan || 'Free Plan',
+                    seatsUsed: usageData.usedSeats || 0,
+                    seatsTotal: usageData.totalLicenses || 2,
+                    renewalDate: subData.updated_at || new Date().toISOString(),
+                    status: subData.status === 'active' ? 'Active' : 'Inactive'
+                });
             } else {
+                toast.error('Failed to load real billing data. Showing demo data.');
                 setBillingInfo({
                     plan: 'Pro Plan',
                     seatsUsed: 12,
@@ -42,6 +52,7 @@ export default function LicenseBilling() {
                 });
             }
         } catch (error) {
+            console.error('Error fetching billing info:', error);
             setBillingInfo({
                 plan: 'Pro Plan',
                 seatsUsed: 12,
@@ -129,7 +140,10 @@ export default function LicenseBilling() {
                                     <button className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors">
                                         View Invoices
                                     </button>
-                                    <button className="px-5 py-2.5 bg-[#08A698] hover:bg-[#079186] text-white font-medium rounded-lg transition-colors shadow-sm">
+                                    <button 
+                                        onClick={() => navigate('/billing')}
+                                        className="px-5 py-2.5 bg-[#08A698] hover:bg-[#079186] text-white font-medium rounded-lg transition-colors shadow-sm"
+                                    >
                                         Add More Seats
                                     </button>
                                 </div>

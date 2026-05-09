@@ -51,7 +51,7 @@ export default function LoginScreen() {
                     <View style={styles.container}>
                         <View style={styles.content}>
                             <Text style={[styles.title, { color: textColor }]}>Welcome Back</Text>
-                            <Text style={[styles.subtitle, { color: secondaryTextColor }]}>Sign in to continue to AnyLead</Text>
+                            <Text style={[styles.subtitle, { color: secondaryTextColor }]}>Sign in to continue to Wave</Text>
 
                             <View style={styles.spacer48} />
 

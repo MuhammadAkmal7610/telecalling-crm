@@ -254,7 +254,7 @@ export default function SetupValidationScreen() {
         </View>
       </View>
       
-      {validation?.environment.errors.length > 0 && (
+      {validation && validation.environment.errors.length > 0 && (
         <View style={styles.issuesContainer}>
           <Text style={styles.issuesTitle}>Errors:</Text>
           {validation.environment.errors.map((error, index) => (
@@ -263,7 +263,7 @@ export default function SetupValidationScreen() {
         </View>
       )}
       
-      {validation?.environment.warnings.length > 0 && (
+      {validation && validation.environment.warnings.length > 0 && (
         <View style={styles.issuesContainer}>
           <Text style={styles.issuesTitle}>Warnings:</Text>
           {validation.environment.warnings.map((warning, index) => (
@@ -292,7 +292,7 @@ export default function SetupValidationScreen() {
         </View>
       </View>
       
-      {validation?.dependencies.missing.length > 0 && (
+      {validation && validation.dependencies.missing.length > 0 && (
         <View style={styles.issuesContainer}>
           <Text style={styles.issuesTitle}>Missing Dependencies:</Text>
           {validation.dependencies.missing.map((dep, index) => (

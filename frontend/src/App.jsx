@@ -70,6 +70,12 @@ import LicenseBilling from './pages/LicenseBilling';
 import AuditSecurity from './pages/AuditSecurity';
 import IntegrationHub from './pages/IntegrationHub';
 
+// New Features
+import FieldTracking from './pages/FieldTracking';
+import WhatsAppChatbots from './pages/WhatsAppChatbots';
+import LeadDistribution from './pages/LeadDistribution';
+import AISummarization from './pages/AISummarization';
+
 import MainLayout from './components/MainLayout';
 
 function App() {
@@ -147,6 +153,12 @@ function App() {
             <Route path="/license-billing" element={<LicenseBilling />} />
             <Route path="/audit-security" element={<AuditSecurity />} />
             <Route path="/integration-hub" element={<IntegrationHub />} />
+            
+            {/* New Features Routes */}
+            <Route path="/field-tracking" element={<FieldTracking />} />
+            <Route path="/whatsapp-chatbots" element={<WhatsAppChatbots />} />
+            <Route path="/lead-distribution" element={<LeadDistribution />} />
+            <Route path="/ai-summarization" element={<AISummarization />} />
           </Route>
         </Route>
       </Routes>

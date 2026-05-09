@@ -63,9 +63,9 @@ export default function HelpScreen() {
         <ContactBtn 
           icon="mail-outline" 
           title="Email Us" 
-          subtitle="support@anylead.com" 
+          subtitle="support@wavecrm.com" 
           color="#10B981"
-          onPress={() => Linking.openURL('mailto:support@anylead.com')}
+          onPress={() => Linking.openURL('mailto:support@wavecrm.com')}
         />
         <ContactBtn 
           icon="call-outline" 

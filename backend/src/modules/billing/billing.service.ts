@@ -26,10 +26,40 @@ export class BillingService {
         };
     }
 
-    async updateSubscription(organizationId: string, plan: string) {
+    async getSeatUsage(organizationId: string) {
         const supabase = this.supabaseService.getAdminClient();
         
-        // Define limits per plan
+        // Count active users in organization
+        const { count: usersCount, error: usersError } = await supabase
+            .from('users')
+            .select('id', { count: 'exact', head: true })
+            .eq('organization_id', organizationId);
+
+        if (usersError) throw new BadRequestException(usersError.message);
+
+        // Count pending invitations
+        const { count: invitesCount, error: invitesError } = await supabase
+            .from('invitations')
+            .select('id', { count: 'exact', head: true })
+            .eq('organization_id', organizationId)
+            .eq('status', 'pending');
+
+        if (invitesError) throw new BadRequestException(invitesError.message);
+
+        const sub = await this.getSubscription(organizationId);
+        const totalLicenses = sub.limits?.users || 0;
+
+        return {
+            usedSeats: (usersCount || 0) + (invitesCount || 0),
+            totalLicenses,
+            availableSeats: Math.max(0, totalLicenses - ((usersCount || 0) + (invitesCount || 0)))
+        };
+    }
+
+    async updateSubscription(organizationId: string, plan: string, customUserLimit?: number) {
+        const supabase = this.supabaseService.getAdminClient();
+        
+        // Define base limits per plan
         const planLimits: Record<string, any> = {
             free: { leads: 100, users: 2 },
             plus: { leads: 1000, users: 10 },
@@ -38,6 +68,11 @@ export class BillingService {
         };
 
         const limits = planLimits[plan.toLowerCase()] || planLimits.free;
+        
+        // Override user limit if specifically provided (seat-based billing)
+        if (customUserLimit !== undefined) {
+            limits.users = customUserLimit;
+        }
 
         const { data, error } = await supabase
             .from(this.TABLE)
@@ -108,5 +143,22 @@ export class BillingService {
 
         if (error) throw new BadRequestException(error.message);
         return data;
+    }
+
+    async handleStripeWebhook(payload: any) {
+        const event = payload; // In production, verify signature with stripe.webhooks.constructEvent
+
+        if (event.type === 'checkout.session.completed') {
+            const session = event.data.object;
+            const organizationId = session.metadata?.organizationId;
+            const plan = session.metadata?.plan;
+            const quantity = parseInt(session.metadata?.quantity || '1', 10);
+
+            if (organizationId && plan) {
+                await this.updateSubscription(organizationId, plan, quantity);
+            }
+        }
+        
+        return { received: true };
     }
 }

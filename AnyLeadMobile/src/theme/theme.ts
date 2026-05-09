@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export const colors = {
   // Brand Colors
   primary: '#0D9488',          // Refined Emerald
@@ -37,7 +39,17 @@ export const colors = {
   onError: '#FFFFFF',
 };
 
-export const shadows = {
+export const shadows = Platform.OS === 'web' ? {
+  sm: {
+    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
+  },
+  md: {
+    boxShadow: '0px 4px 8px rgba(100, 116, 139, 0.1)',
+  },
+  lg: {
+    boxShadow: '0px 12px 16px rgba(71, 85, 105, 0.15)',
+  },
+} : {
   sm: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },

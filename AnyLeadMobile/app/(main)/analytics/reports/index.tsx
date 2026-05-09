@@ -289,7 +289,7 @@ export default function DetailedReportsScreen() {
   );
 
   const getReportTypeColor = (type: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       lead: '#10B981',
       sales: '#3B82F6',
       activity: '#8B5CF6',

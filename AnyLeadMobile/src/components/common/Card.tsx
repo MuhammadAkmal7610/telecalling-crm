@@ -70,7 +70,7 @@ export function StatCard({ title, value, subtitle, color = colors.primary, gradi
     return (
       <TouchableOpacity activeOpacity={0.9} style={styles.statCardWrapper}>
         <LinearGradient
-          colors={gradient}
+          colors={gradient as any}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.card, styles.statCard, { borderWidth: 0 }]}

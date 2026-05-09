@@ -13,7 +13,7 @@ import {
     UserGroupIcon, IdentificationIcon, ClipboardDocumentCheckIcon, ChatBubbleLeftRightIcon,
     GlobeAltIcon, CursorArrowRaysIcon, ArchiveBoxIcon, Squares2X2Icon, ViewColumnsIcon, DocumentTextIcon,
     ShieldCheckIcon, BuildingOfficeIcon, CreditCardIcon, ArrowTrendingUpIcon, ChatBubbleLeftRightIcon as WhatsAppIcon,
-    EnvelopeIcon, SunIcon, MoonIcon, ArrowRightOnRectangleIcon
+    EnvelopeIcon, SunIcon, MoonIcon, ArrowRightOnRectangleIcon, MapPinIcon, SparklesIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../assets/Logo.png';
 import { useAuth } from '../context/AuthContext';
@@ -192,6 +192,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                     <Link to="/call-scripts" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-md cursor-pointer text-xs font-medium text-gray-700 transition-colors flex items-center gap-2">
                                         <DocumentTextIcon className="w-4 h-4" /> Call Scripts
                                     </Link>
+                                    <Link to="/whatsapp-chatbots" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-md cursor-pointer text-xs font-medium text-gray-700 transition-colors flex items-center gap-2">
+                                        <ChatBubbleLeftRightIcon className="w-4 h-4" /> WhatsApp Chatbots
+                                    </Link>
+                                    <Link to="/lead-distribution" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-md cursor-pointer text-xs font-medium text-gray-700 transition-colors flex items-center gap-2">
+                                        <ArrowPathRoundedSquareIcon className="w-4 h-4" /> Lead Distribution
+                                    </Link>
                                 </div>
                             );
                             return <HoverMenu key={item.name} menuContent={content}>{StaticTrigger}</HoverMenu>;
@@ -256,6 +262,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                                     </Link>
                                     <Link to="/reports" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-lg cursor-pointer text-xs font-semibold text-gray-700 transition-all flex items-center gap-2">
                                         <UserGroupIcon className="w-4 h-4 text-teal-500" /> Agent Performance
+                                    </Link>
+                                    <Link to="/field-tracking" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-lg cursor-pointer text-xs font-semibold text-gray-700 transition-all flex items-center gap-2">
+                                        <MapPinIcon className="w-4 h-4 text-teal-500" /> Field Tracking
+                                    </Link>
+                                    <Link to="/ai-summarization" className="px-3 py-2 hover:bg-teal-50 hover:text-teal-600 rounded-lg cursor-pointer text-xs font-semibold text-gray-700 transition-all flex items-center gap-2">
+                                        <SparklesIcon className="w-4 h-4 text-purple-500" /> AI Summarization
                                     </Link>
 
                                     <div className="h-px bg-gray-50 my-1"></div>

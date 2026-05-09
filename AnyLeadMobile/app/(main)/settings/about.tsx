@@ -25,14 +25,14 @@ export default function AboutScreen() {
         <View style={[styles.logoBox, { backgroundColor: colors.primary }]}>
           <Ionicons name="flash" size={48} color="#fff" />
         </View>
-        <Text style={[styles.appName, { color: isDark ? colors.surface : colors.onBackground }]}>AnyLead Mobile</Text>
+        <Text style={[styles.appName, { color: isDark ? colors.surface : colors.onBackground }]}>Wave</Text>
         <Text style={[styles.versionText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Version 1.0.0 (Build 240407)</Text>
       </View>
 
       <Card style={styles.infoCard}>
         <View style={styles.infoRow}>
           <Text style={[styles.infoLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Developer</Text>
-          <Text style={[styles.infoValue, { color: isDark ? colors.surface : colors.onBackground }]}>AnyLead CRM Team</Text>
+          <Text style={[styles.infoValue, { color: isDark ? colors.surface : colors.onBackground }]}>Wave Team</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={[styles.infoLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>Release Date</Text>
@@ -57,7 +57,7 @@ export default function AboutScreen() {
 
       <View style={styles.footer}>
         <Text style={[styles.copyright, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
-          © 2025 AnyLead CRM. All rights reserved.
+          © 2025 Wave. All rights reserved.
         </Text>
         <Text style={[styles.credits, { color: isDark ? '#4B5563' : '#D1D5DB' }]}>
           Made with ♥ in San Francisco

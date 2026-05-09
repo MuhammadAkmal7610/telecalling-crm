@@ -164,7 +164,7 @@ export default function CallScriptsScreen() {
   };
 
   const getCategoryColor = (category: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       new: '#10B981',
       followup: '#3B82F6',
       closing: '#8B5CF6',

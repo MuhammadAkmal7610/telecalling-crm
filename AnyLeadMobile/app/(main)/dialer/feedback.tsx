@@ -16,7 +16,7 @@ interface CallFeedbackParams {
 
 export default function CallFeedbackScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams() as CallFeedbackParams;
+  const params = useLocalSearchParams() as unknown as CallFeedbackParams;
   const { user } = useAuth();
   const isDark = useColorScheme() === 'dark';
   
@@ -72,7 +72,7 @@ export default function CallFeedbackScreen() {
       // Update the call activity with feedback
       await ApiService.createActivity({
         type: 'call_feedback',
-        description: `Call outcome: ${callOutcome}. Duration: ${callDuration}. Notes: ${notes}`,
+        details: `Call outcome: ${callOutcome}. Duration: ${callDuration}. Notes: ${notes}`,
         lead_id: params.leadId,
         user_id: user?.id,
         organization_id: user?.organization_id,

@@ -69,7 +69,7 @@ export default function LegalScreen() {
 
       <View style={styles.infoSection}>
         <Text style={[styles.infoText, { color: isDark ? '#6B7280' : '#9CA3AF' }]}>
-          By using AnyLead, you agree to our Terms of Service and Privacy Policy. These documents outline our commitment to protecting your data and the rules for using our platform.
+          By using Wave, you agree to our Terms of Service and Privacy Policy. These documents outline our commitment to protecting your data and the rules for using our platform.
         </Text>
       </View>
     </ScrollView>

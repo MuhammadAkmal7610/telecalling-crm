@@ -10,7 +10,6 @@ export interface WhatsAppConfig {
     
     // MessageBird
     accessKey?: string;
-    whatsappNumber?: string;
     
     // Gupshup
     apiKey?: string;
@@ -43,7 +42,6 @@ export interface DialerConfig {
     
     // Plivo
     authId?: string;
-    authToken?: string;
   };
   isEnabled: boolean;
 }
@@ -137,7 +135,7 @@ class ConfigService {
     
     return {
       app: {
-        name: env.EXPO_PUBLIC_APP_NAME || 'AnyLead CRM',
+        name: env.EXPO_PUBLIC_APP_NAME || 'Wave',
         url: env.EXPO_PUBLIC_APP_URL || 'https://your-crm-app.com',
         version: env.EXPO_PUBLIC_APP_VERSION || '1.0.0',
         environment: (env.EXPO_PUBLIC_ENVIRONMENT as any) || 'development'
@@ -178,7 +176,7 @@ class ConfigService {
         credentials: {
           // Twilio
           accountSid: env.EXPO_PUBLIC_TWILIO_ACCOUNT_SID,
-          authToken: env.EXPO_PUBLIC_TWILIO_AUTH_TOKEN,
+          authToken: env.EXPO_PUBLIC_TWILIO_AUTH_TOKEN || env.EXPO_PUBLIC_PLIVO_AUTH_TOKEN,
           voiceApplicationSid: env.EXPO_PUBLIC_TWILIO_VOICE_APPLICATION_SID,
           
           // Vonage
@@ -187,7 +185,6 @@ class ConfigService {
           
           // Plivo
           authId: env.EXPO_PUBLIC_PLIVO_AUTH_ID,
-          authToken: env.EXPO_PUBLIC_PLIVO_AUTH_TOKEN
         },
         isEnabled: !!(env.EXPO_PUBLIC_TWILIO_ACCOUNT_SID || env.EXPO_PUBLIC_VONAGE_API_KEY)
       },

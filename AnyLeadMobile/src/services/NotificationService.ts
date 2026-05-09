@@ -5,15 +5,17 @@ import Constants from 'expo-constants';
 import { ApiService } from './ApiService';
 
 // Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 export interface NotificationPayload {
   id: string;
@@ -67,9 +69,9 @@ class NotificationServiceClass {
    */
   async initialize(): Promise<boolean> {
     try {
-      // Check if we're on a physical device
-      if (!Device.isDevice) {
-        console.log('Notifications require a physical device');
+      // Check if we're on a physical device or web
+      if (!Device.isDevice || Platform.OS === 'web') {
+        console.log('Push notifications require a physical mobile device');
         return false;
       }
 
