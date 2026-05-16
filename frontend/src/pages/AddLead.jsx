@@ -253,7 +253,7 @@ export default function AddLead() {
 
     return (
         <WorkspaceGuard>
-            <form onSubmit={handleSubmit} className="max-w-5xl mx-auto px-4 py-4 lg:px-8 h-full flex flex-col">
+            <form onSubmit={handleSubmit} className="w-full px-4 py-4 lg:px-8 h-full flex flex-col">
                             <div className="mb-3">
                                 <h1 className="text-xl font-bold text-gray-900">Add Leads</h1>
                                 <p className="text-xs text-gray-500">Add individual leads to your CRM manually.</p>

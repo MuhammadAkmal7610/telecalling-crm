@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import ConfirmModal from '../components/ConfirmModal';
 import { useApi } from '../hooks/useApi';
@@ -11,7 +9,6 @@ import { toast } from 'react-hot-toast';
 export default function CallScripts() {
     const { apiFetch } = useApi();
     const { currentWorkspace } = useWorkspace();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [scripts, setScripts] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -111,84 +108,74 @@ export default function CallScripts() {
     };
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <main className="flex-1 overflow-y-auto bg-gray-50/50 p-6">
-                    <WorkspaceGuard>
-                        <div className="max-w-6xl mx-auto">
-                            <div className="flex justify-between items-center mb-8">
-                                <div>
-                                    <h1 className="text-2xl font-bold text-gray-900">Call Scripts</h1>
-                                    <p className="text-gray-500 mt-1">Manage standard scripts for your agents to use during telecalling.</p>
-                                </div>
-                                <button
-                                    onClick={() => handleOpenModal('create')}
-                                    className="flex items-center gap-2 bg-[#08A698] text-white px-4 py-2 rounded-lg font-medium hover:bg-teal-700 transition shadow-sm"
-                                >
-                                    <PlusIcon className="w-5 h-5" />
-                                    Create New Script
-                                </button>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {loading ? (
-                                    <div className="col-span-full text-center py-12 text-gray-500">Loading scripts...</div>
-                                ) : scripts.length === 0 ? (
-                                    <div className="col-span-full text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-                                        <DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                        <h3 className="text-gray-900 font-medium mb-1">No Scripts Found</h3>
-                                        <p className="text-gray-500 text-sm">Create your first call script to get started.</p>
-                                    </div>
-                                ) : scripts.map((script) => (
-                                    <div key={script.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col relative group">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className="bg-teal-50 text-[#08A698] p-2 rounded-lg">
-                                                <DocumentTextIcon className="w-5 h-5" />
-                                            </div>
-                                            <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-1 rounded-full capitalize">
-                                                {script.category}
-                                            </span>
-                                        </div>
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{script.title}</h3>
-                                        <p className="text-gray-500 text-sm line-clamp-3 mb-4 flex-1 indent-1 italic border-l-2 border-gray-200 pl-3">
-                                            "{script.content}"
-                                        </p>
-                                        <div className="flex justify-between items-center mt-auto pt-4 border-t border-gray-100">
-                                            <span className="text-xs text-gray-400">Edited: {new Date(script.updated_at || script.created_at).toLocaleDateString()}</span>
-                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={() => handleOpenModal('edit', script)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded bg-gray-50 hover:bg-blue-50 transition">
-                                                    <PencilIcon className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={() => handleDelete(script.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded bg-gray-50 hover:bg-red-50 transition">
-                                                    <TrashIcon className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+        <WorkspaceGuard>
+            <main className="flex-1 overflow-y-auto bg-gray-50/50 p-6">
+                <div className="w-full">
+                    <div className="flex justify-between items-center mb-8">
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900">Call Scripts</h1>
+                            <p className="text-gray-500 mt-1">Manage standard scripts for your agents to use during telecalling.</p>
                         </div>
-                    </WorkspaceGuard>
-                </main>
-            </div>
+                        <button
+                            onClick={() => handleOpenModal('create')}
+                            className="flex items-center gap-2 bg-[#08A698] text-white px-4 py-2 rounded-lg font-medium hover:bg-teal-700 transition shadow-sm"
+                        >
+                            <PlusIcon className="w-5 h-5" />
+                            Create New Script
+                        </button>
+                    </div>
 
-            <ConfirmModal
-                isOpen={isConfirmOpen}
-                onClose={() => setIsConfirmOpen(false)}
-                onConfirm={confirmDelete}
-                title="Delete Script"
-                message="Are you sure you want to delete this call script? Agents will no longer be able to use it."
-                confirmText="Delete"
-                cancelText="Cancel"
-            />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {loading ? (
+                            <div className="col-span-full text-center py-12 text-gray-500">Loading scripts...</div>
+                        ) : scripts.length === 0 ? (
+                            <div className="col-span-full text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                                <DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                <h3 className="text-gray-900 font-medium mb-1">No Scripts Found</h3>
+                                <p className="text-gray-500 text-sm">Create your first call script to get started.</p>
+                            </div>
+                        ) : scripts.map((script) => (
+                            <div key={script.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col relative group">
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="bg-teal-50 text-[#08A698] p-2 rounded-lg">
+                                        <DocumentTextIcon className="w-5 h-5" />
+                                    </div>
+                                    <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-1 rounded-full capitalize">
+                                        {script.category}
+                                    </span>
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">{script.title}</h3>
+                                <p className="text-gray-500 text-sm line-clamp-3 mb-4 flex-1 indent-1 italic border-l-2 border-gray-200 pl-3">
+                                    "{script.content}"
+                                </p>
+                                <div className="flex justify-between items-center mt-auto pt-4 border-t border-gray-100">
+                                    <span className="text-xs text-gray-400">Edited: {new Date(script.updated_at || script.created_at).toLocaleDateString()}</span>
+                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleOpenModal('edit', script)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded bg-gray-50 hover:bg-blue-50 transition">
+                                            <PencilIcon className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={() => handleDelete(script.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded bg-gray-50 hover:bg-red-50 transition">
+                                            <TrashIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
 
-            {/* Script Modal */}
-            {
-                isModalOpen && (
+                <ConfirmModal
+                    isOpen={isConfirmOpen}
+                    onClose={() => setIsConfirmOpen(false)}
+                    onConfirm={confirmDelete}
+                    title="Delete Script"
+                    message="Are you sure you want to delete this call script? Agents will no longer be able to use it."
+                    confirmText="Delete"
+                    cancelText="Cancel"
+                />
+
+                {/* Script Modal */}
+                {isModalOpen && (
                     <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                         <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
                             <div className="flex justify-between items-center p-6 border-b border-gray-100">
@@ -262,8 +249,9 @@ export default function CallScripts() {
                             </div>
                         </div>
                     </div>
-                )
-            }
-        </div >
+                )}
+            </main>
+        </WorkspaceGuard>
     );
 }
+

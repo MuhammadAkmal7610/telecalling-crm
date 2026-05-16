@@ -250,7 +250,7 @@ export default function ImportLeads() {
         <WorkspaceGuard>
             <div className="relative">
                 <main className="px-4 py-8 lg:px-8 bg-gray-50/30">
-                    <div className="mx-auto max-w-6xl">
+                    <div className="w-full">
 
                         {/* Progress Stepper */}
                         <div className="flex justify-center mb-10">

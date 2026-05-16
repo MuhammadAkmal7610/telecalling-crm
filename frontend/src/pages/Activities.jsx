@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useApi } from '../hooks/useApi';
 import { toast } from 'react-hot-toast';
 import WorkspaceGuard from '../components/WorkspaceGuard';
+import FilterPanel from '../components/FilterPanel';
 import {
     MagnifyingGlassIcon,
     FunnelIcon,
@@ -106,8 +107,66 @@ const ActivityIcon = ({ type }) => {
 export default function Activities() {
     const { apiFetch } = useApi();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [rawItems, setRawItems] = useState([]);
     const [activities, setActivities] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+    const [filters, setFilters] = useState({});
+
+    useEffect(() => {
+        let filtered = rawItems;
+
+        if (searchTerm) {
+            const lowerSearch = searchTerm.toLowerCase();
+            filtered = filtered.filter(item => {
+                const title = item.timeline_type === 'task' ? `Task: ${item.type || 'Follow-up'}` : (item.title || 'Activity Logged');
+                const subtitle = item.lead?.name || 'Lead update';
+                const desc = item.description || item.details?.remark || '';
+                return title.toLowerCase().includes(lowerSearch) || 
+                       subtitle.toLowerCase().includes(lowerSearch) || 
+                       desc.toLowerCase().includes(lowerSearch);
+            });
+        }
+
+        // Apply basic status filters if any
+        if (filters.status?.length > 0) {
+            filtered = filtered.filter(item => {
+                const type = item.timeline_type === 'task' ? 'Task' : (item.type || 'Note');
+                return filters.status.some(status => type.toLowerCase() === status.toLowerCase());
+            });
+        }
+
+        const grouped = filtered.reduce((acc, curr) => {
+            const date = new Date(curr.created_at).toLocaleDateString([], {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+            const existing = acc.find(g => g.date === date);
+
+            const isTask = curr.timeline_type === 'task';
+            const item = {
+                id: curr.id,
+                type: isTask ? 'task' : (curr.type || 'note'),
+                title: isTask ? `Task: ${curr.type || 'Follow-up'}` : (curr.title || 'Activity Logged'),
+                subtitle: curr.lead?.name || 'Lead update',
+                description: curr.description || curr.details?.remark || 'No details provided.',
+                time: new Date(curr.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                user: isTask ? (curr.assignee?.name || 'Assigned Agent') : (curr.user?.name || 'System'),
+                duration: curr.duration || curr.details?.duration,
+                status: isTask ? curr.status : null,
+                badgeColor: getBadgeColor(isTask ? 'task' : curr.type)
+            };
+
+            if (existing) {
+                existing.items.push(item);
+            } else {
+                acc.push({ date, items: [item] });
+            }
+            return acc;
+        }, []);
+
+        setActivities(grouped);
+    }, [rawItems, searchTerm, filters]);
 
     useEffect(() => {
         fetchActivities();
@@ -132,40 +191,12 @@ export default function Activities() {
                 tasksData = (result.data?.data || result.data || []).map(t => ({ ...t, timeline_type: 'task', created_at: t.created_at || t.due_date }));
             }
 
-            // Merge and Group by Date
+            // Merge and Save Raw Items
             const allItems = [...activitiesData, ...tasksData].sort((a, b) =>
                 new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             );
 
-            const grouped = allItems.reduce((acc, curr) => {
-                const date = new Date(curr.created_at).toLocaleDateString([], {
-                    year: 'numeric', month: 'short', day: 'numeric'
-                });
-                const existing = acc.find(g => g.date === date);
-
-                const isTask = curr.timeline_type === 'task';
-                const item = {
-                    id: curr.id,
-                    type: isTask ? 'task' : (curr.type || 'note'),
-                    title: isTask ? `Task: ${curr.type || 'Follow-up'}` : (curr.title || 'Activity Logged'),
-                    subtitle: curr.lead?.name || 'Lead update',
-                    description: curr.description || curr.details?.remark || 'No details provided.',
-                    time: new Date(curr.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    user: isTask ? (curr.assignee?.name || 'Assigned Agent') : (curr.user?.name || 'System'),
-                    duration: curr.duration || curr.details?.duration,
-                    status: isTask ? curr.status : null,
-                    badgeColor: getBadgeColor(isTask ? 'task' : curr.type)
-                };
-
-                if (existing) {
-                    existing.items.push(item);
-                } else {
-                    acc.push({ date, items: [item] });
-                }
-                return acc;
-            }, []);
-
-            setActivities(grouped);
+            setRawItems(allItems);
         } catch (error) {
             console.error('Error fetching activities:', error);
         } finally {
@@ -188,9 +219,19 @@ export default function Activities() {
 
     return (
         <WorkspaceGuard>
-            <div className="relative">
-                <main className="p-6 md:p-8">
-                    <div className="mx-auto max-w-5xl space-y-6">
+            <div className="flex flex-1 h-screen overflow-hidden bg-gray-50/50">
+                <FilterPanel 
+                    isOpen={filterPanelOpen}
+                    onClose={() => setFilterPanelOpen(false)}
+                    filters={filters}
+                    onFilterChange={(key, val) => setFilters(prev => ({ ...prev, [key]: val }))}
+                    onClearFilters={() => setFilters({})}
+                    counts={{}}
+                    statusOptions={['Call', 'Email', 'WhatsApp', 'Meeting', 'Note', 'Task']}
+                    statusLabel="Activity Type"
+                />
+                <main className="flex-1 overflow-y-auto p-6 md:p-8">
+                    <div className="w-full space-y-6">
 
                         {/* Page Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -203,11 +244,13 @@ export default function Activities() {
                                     <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
                                         type="text"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
                                         placeholder="Search activities..."
                                         className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full sm:w-72 transition-all shadow-sm"
                                     />
                                 </div>
-                                <button className="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-primary hover:border-primary transition-colors shadow-sm">
+                                <button onClick={() => setFilterPanelOpen(true)} className="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-primary hover:border-primary transition-colors shadow-sm">
                                     <FunnelIcon className="w-5 h-5" />
                                 </button>
                             </div>

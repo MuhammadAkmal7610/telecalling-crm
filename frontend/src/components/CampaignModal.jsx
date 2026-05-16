@@ -3,14 +3,14 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, MegaphoneIcon, UserGroupIcon, FlagIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
+import { useApi } from '../hooks/useApi';
 
 export default function CampaignModal({ isOpen, onClose, onSuccess }) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [priority, setPriority] = useState('Medium');
     const [loading, setLoading] = useState(false);
-
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+    const { apiFetch } = useApi();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -18,15 +18,8 @@ export default function CampaignModal({ isOpen, onClose, onSuccess }) {
 
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) throw new Error('No session');
-
-            const res = await fetch(`${API_URL}/campaigns`, {
+            const res = await apiFetch('/campaigns', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
                 body: JSON.stringify({
                     name,
                     description,
@@ -63,7 +56,7 @@ export default function CampaignModal({ isOpen, onClose, onSuccess }) {
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
+                    <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm" />
                 </Transition.Child>
 
                 <div className="fixed inset-0 overflow-y-auto">

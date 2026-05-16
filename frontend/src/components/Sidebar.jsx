@@ -360,7 +360,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
             {/* Mobile Sidebar (Drawer) */}
             <div
-                className={`fixed inset-0 z-40 bg-black/50 transition-opacity lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                className={`fixed inset-0 z-40 bg-slate-900/20 transition-opacity lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 onClick={() => setIsOpen(false)}
             />
 

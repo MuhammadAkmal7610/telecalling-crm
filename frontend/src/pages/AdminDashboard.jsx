@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import { usePermission } from '../hooks/usePermission';
 import { supabase } from '../lib/supabaseClient';
@@ -31,10 +29,19 @@ import StatusBreakdownWidget from '../components/dashboard/StatusBreakdownWidget
 import QuickActionsWidget from '../components/dashboard/QuickActionsWidget';
 import ActivityFeedWidget from '../components/dashboard/ActivityFeedWidget';
 
+// Mock/Placeholder for missing components used in original file
+const Skeleton = () => <div className="animate-pulse h-12 bg-gray-200 rounded-lg w-full"></div>;
+const EmptyState = ({ title, subtitle, actionLabel, onAction }) => (
+    <div className="text-center py-12">
+        <p className="text-gray-900 font-bold">{title}</p>
+        <p className="text-gray-500 text-sm">{subtitle}</p>
+        {actionLabel && <button onClick={onAction} className="mt-4 text-[#08A698] font-bold">{actionLabel}</button>}
+    </div>
+);
+
 export default function AdminDashboard() {
     const navigate = useNavigate();
     const { isOrgAdmin, isRoot } = usePermission();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [stats, setStats] = useState(null);
     const [activity, setActivity] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -186,146 +193,139 @@ export default function AdminDashboard() {
     ];
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+        <WorkspaceGuard>
+            <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+                <div className="w-full mx-auto">
 
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-                    <WorkspaceGuard>
-                        <div className="max-w-7xl mx-auto">
-
-                            {/* Page Header */}
-                            <div className="flex items-center justify-between mb-8">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2.5 bg-[#08A698]/10 rounded-xl">
-                                        <ShieldCheckIcon className="w-7 h-7 text-[#08A698]" />
-                                    </div>
-                                    <div>
-                                        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-                                        <p className="text-sm text-gray-500 mt-0.5">Organization-wide control panel</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {activeTab === 'overview' && (
-                                        <>
-                                            {isEditing ? (
-                                                <div className="flex items-center gap-2">
-                                                    <button onClick={resetLayout} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
-                                                        <ArrowPathRoundedSquareIcon className="w-4 h-4" />
-                                                        Reset
-                                                    </button>
-                                                    <button onClick={saveLayout} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#08A698] rounded-lg hover:bg-[#068f82] disabled:opacity-50">
-                                                        <CheckIcon className="w-4 h-4" />
-                                                        {saving ? 'Saving...' : 'Save Layout'}
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#08A698] bg-[#08A698]/5 border border-[#08A698]/20 rounded-lg hover:bg-[#08A698]/10 transition-all">
-                                                    <PencilSquareIcon className="w-4 h-4" />
-                                                    Customize
-                                                </button>
-                                            )}
-                                        </>
-                                    )}
-                                    <button
-                                        onClick={fetchData}
-                                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all ${loading ? 'opacity-60' : ''}`}
-                                    >
-                                        <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin text-[#08A698]' : ''}`} />
-                                        Refresh
-                                    </button>
-                                </div>
+                    {/* Page Header */}
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-[#08A698]/10 rounded-xl">
+                                <ShieldCheckIcon className="w-7 h-7 text-[#08A698]" />
                             </div>
-
-                            {/* Tabs */}
-                            <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-8 w-fit">
-                                {tabs.map(t => (
-                                    <button
-                                        key={t.id}
-                                        onClick={() => setActiveTab(t.id)}
-                                        className={`px-5 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                                    >
-                                        {t.label}
-                                    </button>
-                                ))}
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+                                <p className="text-sm text-gray-500 mt-0.5">Organization-wide control panel</p>
                             </div>
-
-                            {/* ── Overview Tab ─────────────────────────────────── */}
-                            {activeTab === 'overview' && (
-                                <div className="space-y-8">
-                                    <DashboardGrid 
-                                        items={layout} 
-                                        setItems={setLayout} 
-                                        isEditing={isEditing} 
-                                        renderItem={renderWidget}
-                                    />
-                                </div>
-                            )}
-
-                            {/* ── Workspaces Tab ───────────────────────────────── */}
-                            {activeTab === 'workspaces' && (
-                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50 flex items-center justify-between">
-                                        <h2 className="text-sm font-bold text-gray-600 uppercase tracking-wider">
-                                            All Workspaces ({stats?.workspaces?.length || 0})
-                                        </h2>
-                                        <button
-                                            onClick={() => navigate('/manage-workspaces')}
-                                            className="flex items-center gap-1.5 text-xs font-semibold text-[#08A698] hover:text-[#068f82] transition-colors"
-                                        >
-                                            <BuildingOfficeIcon className="w-4 h-4" />
-                                            Manage →
-                                        </button>
-                                    </div>
-                                    <div className="divide-y divide-gray-200">
-                                        {loading ? (
-                                            <div className="p-6"><Skeleton rows={3} /></div>
-                                        ) : stats?.workspaces?.length > 0 ? (
-                                            stats.workspaces.map(ws => (
-                                                <div key={ws.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 rounded-xl bg-[#08A698]/10 flex items-center justify-center text-[#08A698] font-bold text-lg">
-                                                            {ws.name.charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-semibold text-gray-900 text-sm">{ws.name}</span>
-                                                                {ws.isDefault && (
-                                                                    <span className="px-1.5 py-0.5 bg-[#08A698]/10 text-[#08A698] text-[10px] font-bold rounded uppercase tracking-wide">Default</span>
-                                                                )}
-                                                            </div>
-                                                            <p className="text-xs text-gray-400 mt-0.5">
-                                                                {new Date(ws.createdAt).toLocaleDateString()}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                                                        <UsersIcon className="w-4 h-4" />
-                                                        <span className="font-medium">{ws.memberCount}</span>
-                                                        <span className="text-gray-400">members</span>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <EmptyState title="No workspaces" subtitle="Create your first workspace" actionLabel="Create Workspace" onAction={() => navigate('/manage-workspaces')} />
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* ── Activity Feed Tab ────────────────────────────── */}
-                            {activeTab === 'activity' && (
-                                <div className="space-y-4">
-                                    <ActivityFeedWidget activity={activity} loading={loading} />
-                                </div>
-                            )}
-
                         </div>
-                    </WorkspaceGuard>
-                </main>
-            </div>
-        </div>
+                        <div className="flex items-center gap-2">
+                            {activeTab === 'overview' && (
+                                <>
+                                    {isEditing ? (
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={resetLayout} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                                                <ArrowPathRoundedSquareIcon className="w-4 h-4" />
+                                                Reset
+                                            </button>
+                                            <button onClick={saveLayout} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#08A698] rounded-lg hover:bg-[#068f82] disabled:opacity-50">
+                                                <CheckIcon className="w-4 h-4" />
+                                                {saving ? 'Saving...' : 'Save Layout'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#08A698] bg-[#08A698]/5 border border-[#08A698]/20 rounded-lg hover:bg-[#08A698]/10 transition-all">
+                                            <PencilSquareIcon className="w-4 h-4" />
+                                            Customize
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                            <button
+                                onClick={fetchData}
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all ${loading ? 'opacity-60' : ''}`}
+                            >
+                                <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin text-[#08A698]' : ''}`} />
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-8 w-fit">
+                        {tabs.map(t => (
+                            <button
+                                key={t.id}
+                                onClick={() => setActiveTab(t.id)}
+                                className={`px-5 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* ── Overview Tab ─────────────────────────────────── */}
+                    {activeTab === 'overview' && (
+                        <div className="space-y-8">
+                            <DashboardGrid 
+                                items={layout} 
+                                setItems={setLayout} 
+                                isEditing={isEditing} 
+                                renderItem={renderWidget}
+                            />
+                        </div>
+                    )}
+
+                    {/* ── Workspaces Tab ───────────────────────────────── */}
+                    {activeTab === 'workspaces' && (
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50 flex items-center justify-between">
+                                <h2 className="text-sm font-bold text-gray-600 uppercase tracking-wider">
+                                    All Workspaces ({stats?.workspaces?.length || 0})
+                                </h2>
+                                <button
+                                    onClick={() => navigate('/manage-workspaces')}
+                                    className="flex items-center gap-1.5 text-xs font-semibold text-[#08A698] hover:text-[#068f82] transition-colors"
+                                >
+                                    <BuildingOfficeIcon className="w-4 h-4" />
+                                    Manage →
+                                </button>
+                            </div>
+                            <div className="divide-y divide-gray-200">
+                                {loading ? (
+                                    <div className="p-6"><Skeleton rows={3} /></div>
+                                ) : stats?.workspaces?.length > 0 ? (
+                                    stats.workspaces.map(ws => (
+                                        <div key={ws.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-xl bg-[#08A698]/10 flex items-center justify-center text-[#08A698] font-bold text-lg">
+                                                    {ws.name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-semibold text-gray-900 text-sm">{ws.name}</span>
+                                                        {ws.isDefault && (
+                                                            <span className="px-1.5 py-0.5 bg-[#08A698]/10 text-[#08A698] text-[10px] font-bold rounded uppercase tracking-wide">Default</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-gray-400 mt-0.5">
+                                                        {new Date(ws.createdAt).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                                                <UsersIcon className="w-4 h-4" />
+                                                <span className="font-medium">{ws.memberCount}</span>
+                                                <span className="text-gray-400">members</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <EmptyState title="No workspaces" subtitle="Create your first workspace" actionLabel="Create Workspace" onAction={() => navigate('/manage-workspaces')} />
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── Activity Feed Tab ────────────────────────────── */}
+                    {activeTab === 'activity' && (
+                        <div className="space-y-4">
+                            <ActivityFeedWidget activity={activity} loading={loading} />
+                        </div>
+                    )}
+
+                </div>
+            </main>
+        </WorkspaceGuard>
     );
 }
+

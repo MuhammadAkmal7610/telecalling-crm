@@ -34,6 +34,8 @@ export default function FilterPageTemplate({
     const [selectedIds, setSelectedIds] = useState([]);
     const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
     const [filters, setFilters] = useState({});
+    const [sortBy, setSortBy] = useState('newest');
+    const [searchTerm, setSearchTerm] = useState('');
 
     const toggleSelectAll = () => {
         if (selectedIds.length === data.length) {
@@ -56,11 +58,61 @@ export default function FilterPageTemplate({
         return acc;
     }, {});
 
-    const filteredData = data.filter(lead => {
+    let filteredData = data.filter(lead => {
+        // Status filter
         if (filters.status?.length && !filters.status.includes(lead.status)) return false;
-        // Add more filter logic here
+        
+        // Date Range filter
+        if (filters.dateRange) {
+            const leadDate = new Date(lead.createdOn || lead.created_at);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            if (filters.dateRange === 'Today') {
+                if (leadDate < today) return false;
+            } else if (filters.dateRange === 'Yesterday') {
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                if (leadDate < yesterday || leadDate >= today) return false;
+            } else if (filters.dateRange === 'This Week') {
+                const startOfWeek = new Date(today);
+                startOfWeek.setDate(today.getDate() - today.getDay());
+                if (leadDate < startOfWeek) return false;
+            } else if (filters.dateRange === 'This Month') {
+                const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                if (leadDate < startOfMonth) return false;
+            } else if (filters.dateRange === 'Last Month') {
+                const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                if (leadDate < startOfLastMonth || leadDate >= startOfMonth) return false;
+            }
+        }
+
+        // Assignee filter
+        if (filters.assignee) {
+            const assigneeName = lead.assigneeName || lead.assignee?.name || '';
+            if (!assigneeName.toLowerCase().includes(filters.assignee.toLowerCase())) return false;
+        }
+
+        // Top Search Bar
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            const searchableText = `${lead.name} ${lead.phone} ${lead.email} ${lead.website} ${lead.company} ${lead.source} ${lead.industry} ${lead.country}`.toLowerCase();
+            if (!searchableText.includes(term)) return false;
+        }
+
         return true;
     });
+
+    if (sortBy === 'newest') {
+        filteredData.sort((a, b) => new Date(b.createdOn || 0) - new Date(a.createdOn || 0));
+    } else if (sortBy === 'oldest') {
+        filteredData.sort((a, b) => new Date(a.createdOn || 0) - new Date(b.createdOn || 0));
+    } else if (sortBy === 'name_asc') {
+        filteredData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else if (sortBy === 'name_desc') {
+        filteredData.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+    }
 
     return (
         <div className="flex flex-1 overflow-hidden h-full">
@@ -97,6 +149,8 @@ export default function FilterPageTemplate({
                                     <input 
                                         type="text" 
                                         placeholder="Search" 
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4F46E5]/20 focus:border-[#4F46E5] outline-none transition-all shadow-sm" 
                                     />
                                 </div>
@@ -108,19 +162,31 @@ export default function FilterPageTemplate({
                                         <FunnelIcon className="w-4 h-4" />
                                         Filter
                                     </button>
-                                    <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 font-medium text-sm hover:bg-gray-50 transition-colors shadow-sm">
-                                        <ChevronDownIcon className="w-4 h-4" />
-                                        Short by
-                                    </button>
+                                    <div className="relative group">
+                                        <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 font-medium text-sm hover:bg-gray-50 transition-colors shadow-sm focus:ring-2 focus:ring-[#08A698]/20 focus:border-[#08A698] outline-none">
+                                            <ChevronDownIcon className="w-4 h-4" />
+                                            Sort by
+                                        </button>
+                                        <select 
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                            value={sortBy}
+                                            onChange={(e) => setSortBy(e.target.value)}
+                                        >
+                                            <option value="newest">Newest First</option>
+                                            <option value="oldest">Oldest First</option>
+                                            <option value="name_asc">Name (A-Z)</option>
+                                            <option value="name_desc">Name (Z-A)</option>
+                                        </select>
+                                    </div>
                                     {onAddClick && (
                                         <button 
                                             onClick={onAddClick}
                                             className="flex items-center gap-2 px-4 py-2.5 bg-[#4F46E5] text-white rounded-xl text-sm font-semibold hover:bg-[#4338ca] transition-colors shadow-md shadow-indigo-200"
                                         >
-                                            <PlusIcon className="w-5 h-5" />
-                                            {addType === 'lead' && '+ Add Lead'}
-                                            {addType === 'account' && '+ Add Account'}
-                                            {addType !== 'lead' && addType !== 'account' && '+ Add'}
+                                            <PlusIcon className="w-5 h-5 stroke-2" />
+                                            {addType === 'lead' && 'Add Lead'}
+                                            {addType === 'account' && 'Add Account'}
+                                            {addType !== 'lead' && addType !== 'account' && 'Add'}
                                         </button>
                                     )}
                                 </div>

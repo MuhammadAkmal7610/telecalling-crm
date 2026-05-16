@@ -92,7 +92,7 @@ const UserPreferences = () => {
     };
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6 p-6">
+        <div className="w-full space-y-6 p-6">
                         <h1 className="text-xl font-medium text-gray-500">My Preferences</h1>
 
                         {/* Desktop Preferences Section */}

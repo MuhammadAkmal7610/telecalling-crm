@@ -81,7 +81,7 @@ export default function Reports() {
         <WorkspaceGuard>
             <div className="relative">
                 <main className="p-6 lg:p-10">
-                    <div className="max-w-7xl mx-auto space-y-12">
+                    <div className="w-full mx-auto space-y-12">
                         <div>
                             <h1 className="text-4xl font-black text-gray-900 tracking-tight">Analytics & Reports</h1>
                             <p className="text-gray-500 mt-2 text-lg">Comprehensive insights across your workspaces and organization.</p>

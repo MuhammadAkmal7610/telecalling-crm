@@ -137,7 +137,7 @@ export default function Home() {
             <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-bl from-teal-200/40 via-blue-200/10 to-transparent blur-[120px] pointer-events-none rounded-full" />
             <div className="absolute -bottom-32 -left-32 w-[600px] h-[600px] bg-gradient-to-tr from-teal-500/10 to-transparent blur-[120px] pointer-events-none rounded-full" />
 
-            <div className="mx-auto max-w-7xl relative">
+            <div className="mx-auto w-full relative">
                 {/* Welcome Header */}
                 <div className="mb-10 pt-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
@@ -303,7 +303,7 @@ export default function Home() {
                         <div className="rounded-2xl border-0 shadow-[0_10px_40px_rgb(0,0,0,0.08)] relative overflow-hidden group transition-all duration-500 hover:-translate-y-1">
                             <div className="flex flex-col gap-5 p-7 bg-gradient-to-br from-teal-600 via-teal-500 to-teal-700 text-white overflow-hidden relative">
                                 <div className="absolute -top-24 -right-24 w-48 h-48 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors duration-500"></div>
-                                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-black/10 rounded-full blur-xl"></div>
+                                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-slate-900/20 rounded-full blur-xl"></div>
                                 
                                 <div className="relative z-10 flex flex-col items-center text-center">
                                     <div className="w-14 h-14 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center mb-4 border border-white/30 shadow-lg">

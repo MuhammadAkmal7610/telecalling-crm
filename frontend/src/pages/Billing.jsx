@@ -1,5 +1,3 @@
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
 import { supabase } from '../lib/supabaseClient';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +13,7 @@ import {
     ChevronDownIcon,
     UserGroupIcon
 } from '@heroicons/react/24/outline';
+import WorkspaceGuard from '../components/WorkspaceGuard';
 import Logo from '../assets/Logo.png';
 import { toast } from 'react-hot-toast';
 
@@ -121,7 +120,7 @@ const EditBillingModal = ({ isOpen, onClose, billingData, onSave }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
@@ -228,7 +227,7 @@ const ViewBillingModal = ({ isOpen, onClose, onEdit, billingData }) => {
     const info = billingData || {};
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 pb-2">
@@ -291,7 +290,6 @@ const ViewBillingModal = ({ isOpen, onClose, onEdit, billingData }) => {
 export default function Billing() {
     const navigate = useNavigate();
     const { apiFetch } = useApi();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [billingCycle, setBillingCycle] = useState('Annual');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -372,6 +370,7 @@ export default function Billing() {
         }
     };
 
+    const handleCheckout = async (plan) => {
         try {
             const quantity = quantities[plan === 'pro' ? 1 : (plan === 'plus' ? 2 : 3)] || 1;
             const res = await apiFetch('/billing/checkout', {
@@ -398,31 +397,10 @@ export default function Billing() {
     };
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <EditBillingModal 
-                isOpen={isEditModalOpen} 
-                onClose={() => setIsEditModalOpen(false)} 
-                billingData={billingData}
-                onSave={handleSaveBillingInfo}
-            />
-
-            <ViewBillingModal
-                isOpen={isViewModalOpen}
-                onClose={() => setIsViewModalOpen(false)}
-                billingData={billingData}
-                onEdit={() => {
-                    setIsViewModalOpen(false);
-                    setIsEditModalOpen(true);
-                }}
-            />
-
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-                    <div className="max-w-7xl mx-auto">
+        <WorkspaceGuard>
+            <>
+                <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+                    <div className="w-full mx-auto">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                             <div>
                                 <h1 className="text-2xl font-bold text-gray-900">Buy Licenses</h1>
@@ -624,8 +602,26 @@ export default function Billing() {
 
                         </div>
                     </div>
-                </main>
-            </div>
-        </div>
+                </div>
+
+                <EditBillingModal 
+                    isOpen={isEditModalOpen} 
+                    onClose={() => setIsEditModalOpen(false)} 
+                    billingData={billingData}
+                    onSave={handleSaveBillingInfo}
+                />
+
+                <ViewBillingModal
+                    isOpen={isViewModalOpen}
+                    onClose={() => setIsViewModalOpen(false)}
+                    billingData={billingData}
+                    onEdit={() => {
+                        setIsViewModalOpen(false);
+                        setIsEditModalOpen(true);
+                    }}
+                />
+            </>
+        </WorkspaceGuard>
     );
 }
+

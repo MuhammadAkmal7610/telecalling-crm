@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import WorkspaceGuard from '../components/WorkspaceGuard';
 import { supabase } from '../lib/supabaseClient';
 import { MagnifyingGlassIcon, ArrowPathIcon, ClipboardIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
@@ -102,14 +101,9 @@ export default function Integrations() {
     ];
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <main className="flex-1 overflow-y-auto px-4 py-8 lg:px-8 bg-gray-50/50">
-                    <div className="mx-auto max-w-7xl space-y-8">
+        <WorkspaceGuard>
+            <main className="flex-1 overflow-y-auto px-4 py-8 lg:px-8 bg-gray-50/50 h-full">
+                    <div className="mx-auto w-full space-y-8">
 
                         <div className="flex flex-col gap-6">
                             <div className="flex items-center justify-between">
@@ -212,7 +206,6 @@ export default function Integrations() {
                         </section>
                     </div>
                 </main>
-            </div>
 
             {/* Webhook Modal */}
             {selectedIntegration && (
@@ -283,6 +276,6 @@ export default function Integrations() {
                     </div>
                 </div>
             )}
-        </div>
+        </WorkspaceGuard>
     );
 }

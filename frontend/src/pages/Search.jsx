@@ -44,7 +44,7 @@ const Search = () => {
     const handleSearch = async () => {
         setLoading(true);
         try {
-            const res = await apiFetch(`/search/global?query=${searchValue}`);
+            const res = await apiFetch(`/search/global?q=${searchValue}`);
             const data = await res.json();
             setResults(data.data || data || { leads: [], users: [], tasks: [], campaigns: [] });
         } catch (error) {
@@ -57,7 +57,7 @@ const Search = () => {
     return (
         <WorkspaceGuard>
             <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-gray-50/50 h-full">
-                    <div className="max-w-3xl mx-auto space-y-8 mt-4">
+                    <div className="w-full space-y-8 mt-4">
 
                             {/* Page Title & Intro */}
                             <div className="text-center space-y-2">
@@ -127,7 +127,7 @@ const Search = () => {
                                     </div>
                                 ) : searchValue ? (
                                     <div className="space-y-6">
-                                        {results.leads?.length > 0 && (
+                                        {(activeFilter === 'All' || activeFilter === 'Leads') && results.leads?.length > 0 && (
                                             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
                                                 <h3 className="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wider">Leads</h3>
                                                 <div className="divide-y divide-gray-100">
@@ -143,7 +143,7 @@ const Search = () => {
                                                 </div>
                                             </div>
                                         )}
-                                        {results.tasks?.length > 0 && (
+                                        {(activeFilter === 'All' || activeFilter === 'Tasks') && results.tasks?.length > 0 && (
                                             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
                                                 <h3 className="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wider">Tasks</h3>
                                                 <div className="divide-y divide-gray-100">
@@ -154,6 +154,22 @@ const Search = () => {
                                                                 <div className="text-xs text-gray-500">Due: {new Date(task.due_date).toLocaleDateString()}</div>
                                                             </div>
                                                             <span className="text-xs font-medium text-gray-400">{task.status}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {(activeFilter === 'All' || activeFilter === 'Users') && results.users?.length > 0 && (
+                                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                                                <h3 className="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wider">Users</h3>
+                                                <div className="divide-y divide-gray-100">
+                                                    {results.users.map(user => (
+                                                        <div key={user.id} className="py-3 flex justify-between items-center hover:bg-gray-50 cursor-pointer px-2 rounded-lg">
+                                                            <div>
+                                                                <div className="text-sm font-semibold text-gray-900">{user.name}</div>
+                                                                <div className="text-xs text-gray-500">{user.email}</div>
+                                                            </div>
+                                                            <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{user.role}</span>
                                                         </div>
                                                     ))}
                                                 </div>

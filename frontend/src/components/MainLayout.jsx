@@ -18,8 +18,8 @@ const MainLayout = () => {
         <Header onMenuClick={() => setIsSidebarOpen(true)} />
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto relative p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 overflow-y-auto relative p-2 lg:p-4">
+          <div className="w-full mx-auto h-full">
             <Outlet />
           </div>
         </main>

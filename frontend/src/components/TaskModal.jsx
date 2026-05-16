@@ -108,7 +108,7 @@ export default function TaskModal({ isOpen, onClose, onSuccess, leadId = null, l
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" />
+                    <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" />
                 </Transition.Child>
 
                 <div className="fixed inset-0 overflow-y-auto">

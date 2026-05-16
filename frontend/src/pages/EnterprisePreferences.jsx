@@ -1,11 +1,9 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useRef, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import WorkspaceGuard from '../components/WorkspaceGuard';
 import toast from 'react-hot-toast';
 import { useApi } from '../hooks/useApi';
 import {
-    Cog6ToothIcon,
     GlobeAltIcon,
     ClockIcon,
     CurrencyDollarIcon,
@@ -16,9 +14,8 @@ import {
     StarIcon,
     MapPinIcon,
     MegaphoneIcon,
-    WrenchScrewdriverIcon,
-    UserGroupIcon,
     CommandLineIcon,
+    UserGroupIcon,
     ChevronDownIcon,
     CheckIcon,
     BuildingOfficeIcon,
@@ -138,8 +135,6 @@ const ToggleRow = ({ icon: Icon, label, enabled, onChange }) => (
 );
 
 export default function EnterprisePreferences() {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-
     // State
     const [countryCode, setCountryCode] = useState('92');
     const [timezone, setTimezone] = useState('Asia/Karachi');
@@ -249,155 +244,148 @@ export default function EnterprisePreferences() {
     };
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
-                <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-                    <div className="max-w-5xl mx-auto">
-
-                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8">
-                            <div className='flex items-center gap-3'>
-                                <BuildingOfficeIcon className="w-8 h-8 text-gray-500" strokeWidth={1.5} />
-                                <div>
-                                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                                        Enterprise Preferences
-                                        <button className="p-1.5 text-gray-400 hover:text-[#08A698] hover:bg-[#08A698]/5 rounded-full transition-colors">
-                                            <ArrowPathIcon className="w-4 h-4" />
-                                        </button>
-                                    </h1>
-                                    <p className="text-gray-500 text-sm mt-1">Manage your workspace settings and feature accessibility</p>
-                                </div>
+        <WorkspaceGuard>
+            <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+                <div className="w-full">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8">
+                        <div className='flex items-center gap-3'>
+                            <BuildingOfficeIcon className="w-8 h-8 text-gray-500" strokeWidth={1.5} />
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                                    Enterprise Preferences
+                                    <button className="p-1.5 text-gray-400 hover:text-[#08A698] hover:bg-[#08A698]/5 rounded-full transition-colors">
+                                        <ArrowPathIcon className="w-4 h-4" />
+                                    </button>
+                                </h1>
+                                <p className="text-gray-500 text-sm mt-1">Manage your workspace settings and feature accessibility</p>
                             </div>
                         </div>
-
-                        <Section title="Workspace Preferences">
-                            <SettingRow icon={GlobeAltIcon} label="Default Country Code">
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span className="text-lg">🇵🇰</span>
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={countryCode}
-                                        onChange={(e) => {
-                                            setCountryCode(e.target.value);
-                                            setDirty(true);
-                                        }}
-                                        className="block w-full pl-10 pr-3 py-2.5 text-right border-gray-300 rounded-lg text-sm focus:ring-[#08A698] focus:border-[#08A698] shadow-sm bg-gray-50 border transition-all duration-200"
-                                    />
-                                </div>
-                            </SettingRow>
-
-                            <SettingRow icon={ClockIcon} label="Default Timezone">
-                                <CustomSelect
-                                    value={timezone}
-                                    onChange={(e) => {
-                                        setTimezone(e.target.value);
-                                        setDirty(true);
-                                    }}
-                                    options={['Asia/Karachi', 'Asia/Dubai', 'Europe/London', 'America/New_York']}
-                                />
-                            </SettingRow>
-
-                            <SettingRow icon={CurrencyDollarIcon} label="Default Currency">
-                                <CustomSelect
-                                    value={currency}
-                                    onChange={(e) => {
-                                        setCurrency(e.target.value);
-                                        setDirty(true);
-                                    }}
-                                    options={['PKR', 'USD', 'EUR', 'AED']}
-                                />
-                            </SettingRow>
-
-                            <SettingRow icon={PhoneIcon} label="Connected Call Minimum Duration (in sec)">
-                                <input
-                                    type="number"
-                                    value={minDuration}
-                                    onChange={(e) => {
-                                        setMinDuration(e.target.value);
-                                        setDirty(true);
-                                    }}
-                                    className="block w-full py-2.5 px-3 text-right border border-gray-300 rounded-lg text-sm focus:ring-[#08A698] focus:border-[#08A698] shadow-sm transition-all duration-200"
-                                />
-                            </SettingRow>
-
-                            <SettingRow icon={PowerIcon} label="Session Timeout">
-                                <CustomSelect
-                                    value={sessionTimeout}
-                                    onChange={(e) => {
-                                        setSessionTimeout(e.target.value);
-                                        setDirty(true);
-                                    }}
-                                    options={['Never', '30 Minutes', '1 Hour', '4 Hours']}
-                                />
-                            </SettingRow>
-                        </Section>
-
-                        <Section title="Leaderboard">
-                            <ToggleRow
-                                icon={ChartBarIcon}
-                                label="New Reporting"
-                                enabled={toggles.newReporting}
-                                onChange={() => handleToggle('newReporting')}
-                            />
-                            <ToggleRow
-                                icon={FunnelIcon}
-                                label="Lead Stage"
-                                enabled={toggles.leadStage}
-                                onChange={() => handleToggle('leadStage')}
-                            />
-                            <ToggleRow
-                                icon={StarIcon}
-                                label="Lead Rating"
-                                enabled={toggles.leadRating}
-                                onChange={() => handleToggle('leadRating')}
-                            />
-                        </Section>
-
-                        <Section title="Features">
-                            <ToggleRow
-                                icon={MapPinIcon}
-                                label="Location Check-in"
-                                enabled={toggles.locationCheckIn}
-                                onChange={() => handleToggle('locationCheckIn')}
-                            />
-                            <ToggleRow
-                                icon={MegaphoneIcon}
-                                label="Campaign"
-                                enabled={toggles.campaign}
-                                onChange={() => handleToggle('campaign')}
-                            />
-                            <ToggleRow
-                                icon={CommandLineIcon}
-                                label="Custom Actions"
-                                enabled={toggles.customActions}
-                                onChange={() => handleToggle('customActions')}
-                            />
-                            <ToggleRow
-                                icon={UserGroupIcon}
-                                label="Sales Group"
-                                enabled={toggles.salesGroup}
-                                onChange={() => handleToggle('salesGroup')}
-                            />
-                        </Section>
-
-                        <div className="pt-2 flex items-center justify-end">
-                            <button
-                                onClick={handleSave}
-                                disabled={loading || saving || !dirty}
-                                className="px-5 py-2.5 rounded-lg bg-[#08A698] hover:bg-[#079186] text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                            >
-                                {saving ? 'Saving...' : 'Save Advanced Settings'}
-                            </button>
-                        </div>
-
                     </div>
-                </main>
-            </div>
-        </div>
+
+                    <Section title="Workspace Preferences">
+                        <SettingRow icon={GlobeAltIcon} label="Default Country Code">
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span className="text-lg">🇵🇰</span>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={countryCode}
+                                    onChange={(e) => {
+                                        setCountryCode(e.target.value);
+                                        setDirty(true);
+                                    }}
+                                    className="block w-full pl-10 pr-3 py-2.5 text-right border-gray-300 rounded-lg text-sm focus:ring-[#08A698] focus:border-[#08A698] shadow-sm bg-gray-50 border transition-all duration-200"
+                                />
+                            </div>
+                        </SettingRow>
+
+                        <SettingRow icon={ClockIcon} label="Default Timezone">
+                            <CustomSelect
+                                value={timezone}
+                                onChange={(e) => {
+                                    setTimezone(e.target.value);
+                                    setDirty(true);
+                                }}
+                                options={['Asia/Karachi', 'Asia/Dubai', 'Europe/London', 'America/New_York']}
+                            />
+                        </SettingRow>
+
+                        <SettingRow icon={CurrencyDollarIcon} label="Default Currency">
+                            <CustomSelect
+                                value={currency}
+                                onChange={(e) => {
+                                    setCurrency(e.target.value);
+                                    setDirty(true);
+                                }}
+                                options={['PKR', 'USD', 'EUR', 'AED']}
+                            />
+                        </SettingRow>
+
+                        <SettingRow icon={PhoneIcon} label="Connected Call Minimum Duration (in sec)">
+                            <input
+                                type="number"
+                                value={minDuration}
+                                onChange={(e) => {
+                                    setMinDuration(e.target.value);
+                                    setDirty(true);
+                                }}
+                                className="block w-full py-2.5 px-3 text-right border border-gray-300 rounded-lg text-sm focus:ring-[#08A698] focus:border-[#08A698] shadow-sm transition-all duration-200"
+                            />
+                        </SettingRow>
+
+                        <SettingRow icon={PowerIcon} label="Session Timeout">
+                            <CustomSelect
+                                value={sessionTimeout}
+                                onChange={(e) => {
+                                    setSessionTimeout(e.target.value);
+                                    setDirty(true);
+                                }}
+                                options={['Never', '30 Minutes', '1 Hour', '4 Hours']}
+                            />
+                        </SettingRow>
+                    </Section>
+
+                    <Section title="Leaderboard">
+                        <ToggleRow
+                            icon={ChartBarIcon}
+                            label="New Reporting"
+                            enabled={toggles.newReporting}
+                            onChange={() => handleToggle('newReporting')}
+                        />
+                        <ToggleRow
+                            icon={FunnelIcon}
+                            label="Lead Stage"
+                            enabled={toggles.leadStage}
+                            onChange={() => handleToggle('leadStage')}
+                        />
+                        <ToggleRow
+                            icon={StarIcon}
+                            label="Lead Rating"
+                            enabled={toggles.leadRating}
+                            onChange={() => handleToggle('leadRating')}
+                        />
+                    </Section>
+
+                    <Section title="Features">
+                        <ToggleRow
+                            icon={MapPinIcon}
+                            label="Location Check-in"
+                            enabled={toggles.locationCheckIn}
+                            onChange={() => handleToggle('locationCheckIn')}
+                        />
+                        <ToggleRow
+                            icon={MegaphoneIcon}
+                            label="Campaign"
+                            enabled={toggles.campaign}
+                            onChange={() => handleToggle('campaign')}
+                        />
+                        <ToggleRow
+                            icon={CommandLineIcon}
+                            label="Custom Actions"
+                            enabled={toggles.customActions}
+                            onChange={() => handleToggle('customActions')}
+                        />
+                        <ToggleRow
+                            icon={UserGroupIcon}
+                            label="Sales Group"
+                            enabled={toggles.salesGroup}
+                            onChange={() => handleToggle('salesGroup')}
+                        />
+                    </Section>
+
+                    <div className="pt-2 flex items-center justify-end">
+                        <button
+                            onClick={handleSave}
+                            disabled={loading || saving || !dirty}
+                            className="px-5 py-2.5 rounded-lg bg-[#08A698] hover:bg-[#079186] text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {saving ? 'Saving...' : 'Save Advanced Settings'}
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </WorkspaceGuard>
     );
 }
+

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import WorkspaceGuard from '../components/WorkspaceGuard';
 import { useApi } from '../hooks/useApi';
 import { toast } from 'react-hot-toast';
 import {
@@ -17,7 +16,6 @@ import {
 
 export default function MyLists() {
     const { apiFetch } = useApi();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [lists, setLists] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -106,14 +104,10 @@ export default function MyLists() {
     );
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased overflow-hidden">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col h-full min-w-0">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
+        <WorkspaceGuard>
+            <div className="relative">
                 <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-gray-50/50">
-                    <div className="mx-auto max-w-7xl space-y-8">
+                    <div className="mx-auto w-full space-y-8">
 
                         {/* Header Section */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -217,11 +211,10 @@ export default function MyLists() {
 
                     </div>
                 </main>
-            </div>
 
             {/* Create Modal */}
             {isCreateModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="px-8 pt-8 pb-4 flex justify-between items-center">
                             <h2 className="text-2xl font-black text-gray-900 tracking-tight">New List</h2>
@@ -273,6 +266,7 @@ export default function MyLists() {
                 </div>
             )}
         </div>
+        </WorkspaceGuard>
     );
 }
 

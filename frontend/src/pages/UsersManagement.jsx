@@ -1143,7 +1143,7 @@ export default function UsersManagement() {
                 />
 
                 <main className="p-6 lg:p-8">
-                    <div className="max-w-7xl mx-auto">
+                    <div className="w-full mx-auto">
 
                         {/* Header Section */}
                         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8">

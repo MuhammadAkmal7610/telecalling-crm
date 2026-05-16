@@ -15,10 +15,11 @@ export default function FilterPanel({
     filters, 
     onFilterChange, 
     onClearFilters,
-    counts = {}
+    counts = {},
+    statusOptions = ['Fresh', 'Contacted', 'Interested', 'Follow Up', 'Won', 'Lost', 'Invalid'],
+    statusLabel = 'Lead Status'
 }) {
     // Standard TeleCRM-like filters
-    const statusOptions = ['Fresh', 'Contacted', 'Interested', 'Follow Up', 'Won', 'Lost', 'Invalid'];
     const dateOptions = ['Today', 'Yesterday', 'This Week', 'This Month', 'Last Month', 'Custom'];
 
     return (
@@ -44,7 +45,7 @@ export default function FilterPanel({
                     {/* Status Filter */}
                     <div className="space-y-3">
                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                            <TagIcon className="w-3.5 h-3.5" /> Lead Status
+                            <TagIcon className="w-3.5 h-3.5" /> {statusLabel}
                         </h3>
                         <div className="space-y-1">
                             {statusOptions.map(status => (
@@ -102,6 +103,8 @@ export default function FilterPanel({
                                 type="text" 
                                 placeholder="Search member..." 
                                 className="w-full text-sm border-gray-200 rounded-lg pl-8 py-2 focus:ring-[#08A698] focus:border-[#08A698]" 
+                                value={filters.assignee || ''}
+                                onChange={(e) => onFilterChange('assignee', e.target.value)}
                             />
                             <UserIcon className="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5" />
                         </div>
@@ -118,7 +121,7 @@ export default function FilterPanel({
                     </button>
                     <div className="flex items-center justify-center gap-2 text-[10px] text-gray-400">
                         <AdjustmentsHorizontalIcon className="w-3 h-3" />
-                        <span>{Object.values(filters).flat().length} filters active</span>
+                        <span>{Object.values(filters).flat().filter(Boolean).length} filters active</span>
                     </div>
                 </div>
             </div>

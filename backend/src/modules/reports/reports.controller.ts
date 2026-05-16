@@ -24,6 +24,12 @@ export class ReportsController {
         return this.reportsService.getDashboardStats(user.organizationId, user.id, user.workspaceId, timeRange || '7d');
     }
 
+    @Get('history')
+    @ApiOperation({ summary: 'Get history of generated reports' })
+    getReportHistory(@CurrentUser() user: any) {
+        return this.reportsService.getReportHistory(user.workspaceId, user.organizationId);
+    }
+
     @Get('pipeline-conversion')
     @ApiOperation({ summary: 'Get pipeline conversion analytics' })
     @ApiQuery({ name: 'timeRange', required: false, example: '30d' })

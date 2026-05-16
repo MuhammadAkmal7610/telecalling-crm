@@ -191,7 +191,7 @@ const Notification = ({
         {showClose && (
           <button
             onClick={handleRemove}
-            className={`flex-shrink-0 rounded-full p-1 transition-colors hover:bg-black/5`}
+            className={`flex-shrink-0 rounded-full p-1 transition-colors hover:bg-slate-900/20`}
           >
             <XMarkIcon className={`h-4 w-4 ${config.textColor}`} />
           </button>
@@ -200,7 +200,7 @@ const Notification = ({
 
       {/* Progress Bar */}
       {duration && duration > 0 && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-2xl overflow-hidden bg-black/5">
+        <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-2xl overflow-hidden bg-slate-900/20">
           <div
             className={`h-full ${config.progressBarColor} transition-all duration-100 ease-linear`}
             style={{ width: `${progress}%` }}

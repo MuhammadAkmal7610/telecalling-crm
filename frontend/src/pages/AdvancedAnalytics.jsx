@@ -145,7 +145,7 @@ export default function AdvancedAnalytics() {
     const whatsappMetrics = metrics?.whatsapp || { total_messages: 0, sent: 0, delivery_rate: 0, read_rate: 0, by_type: {} };
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 animate-in fade-in">
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
@@ -278,7 +278,7 @@ export default function AdvancedAnalytics() {
     const leadMetrics = metrics?.leads || {};
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 animate-in fade-in">
         {/* Lead Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <MetricCard
@@ -299,7 +299,7 @@ export default function AdvancedAnalytics() {
           />
           <MetricCard
             title="Total Value"
-            value={`$${(dashboardData.revenue?.total_value || 0).toLocaleString()}`}
+            value={`$${(dashboardData.metrics?.revenue?.total_value || 0).toLocaleString()}`}
             change={15}
             trend="up"
             icon={DollarSign}
@@ -307,18 +307,219 @@ export default function AdvancedAnalytics() {
           />
         </div>
 
-        {/* Lead Status Breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Lead Status Breakdown */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Lead Status Breakdown</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={Object.entries(leadMetrics.by_status || {}).map(([status, count]) => ({ status, count }))}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="status" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Lead Sources Breakdown */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Lead Sources</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={Object.entries(leadMetrics.by_source || {}).map(([name, value]) => ({ name, value }))}
+                  cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100} fill="#8884d8" dataKey="value"
+                >
+                  {Object.entries(leadMetrics.by_source || {}).map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCallsAnalytics = () => {
+    if (!dashboardData || !dashboardData.metrics) return null;
+    const callMetrics = dashboardData.metrics.calls || {};
+    const trends = dashboardData.trends?.calls || [];
+
+    return (
+      <div className="space-y-6 animate-in fade-in">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <MetricCard title="Total Calls" value={callMetrics.total || 0} change={5} trend="up" icon={Phone} color="bg-blue-500" />
+          <MetricCard title="Connected Calls" value={callMetrics.connected || 0} change={2} trend="up" icon={Phone} color="bg-green-500" />
+          <MetricCard title="Connection Rate" value={`${callMetrics.connection_rate || 0}%`} change={-1} trend="down" icon={Activity} color="bg-purple-500" />
+          <MetricCard title="Avg Duration" value={`${callMetrics.avg_duration || 0}s`} change={0} trend="up" icon={Clock} color="bg-orange-500" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Call Volume Trend</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={trends}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Calls by Hour</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={Object.entries(callMetrics.by_hour || {}).map(([hour, count]) => ({ hour: `${hour}:00`, count }))}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="hour" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="count" stroke="#8b5cf6" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderWhatsAppAnalytics = () => {
+    if (!dashboardData || !dashboardData.metrics) return null;
+    const waMetrics = dashboardData.metrics.whatsapp || {};
+
+    return (
+      <div className="space-y-6 animate-in fade-in">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <MetricCard title="Total Messages" value={waMetrics.total_messages || 0} change={15} trend="up" icon={MessageSquare} color="bg-emerald-500" />
+          <MetricCard title="Sent Messages" value={waMetrics.sent || 0} change={10} trend="up" icon={TrendingUp} color="bg-blue-500" />
+          <MetricCard title="Delivery Rate" value={`${waMetrics.delivery_rate || 0}%`} change={2} trend="up" icon={CheckCircle} color="bg-teal-500" />
+          <MetricCard title="Read Rate" value={`${waMetrics.read_rate || 0}%`} change={-5} trend="down" icon={Eye} color="bg-indigo-500" />
+        </div>
+
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Lead Status Breakdown</h3>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={Object.entries(leadMetrics.by_status || {}).map(([status, count]) => ({ status, count }))}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="status" />
-              <YAxis />
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Message Types Breakdown</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={Object.entries(waMetrics.by_type || {}).map(([name, value]) => ({ name, value }))}
+                cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                outerRadius={100} fill="#8884d8" dataKey="value"
+              >
+                {Object.entries(waMetrics.by_type || {}).map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+              </Pie>
               <Tooltip />
-              <Bar dataKey="count" fill="#3b82f6" />
-            </BarChart>
+            </PieChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTeamPerformance = () => {
+    if (!dashboardData || !dashboardData.topPerformers) return null;
+    const agents = dashboardData.topPerformers.agents || [];
+
+    return (
+      <div className="space-y-6 animate-in fade-in">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Agents</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performance Score</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Leads</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Calls</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {agents.map((agent, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{agent.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="flex items-center gap-2">
+                        <div className="w-full bg-gray-200 rounded-full h-2 max-w-[100px]">
+                          <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${Math.min(agent.score, 100)}%` }}></div>
+                        </div>
+                        <span>{agent.score}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{agent.leads}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{agent.calls}</td>
+                  </tr>
+                ))}
+                {agents.length === 0 && (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">No agent performance data available.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderRealTime = () => {
+    if (!realTimeData) return (
+        <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+          <Activity className="w-12 h-12 mb-4 opacity-20 animate-pulse" />
+          <p>Connecting to real-time data stream...</p>
+        </div>
+    );
+
+    const { leads, calls, messages, tasks, users } = realTimeData;
+
+    return (
+      <div className="space-y-6 animate-in fade-in">
+        <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span> Live Status
+            </h3>
+            <span className="text-xs text-gray-500">Last updated: {new Date(realTimeData.timestamp).toLocaleTimeString()}</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white relative overflow-hidden">
+            <Users className="w-16 h-16 absolute -right-4 -bottom-4 opacity-20" />
+            <p className="text-blue-100 font-medium">Leads Today</p>
+            <p className="text-4xl font-bold mt-2">{leads?.today || 0}</p>
+            <p className="text-sm text-blue-100 mt-2">+{leads?.thisHour || 0} this hour</p>
+          </div>
+          
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 text-white relative overflow-hidden">
+            <Phone className="w-16 h-16 absolute -right-4 -bottom-4 opacity-20" />
+            <p className="text-purple-100 font-medium">Active Calls</p>
+            <p className="text-4xl font-bold mt-2">{calls?.active || 0}</p>
+            <p className="text-sm text-purple-100 mt-2">{calls?.today || 0} total today</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg shadow-lg p-6 text-white relative overflow-hidden">
+            <MessageSquare className="w-16 h-16 absolute -right-4 -bottom-4 opacity-20" />
+            <p className="text-amber-100 font-medium">Unread Messages</p>
+            <p className="text-4xl font-bold mt-2">{messages?.unread || 0}</p>
+            <p className="text-sm text-amber-100 mt-2">{messages?.today || 0} total today</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-rose-500 to-rose-600 rounded-lg shadow-lg p-6 text-white relative overflow-hidden">
+            <AlertTriangle className="w-16 h-16 absolute -right-4 -bottom-4 opacity-20" />
+            <p className="text-rose-100 font-medium">Pending Tasks</p>
+            <p className="text-4xl font-bold mt-2">{tasks?.pending || 0}</p>
+            <p className="text-sm text-rose-100 mt-2">{tasks?.overdue || 0} overdue</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg shadow-lg p-6 text-white relative overflow-hidden">
+            <Zap className="w-16 h-16 absolute -right-4 -bottom-4 opacity-20" />
+            <p className="text-teal-100 font-medium">Online Users</p>
+            <p className="text-4xl font-bold mt-2">{users?.online || 0} <span className="text-lg font-normal">/ {users?.total || 0}</span></p>
+            <p className="text-sm text-teal-100 mt-2">Team capacity</p>
+          </div>
         </div>
       </div>
     );
@@ -328,6 +529,10 @@ export default function AdvancedAnalytics() {
     switch (activeTab) {
       case 'overview': return renderOverview();
       case 'leads': return renderLeadsAnalytics();
+      case 'calls': return renderCallsAnalytics();
+      case 'whatsapp': return renderWhatsAppAnalytics();
+      case 'performance': return renderTeamPerformance();
+      case 'real-time': return renderRealTime();
       default: return renderOverview();
     }
   };
@@ -362,7 +567,7 @@ export default function AdvancedAnalytics() {
         </div>
 
         <main className="p-6 md:p-8">
-          <div className="mx-auto max-w-7xl">
+          <div className="mx-auto w-full">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Advanced Analytics</h1>

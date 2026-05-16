@@ -44,6 +44,20 @@ export class LeadsController {
         return this.leadsService.getStats(user);
     }
 
+    @Get('duplicates')
+    @Roles('manager', 'admin', 'root')
+    @ApiOperation({ summary: 'Get groups of duplicate leads by phone or email' })
+    getDuplicates(@Query('type') type: 'phone' | 'email', @CurrentUser() user: any) {
+        return this.leadsService.getDuplicates(user.workspaceId, type || 'phone');
+    }
+
+    @Patch('bulk-assign')
+    @Roles('manager', 'admin', 'root')
+    @ApiOperation({ summary: 'Bulk assign leads to a user' })
+    bulkAssign(@Body() body: { leadIds: string[]; assigneeId: string }, @CurrentUser() user: any) {
+        return this.leadsService.bulkAssign(body.leadIds, body.assigneeId, user);
+    }
+
     @Get(':id')
     @ApiOperation({ summary: 'Get a single lead by ID' })
     findOne(@Param('id') id: string, @CurrentUser() user: any) {
@@ -79,12 +93,6 @@ export class LeadsController {
         return this.leadsService.updateStage(id, body.stage_id, user);
     }
 
-    @Patch('bulk-assign')
-    @Roles('manager', 'admin', 'root')
-    @ApiOperation({ summary: 'Bulk assign leads to a user' })
-    bulkAssign(@Body() body: { leadIds: string[]; assigneeId: string }, @CurrentUser() user: any) {
-        return this.leadsService.bulkAssign(body.leadIds, body.assigneeId, user);
-    }
 
     @Delete(':id')
     @Roles('manager', 'admin', 'root')
@@ -100,10 +108,5 @@ export class LeadsController {
         return this.leadsService.bulkImport(body.leads, user);
     }
 
-    @Get('duplicates')
-    @Roles('manager', 'admin', 'root')
-    @ApiOperation({ summary: 'Get groups of duplicate leads by phone or email' })
-    getDuplicates(@Query('type') type: 'phone' | 'email', @CurrentUser() user: any) {
-        return this.leadsService.getDuplicates(user.workspaceId, type || 'phone');
-    }
+
 }

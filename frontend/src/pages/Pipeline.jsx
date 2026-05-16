@@ -4,6 +4,7 @@ import LeadDetailModal from '../components/LeadDetailModal';
 import LeadFormModal from '../components/LeadFormModal';
 import PipelineColumn from '../components/PipelineColumn';
 import PipelineAnalytics from '../components/PipelineAnalytics';
+import FilterPanel from '../components/FilterPanel';
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import { useApi } from '../hooks/useApi';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -53,6 +54,8 @@ export default function Pipeline() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showAnalytics, setShowAnalytics] = useState(false);
     const [activeLead, setActiveLead] = useState(null);
+    const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+    const [filters, setFilters] = useState({});
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -101,12 +104,13 @@ export default function Pipeline() {
 
             const cols = {};
             stages.forEach(stage => {
-                const filteredLeads = searchTerm 
-                    ? leads.filter(l => 
-                        l.stageId === stage.id && 
-                        (l.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         l.phone?.includes(searchTerm)))
-                    : leads.filter(l => l.stageId === stage.id);
+                const filteredLeads = leads.filter(l => {
+                    if (l.stageId !== stage.id) return false;
+                    if (searchTerm && !(l.name?.toLowerCase().includes(searchTerm.toLowerCase()) || l.phone?.includes(searchTerm))) return false;
+                    if (filters.status?.length && !filters.status.includes(l.status)) return false;
+                    // Add more filter logic here if needed
+                    return true;
+                });
                     
                 cols[stage.id] = {
                     ...stage,
@@ -132,7 +136,7 @@ export default function Pipeline() {
 
     useEffect(() => {
         fetchPipelineData();
-    }, [currentWorkspace, searchTerm, selectedPipelineId]);
+    }, [currentWorkspace, searchTerm, selectedPipelineId, filters]);
 
     // Listen for real-time updates
     useEffect(() => {
@@ -316,7 +320,16 @@ export default function Pipeline() {
                     onClose={() => setShowAnalytics(false)}
                 />
 
-                <main className="flex-1 overflow-x-auto overflow-y-hidden p-6 relative">
+                <div className="flex flex-1 overflow-hidden h-full">
+                    <FilterPanel 
+                        isOpen={filterPanelOpen}
+                        onClose={() => setFilterPanelOpen(false)}
+                        filters={filters}
+                        onFilterChange={(key, val) => setFilters(prev => ({ ...prev, [key]: val }))}
+                        onClearFilters={() => setFilters({})}
+                        counts={{}}
+                    />
+                    <main className="flex-1 overflow-x-auto overflow-y-hidden p-6 relative">
                     {/* Toolbar */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sticky left-0">
                         <div className="flex items-center gap-3">
@@ -360,7 +373,10 @@ export default function Pipeline() {
                                     className="pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 w-64 transition-all shadow-sm"
                                 />
                             </div>
-                            <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:border-teal-500 hover:text-teal-600 transition-all shadow-sm">
+                            <button 
+                                onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:border-teal-500 hover:text-teal-600 transition-all shadow-sm"
+                            >
                                 <FunnelIcon className="w-4 h-4" /> Filter
                             </button>
                             <button 
@@ -368,12 +384,6 @@ export default function Pipeline() {
                                 className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:border-teal-500 hover:text-teal-600 transition-all shadow-sm"
                             >
                                 <ChartBarIcon className="w-4 h-4" /> Analytics
-                            </button>
-                            <button
-                                onClick={() => setIsAddModalOpen(true)}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-black shadow-lg shadow-teal-600/20 hover:shadow-teal-600/40 transition-all"
-                            >
-                                <PlusIcon className="w-5 h-5" /> Add Lead
                             </button>
                         </div>
                     </div>
@@ -445,6 +455,7 @@ export default function Pipeline() {
                         </DragOverlay>
                     </DndContext>
                 </main>
+                </div>
             </div>
 
             <style>{`

@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
-import { supabase } from '../lib/supabaseClient';
+import WorkspaceGuard from '../components/WorkspaceGuard';
+import { useApi } from '../hooks/useApi';
 import {
     ArrowDownTrayIcon,
     FunnelIcon,
     ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
-
 export default function ReportDownload() {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const { apiFetch } = useApi();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('All');
@@ -23,14 +20,10 @@ export default function ReportDownload() {
     const fetchReports = async () => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const res = await fetch(`${API_URL}/reports/history`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
-            const data = await res.json();
-            setReports(data || []);
+            const res = await apiFetch('/reports/history');
+            const result = await res.json();
+            const data = result.data?.data || result.data || [];
+            setReports(data);
         } catch (error) {
             console.error('Error fetching reports:', error);
         } finally {
@@ -43,14 +36,10 @@ export default function ReportDownload() {
         : reports.filter(r => r.type.toLowerCase().includes(activeTab.toLowerCase()));
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-
+        <WorkspaceGuard>
+            <div className="relative">
                 <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-gray-50/30">
-                    <div className="mx-auto max-w-7xl">
+                    <div className="mx-auto w-full">
 
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                             <div className="flex items-center gap-3">
@@ -171,6 +160,6 @@ export default function ReportDownload() {
                     </div>
                 </main>
             </div>
-        </div>
+        </WorkspaceGuard>
     );
 }

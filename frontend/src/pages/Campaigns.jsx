@@ -165,7 +165,7 @@ export default function Campaigns() {
     return (
         <div className="relative">
             <WorkspaceGuard>
-                <div className="mx-auto max-w-7xl space-y-6">
+                <div className="mx-auto w-full space-y-6">
 
                     {/* Page Header */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

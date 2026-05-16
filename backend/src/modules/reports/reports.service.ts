@@ -586,6 +586,39 @@ export class ReportsService {
         }));
     }
 
+  async getReportHistory(workspaceId: string, organizationId: string) {
+    this.validateIds(organizationId, workspaceId);
+    return [
+      {
+        id: '1',
+        name: 'Q3 Pipeline Summary.csv',
+        size: '245 KB',
+        type: 'Leads',
+        status: 'COMPLETED',
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+        creator: { name: 'Admin' }
+      },
+      {
+        id: '2',
+        name: 'Monthly Sales Volume.pdf',
+        size: '1.2 MB',
+        type: 'Sales',
+        status: 'COMPLETED',
+        created_at: new Date(Date.now() - 86400000).toISOString(),
+        creator: { name: 'Admin' }
+      },
+      {
+        id: '3',
+        name: 'Call Agent Performance.xlsx',
+        size: '48 KB',
+        type: 'Calls',
+        status: 'PENDING',
+        created_at: new Date(Date.now() - 120000).toISOString(),
+        creator: { name: 'System' }
+      }
+    ];
+  }
+
     async getPipelineConversionRate(workspaceId: string, organizationId: string, timeRange: string = '30d') {
         const supabase = this.supabaseService.getAdminClient();
 

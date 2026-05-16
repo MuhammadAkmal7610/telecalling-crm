@@ -135,7 +135,7 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300">
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-teal-50/30">
                     <div>
@@ -150,7 +150,64 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess }) {
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {fields.filter(f => f.show_in_quick_add).sort((a, b) => a.position - b.position).map((field) => (
+                        {/* Always show core fields */}
+                        <div className="space-y-1.5 group">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-1.5 group-focus-within:text-[#08A698] transition-colors">
+                                <UserCircleIcon className="w-4 h-4" /> Name <span className="text-red-500 font-black text-xs">*</span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    required
+                                    value={formData.name || ''}
+                                    onChange={(e) => handleChange('name', e.target.value)}
+                                    placeholder="Enter lead name..."
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#08A698] focus:bg-white focus:ring-4 focus:ring-[#08A698]/5 transition-all outline-none"
+                                />
+                                {formData.name && <div className="absolute right-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#08A698] shadow-[0_0_8px_rgba(8,166,152,0.8)]" />}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5 group">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-1.5 group-focus-within:text-[#08A698] transition-colors">
+                                <PhoneIcon className="w-4 h-4" /> Phone <span className="text-red-500 font-black text-xs">*</span>
+                            </label>
+                            <div className="relative">
+                                <div className="flex group relative">
+                                    <div className="flex items-center justify-center px-4 border border-r-0 border-gray-200 rounded-l-xl bg-gray-50 text-gray-600 text-sm group-focus-within:border-[#08A698] transition-colors">
+                                        <span className="font-semibold">+92</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.phone || ''}
+                                        onChange={(e) => handleChange('phone', e.target.value)}
+                                        placeholder="300 1234567"
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-r-xl px-4 py-3 text-sm focus:outline-none focus:border-[#08A698] focus:bg-white focus:ring-4 focus:ring-[#08A698]/5 transition-all outline-none"
+                                    />
+                                    {formData.phone && <div className="absolute right-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#08A698] shadow-[0_0_8px_rgba(8,166,152,0.8)]" />}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5 group">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-1.5 group-focus-within:text-[#08A698] transition-colors">
+                                <EnvelopeIcon className="w-4 h-4" /> Email
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="email"
+                                    value={formData.email || ''}
+                                    onChange={(e) => handleChange('email', e.target.value)}
+                                    placeholder="Enter email address..."
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#08A698] focus:bg-white focus:ring-4 focus:ring-[#08A698]/5 transition-all outline-none"
+                                />
+                                {formData.email && <div className="absolute right-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#08A698] shadow-[0_0_8px_rgba(8,166,152,0.8)]" />}
+                            </div>
+                        </div>
+
+                        {/* Dynamic Custom Fields */}
+                        {fields.filter(f => f.show_in_quick_add && !['name', 'phone', 'email'].includes(f.name.toLowerCase())).sort((a, b) => a.position - b.position).map((field) => (
                             <div key={field.id} className="space-y-1.5 group">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-1.5 group-focus-within:text-[#08A698] transition-colors">
                                     {renderIcon(field.name)}

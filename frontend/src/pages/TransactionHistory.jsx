@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import WorkspaceGuard from '../components/WorkspaceGuard';
 import {
     ChevronDownIcon,
     ArrowPathIcon,
@@ -252,8 +251,6 @@ const CustomCalendar = ({ value, onChange, onClose }) => {
 };
 
 export default function TransactionHistory() {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-
     // Filter States
     const [statusFilter, setStatusFilter] = useState('');
     const [cycleFilter, setCycleFilter] = useState('');
@@ -294,191 +291,185 @@ export default function TransactionHistory() {
     };
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans antialiased selection:bg-[#08A698]/20">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+        <WorkspaceGuard>
+            <main className="flex-1 overflow-y-auto bg-white p-6 lg:px-12 lg:py-10">
+                <div className="w-full mx-auto space-y-8">
 
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
+                    {/* Header Section */}
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Billing</h1>
+                            <p className="text-gray-500 mt-2 font-medium">Manage your billing information and transaction history</p>
+                        </div>
+                        <Link to="/billing" className="flex items-center gap-2.5 px-5 py-2.5 bg-white border border-[#08A698] rounded-xl text-[#08A698] text-sm font-semibold hover:bg-[#08A698] hover:text-white transition-all shadow-sm hover:shadow-md hover:shadow-[#08A698]/20 group active:scale-95 duration-200">
+                            <ShoppingCartIcon className="w-5 h-5 group-hover:text-white transition-colors" />
+                            Buy Licenses
+                        </Link>
+                    </div>
 
-                <main className="flex-1 overflow-y-auto bg-white p-6 lg:px-12 lg:py-10">
-                    <div className="max-w-7xl mx-auto space-y-8">
+                    {/* Tabs */}
+                    <div className="border-b border-gray-100">
+                        <div className="flex gap-8">
+                            <button className="pb-4 text-sm font-semibold text-[#08A698] border-b-2 border-[#08A698] flex items-center gap-2.5 transition-all">
+                                <DocumentTextIcon className="w-5 h-5" />
+                                Transaction History
+                            </button>
+                            <button className="pb-4 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 flex items-center gap-2.5 transition-all">
+                                <DocumentTextIcon className="w-5 h-5" />
+                                Invoices
+                            </button>
+                        </div>
+                    </div>
 
-                        {/* Header Section */}
-                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                            <div>
-                                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Billing</h1>
-                                <p className="text-gray-500 mt-2 font-medium">Manage your billing information and transaction history</p>
-                            </div>
-                            <Link to="/billing" className="flex items-center gap-2.5 px-5 py-2.5 bg-white border border-[#08A698] rounded-xl text-[#08A698] text-sm font-semibold hover:bg-[#08A698] hover:text-white transition-all shadow-sm hover:shadow-md hover:shadow-[#08A698]/20 group active:scale-95 duration-200">
-                                <ShoppingCartIcon className="w-5 h-5 group-hover:text-white transition-colors" />
-                                Buy Licenses
-                            </Link>
+                    {/* Filters Bar */}
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-gray-50/50 p-2 rounded-2xl border border-gray-100/50">
+                        <div className="px-2 text-sm text-gray-500 font-medium">
+                            Showing <span className="text-gray-900 font-bold">1-8</span> of <span className="text-gray-900 font-bold">8</span> transactions
                         </div>
 
-                        {/* Tabs */}
-                        <div className="border-b border-gray-100">
-                            <div className="flex gap-8">
-                                <button className="pb-4 text-sm font-semibold text-[#08A698] border-b-2 border-[#08A698] flex items-center gap-2.5 transition-all">
-                                    <DocumentTextIcon className="w-5 h-5" />
-                                    Transaction History
-                                </button>
-                                <button className="pb-4 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 flex items-center gap-2.5 transition-all">
-                                    <DocumentTextIcon className="w-5 h-5" />
-                                    Invoices
-                                </button>
-                            </div>
-                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                            {/* Status Filter */}
+                            <FilterDropdown
+                                label="Status"
+                                options={statusOptions}
+                                value={statusFilter}
+                                onChange={setStatusFilter}
+                            />
 
-                        {/* Filters Bar */}
-                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-gray-50/50 p-2 rounded-2xl border border-gray-100/50">
-                            <div className="px-2 text-sm text-gray-500 font-medium">
-                                Showing <span className="text-gray-900 font-bold">1-8</span> of <span className="text-gray-900 font-bold">8</span> transactions
-                            </div>
+                            {/* Billing Cycle Filter */}
+                            <FilterDropdown
+                                label="Billing Cycle"
+                                options={cycleOptions}
+                                value={cycleFilter}
+                                onChange={setCycleFilter}
+                            />
 
-                            <div className="flex flex-wrap items-center gap-3">
-                                {/* Status Filter */}
-                                <FilterDropdown
-                                    label="Status"
-                                    options={statusOptions}
-                                    value={statusFilter}
-                                    onChange={setStatusFilter}
-                                />
-
-                                {/* Billing Cycle Filter */}
-                                <FilterDropdown
-                                    label="Billing Cycle"
-                                    options={cycleOptions}
-                                    value={cycleFilter}
-                                    onChange={setCycleFilter}
-                                />
-
-                                {/* Custom Calendar Filter */}
-                                <div className="relative" ref={calendarRef}>
-                                    <button
-                                        onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-                                        className={`flex items-center justify-between gap-3 px-4 py-2.5 bg-white border rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer w-[200px] outline-none group
-                                        ${isCalendarOpen || dateFilter
-                                                ? 'border-[#08A698] text-gray-900 ring-1 ring-[#08A698]/10 shadow-[0_4px_12px_rgba(8,166,152,0.1)]'
-                                                : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-white shadow-sm'
-                                            }`}
-                                    >
-                                        <span className={!dateFilter ? "text-gray-500" : ""}>
-                                            {dateFilter || "Select Purchase Date"}
-                                        </span>
-                                        <div className="flex items-center">
-                                            {dateFilter && (
-                                                <div
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setDateFilter('');
-                                                    }}
-                                                    className="mr-2 p-0.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                                                >
-                                                    <XMarkIcon className="w-3 h-3" />
-                                                </div>
-                                            )}
-                                            <CalendarIcon className={`w-4 h-4 transition-transform duration-300 
-                                                ${isCalendarOpen ? 'text-[#08A698]' : 'text-gray-400 group-hover:text-gray-500'} 
-                                                ${dateFilter ? 'text-[#08A698]' : ''}`}
-                                            />
-                                        </div>
-                                    </button>
-
-                                    {/* Calendar Dropdown */}
-                                    <div className={`absolute top-full right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] z-50 overflow-hidden transition-all duration-200 origin-top-right
-                                        ${isCalendarOpen ? 'opacity-100 translate-y-0 visible scale-100' : 'opacity-0 -translate-y-2 invisible scale-95'}`}>
-                                        <CustomCalendar
-                                            value={dateFilter}
-                                            onChange={setDateFilter}
-                                            onClose={() => setIsCalendarOpen(false)}
+                            {/* Custom Calendar Filter */}
+                            <div className="relative" ref={calendarRef}>
+                                <button
+                                    onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                                    className={`flex items-center justify-between gap-3 px-4 py-2.5 bg-white border rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer w-[200px] outline-none group
+                                    ${isCalendarOpen || dateFilter
+                                            ? 'border-[#08A698] text-gray-900 ring-1 ring-[#08A698]/10 shadow-[0_4px_12px_rgba(8,166,152,0.1)]'
+                                            : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-white shadow-sm'
+                                        }`}
+                                >
+                                    <span className={!dateFilter ? "text-gray-500" : ""}>
+                                        {dateFilter || "Select Purchase Date"}
+                                    </span>
+                                    <div className="flex items-center">
+                                        {dateFilter && (
+                                            <div
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDateFilter('');
+                                                }}
+                                                className="mr-2 p-0.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                                            >
+                                                <XMarkIcon className="w-3 h-3" />
+                                            </div>
+                                        )}
+                                        <CalendarIcon className={`w-4 h-4 transition-transform duration-300 
+                                            ${isCalendarOpen ? 'text-[#08A698]' : 'text-gray-400 group-hover:text-gray-500'} 
+                                            ${dateFilter ? 'text-[#08A698]' : ''}`}
                                         />
                                     </div>
+                                </button>
+
+                                {/* Calendar Dropdown */}
+                                <div className={`absolute top-full right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] z-50 overflow-hidden transition-all duration-200 origin-top-right
+                                    ${isCalendarOpen ? 'opacity-100 translate-y-0 visible scale-100' : 'opacity-0 -translate-y-2 invisible scale-95'}`}>
+                                    <CustomCalendar
+                                        value={dateFilter}
+                                        onChange={setDateFilter}
+                                        onClose={() => setIsCalendarOpen(false)}
+                                    />
                                 </div>
                             </div>
                         </div>
-
-                        {/* Table */}
-                        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/[0.02]">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-gray-50/80 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
-                                            <th className="py-5 px-6 font-medium">Transaction ID</th>
-                                            <th className="py-5 px-6 cursor-pointer hover:bg-gray-100 transition-colors group">
-                                                <div className="flex items-center gap-1">
-                                                    Date
-                                                    <ArrowsUpDownIcon className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 transition-colors" />
-                                                </div>
-                                            </th>
-                                            <th className="py-5 px-6 cursor-pointer hover:bg-gray-100 transition-colors group">
-                                                <div className="flex items-center gap-1">
-                                                    Amount
-                                                    <ArrowsUpDownIcon className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 transition-colors" />
-                                                </div>
-                                            </th>
-                                            <th className="py-5 px-6">Billing Cycle</th>
-                                            <th className="py-5 px-6">Status</th>
-                                            <th className="py-5 px-6 min-w-[200px]">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {transactions.map((tx, idx) => (
-                                            <tr key={idx} className="hover:bg-gray-50/50 transition-colors group">
-                                                <td className="py-4 px-6">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-mono text-sm text-gray-600 font-medium bg-gray-100/50 px-1.5 py-0.5 rounded border border-transparent group-hover:border-gray-200 transition-colors">
-                                                            {tx.id.substring(0, 16)}...
-                                                        </span>
-                                                        {tx.hasCopy && (
-                                                            <button
-                                                                className="text-gray-300 hover:text-[#08A698] p-1.5 rounded-lg hover:bg-[#08A698]/10 transition-colors active:scale-90"
-                                                                title="Copy ID"
-                                                            >
-                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                                                </svg>
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="py-4 px-6 text-gray-600 text-sm">{tx.date}</td>
-                                                <td className="py-4 px-6 text-sm font-semibold text-gray-900">{tx.amount}</td>
-                                                <td className="py-4 px-6 text-sm text-gray-600">{tx.cycle}</td>
-                                                <td className="py-4 px-6">
-                                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 ${getStatusStyle(tx.status)}`}>
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${tx.status === 'Cancelled' ? 'bg-rose-500' : tx.status === 'Successful' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
-                                                        {tx.status}
-                                                    </span>
-                                                </td>
-                                                <td className="py-4 px-6">
-                                                    {tx.action === 'none' && (
-                                                        <span className="text-gray-400 bg-gray-50 border border-dashed border-gray-200 px-4 py-2 rounded-lg text-xs font-medium inline-block w-full text-center select-none">
-                                                            No Action
-                                                        </span>
-                                                    )}
-                                                    {tx.action === 'invoice' && (
-                                                        <button className="flex items-center justify-center gap-2 w-full px-4 py-2 border border-gray-200 hover:border-rose-200 bg-white hover:bg-rose-50 text-gray-700 hover:text-rose-600 rounded-lg transition-all text-sm font-medium shadow-sm hover:shadow active:scale-95 duration-200">
-                                                            <DocumentTextIcon className="w-4 h-4 text-rose-500" />
-                                                            Invoice
-                                                        </button>
-                                                    )}
-                                                    {tx.action === 'refresh' && (
-                                                        <button className="flex items-center justify-center gap-2 w-full px-4 py-2 border border-gray-200 hover:border-[#08A698]/30 bg-white hover:bg-[#08A698]/5 text-gray-700 hover:text-[#08A698] rounded-lg transition-all text-sm font-medium shadow-sm hover:shadow active:scale-95 duration-200">
-                                                            <ArrowPathIcon className="w-4 h-4" />
-                                                            Status
-                                                        </button>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
                     </div>
-                </main>
-            </div>
-        </div>
+
+                    {/* Table */}
+                    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/[0.02]">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-50/80 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
+                                        <th className="py-5 px-6 font-medium">Transaction ID</th>
+                                        <th className="py-5 px-6 cursor-pointer hover:bg-gray-100 transition-colors group">
+                                            <div className="flex items-center gap-1">
+                                                Date
+                                                <ArrowsUpDownIcon className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 transition-colors" />
+                                            </div>
+                                        </th>
+                                        <th className="py-5 px-6 cursor-pointer hover:bg-gray-100 transition-colors group">
+                                            <div className="flex items-center gap-1">
+                                                Amount
+                                                <ArrowsUpDownIcon className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 transition-colors" />
+                                            </div>
+                                        </th>
+                                        <th className="py-5 px-6">Billing Cycle</th>
+                                        <th className="py-5 px-6">Status</th>
+                                        <th className="py-5 px-6 min-w-[200px]">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {transactions.map((tx, idx) => (
+                                        <tr key={idx} className="hover:bg-gray-50/50 transition-colors group">
+                                            <td className="py-4 px-6">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-mono text-sm text-gray-600 font-medium bg-gray-100/50 px-1.5 py-0.5 rounded border border-transparent group-hover:border-gray-200 transition-colors">
+                                                        {tx.id.substring(0, 16)}...
+                                                    </span>
+                                                    {tx.hasCopy && (
+                                                        <button
+                                                            className="text-gray-300 hover:text-[#08A698] p-1.5 rounded-lg hover:bg-[#08A698]/10 transition-colors active:scale-90"
+                                                            title="Copy ID"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-6 text-gray-600 text-sm">{tx.date}</td>
+                                            <td className="py-4 px-6 text-sm font-semibold text-gray-900">{tx.amount}</td>
+                                            <td className="py-4 px-6 text-sm text-gray-600">{tx.cycle}</td>
+                                            <td className="py-4 px-6">
+                                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 ${getStatusStyle(tx.status)}`}>
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${tx.status === 'Cancelled' ? 'bg-rose-500' : tx.status === 'Successful' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                                                    {tx.status}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                {tx.action === 'none' && (
+                                                    <span className="text-gray-400 bg-gray-50 border border-dashed border-gray-200 px-4 py-2 rounded-lg text-xs font-medium inline-block w-full text-center select-none">
+                                                        No Action
+                                                    </span>
+                                                )}
+                                                {tx.action === 'invoice' && (
+                                                    <button className="flex items-center justify-center gap-2 w-full px-4 py-2 border border-gray-200 hover:border-rose-200 bg-white hover:bg-rose-50 text-gray-700 hover:text-rose-600 rounded-lg transition-all text-sm font-medium shadow-sm hover:shadow active:scale-95 duration-200">
+                                                        <DocumentTextIcon className="w-4 h-4 text-rose-500" />
+                                                        Invoice
+                                                    </button>
+                                                )}
+                                                {tx.action === 'refresh' && (
+                                                    <button className="flex items-center justify-center gap-2 w-full px-4 py-2 border border-gray-200 hover:border-[#08A698]/30 bg-white hover:bg-[#08A698]/5 text-gray-700 hover:text-[#08A698] rounded-lg transition-all text-sm font-medium shadow-sm hover:shadow active:scale-95 duration-200">
+                                                        <ArrowPathIcon className="w-4 h-4" />
+                                                        Status
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </WorkspaceGuard>
     );
 }

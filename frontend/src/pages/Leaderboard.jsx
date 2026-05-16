@@ -60,7 +60,7 @@ export default function Leaderboard() {
     return (
         <WorkspaceGuard>
             <div className="relative">
-                <div className="mx-auto max-w-7xl">
+                <div className="mx-auto w-full">
                     <div className="flex flex-col lg:flex-row gap-6 p-6 lg:p-8">
                         {/* Left Column: Agents List */}
                         <div className="lg:w-1/3 flex flex-col gap-6">

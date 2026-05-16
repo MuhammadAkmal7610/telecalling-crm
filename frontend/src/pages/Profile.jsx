@@ -101,7 +101,7 @@ const Profile = () => {
     return (
         <WorkspaceGuard>
             <main className="flex-1 overflow-y-auto bg-gray-50 p-8 scroll-smooth no-scrollbar h-full">
-                    <div className="max-w-4xl mx-auto space-y-8 pb-10">
+                    <div className="w-full space-y-8 pb-10">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-gray-700">

@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+
 import WorkspaceGuard from '../components/WorkspaceGuard';
 import { MapPinIcon, UserCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 export default function FieldTracking() {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-
     const agents = [
         { id: 1, name: 'John Doe', location: 'Downtown Hub', status: 'Active', lastCheckIn: '10 mins ago' },
         { id: 2, name: 'Jane Smith', location: 'North Branch', status: 'On Route', lastCheckIn: '1 hour ago' },
@@ -14,13 +11,9 @@ export default function FieldTracking() {
     ];
 
     return (
-        <div className="flex h-screen bg-[#F8F9FA] text-[#202124] font-sans">
-            <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <Header setIsSidebarOpen={setSidebarOpen} />
-                <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-gray-50/50">
-                    <WorkspaceGuard>
-                        <div className="max-w-7xl mx-auto space-y-6">
+        <WorkspaceGuard>
+            <div className="flex-1 overflow-y-auto p-6 lg:p-8 bg-gray-50/50">
+                <div className="w-full mx-auto space-y-6">
                             <div className="flex justify-between items-center">
                                 <div>
                                     <h1 className="text-2xl font-bold text-gray-900">Field Tracking (Geo-Tagging)</h1>
@@ -76,10 +69,8 @@ export default function FieldTracking() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </WorkspaceGuard>
-                </main>
+                </div>
             </div>
-        </div>
+        </WorkspaceGuard>
     );
 }
