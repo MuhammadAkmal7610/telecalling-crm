@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Activity, 
   Layers, 
@@ -10,14 +10,40 @@ import {
   ShieldCheck,
   Sliders,
   Terminal,
-  Server
+  Server,
+  ChevronDown,
+  ChevronRight,
+  Building,
+  Globe
 } from 'lucide-react';
 import Logo from '../assets/Logo.png';
 
-export default function Sidebar({ activeSection, setActiveSection, currentAdmin, systemStatus }) {
+export default function Sidebar({ 
+  activeSection, 
+  setActiveSection, 
+  currentAdmin, 
+  systemStatus,
+  organizations = [],
+  workspaces = [],
+  selectedOrgId = 'ALL',
+  setSelectedOrgId,
+  selectedWorkspaceId = 'ALL',
+  setSelectedWorkspaceId
+}) {
+  const [isOrgsExpanded, setIsOrgsExpanded] = useState(true);
+  const [expandedOrgs, setExpandedOrgs] = useState({});
+
+  const toggleOrg = (orgId, e) => {
+    e.stopPropagation();
+    setExpandedOrgs(prev => ({
+      ...prev,
+      [orgId]: prev[orgId] === false ? true : false // default is true (expanded)
+    }));
+  };
+
   const navItems = [
     { id: 'overview', name: 'Overview', icon: Activity },
-    { id: 'workspaces', name: 'Workspaces', icon: Layers, badge: 'Active' },
+    { id: 'workspaces', name: 'Organizations', icon: Layers, badge: 'Active' },
     { id: 'billing', name: 'Billing & Plans', icon: CreditCard },
     { id: 'users', name: 'Users & Roles', icon: Users },
     { id: 'telephony', name: 'Telephony GW', icon: PhoneCall },
@@ -50,9 +76,139 @@ export default function Sidebar({ activeSection, setActiveSection, currentAdmin,
           const Icon = item.icon;
           const isActive = activeSection === item.id;
           
+          if (item.id === 'workspaces') {
+            return (
+              <div key={item.id} className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSection('workspaces');
+                    setIsOrgsExpanded(!isOrgsExpanded);
+                    if (!isOrgsExpanded) {
+                      setSelectedOrgId('ALL');
+                      setSelectedWorkspaceId('ALL');
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 group relative ${
+                    isActive 
+                      ? 'bg-indigo-600/15 border-l-2 border-indigo-500 text-brand-text-bright shadow-inner shadow-indigo-500/5' 
+                      : 'text-brand-text hover:bg-brand-border/40 hover:text-brand-text-bright'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Icon 
+                      size={18} 
+                      className={`transition-colors duration-200 ${
+                        isActive ? 'text-indigo-400' : 'text-brand-text/70 group-hover:text-brand-text-bright'
+                      }`} 
+                    />
+                    <span className="text-sm font-medium font-sans">
+                      Organizations
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-1.5">
+                    {item.badge && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wide bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        {item.badge}
+                      </span>
+                    )}
+                    {isOrgsExpanded ? <ChevronDown size={14} className="text-brand-text/50" /> : <ChevronRight size={14} className="text-brand-text/50" />}
+                  </div>
+                </button>
+
+                {/* Submenu for Organizations and Workspaces */}
+                {isOrgsExpanded && (
+                  <div className="pl-4 pr-1 py-1 space-y-1 border-l border-brand-border/30 ml-6 animate-slide-down">
+                    {/* "All Organizations" Option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedOrgId('ALL');
+                        setSelectedWorkspaceId('ALL');
+                        setActiveSection('workspaces');
+                      }}
+                      className={`w-full text-left px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                        selectedOrgId === 'ALL' && selectedWorkspaceId === 'ALL'
+                          ? 'text-cyan-400 bg-cyan-500/10 font-bold font-semibold'
+                          : 'text-brand-text/70 hover:text-brand-text-bright hover:bg-brand-border/20'
+                      }`}
+                    >
+                      📁 All Organizations
+                    </button>
+
+                    {organizations.map((org) => {
+                      const isOrgSelected = selectedOrgId === org.id;
+                      const isOrgOpen = expandedOrgs[org.id] !== false; // open by default
+                      const orgWorkspaces = workspaces.filter(ws => ws.orgId === org.id);
+
+                      return (
+                        <div key={org.id} className="space-y-1">
+                          <div
+                            onClick={() => {
+                              setSelectedOrgId(org.id);
+                              setSelectedWorkspaceId('ALL');
+                              setActiveSection('workspaces');
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-all ${
+                              isOrgSelected && selectedWorkspaceId === 'ALL'
+                                ? 'text-indigo-400 bg-indigo-500/10 font-bold font-semibold'
+                                : 'text-brand-text/70 hover:text-brand-text-bright hover:bg-brand-border/20'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1.5 truncate">
+                              <Building size={11} className="text-indigo-400/80" />
+                              {org.name}
+                            </span>
+                            <div
+                              onClick={(e) => toggleOrg(org.id, e)}
+                              className="p-0.5 rounded hover:bg-brand-border/40 text-brand-text/50 hover:text-brand-text-bright"
+                            >
+                              {isOrgOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                            </div>
+                          </div>
+
+                          {/* Workspaces Submenu under Org */}
+                          {isOrgOpen && orgWorkspaces.length > 0 && (
+                            <div className="pl-3 py-0.5 space-y-0.5 border-l border-brand-border/20 ml-2 animate-slide-down">
+                              {orgWorkspaces.map((ws) => {
+                                const isWsSelected = selectedWorkspaceId === ws.id;
+
+                                return (
+                                  <button
+                                    key={ws.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedOrgId(org.id);
+                                      setSelectedWorkspaceId(ws.id);
+                                      setActiveSection('workspaces');
+                                    }}
+                                    className={`w-full text-left px-2 py-1 rounded text-[11px] font-sans transition-all flex items-center gap-1.5 ${
+                                      isWsSelected
+                                        ? 'text-emerald-400 bg-emerald-500/10 font-bold font-semibold border-l-2 border-emerald-500'
+                                        : 'text-brand-text/60 hover:text-brand-text-bright hover:bg-brand-border/10'
+                                    }`}
+                                  >
+                                    <Globe size={10} className="text-cyan-400/80" />
+                                    <span className="truncate">{ws.name}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+          
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => setActiveSection(item.id)}
               className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 group relative ${
                 isActive 

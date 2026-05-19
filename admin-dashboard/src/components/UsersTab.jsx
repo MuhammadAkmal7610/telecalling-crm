@@ -146,12 +146,14 @@ export default function UsersTab({ users, onUpdateUser, onCreateUser, onImperson
               onChange={(e) => setFilterRole(e.target.value)}
               className="bg-transparent focus:outline-none border-none text-brand-text-bright pr-4"
             >
-              <option value="ALL">All Roles</option>
-              <option value="Super Admin">Super Admin</option>
-              <option value="Audit Manager">Audit Manager</option>
-              <option value="Tenant Owner">Tenant Owner</option>
-              <option value="Support Agent">Support Agent</option>
-              <option value="Agent">Agent</option>
+              <option value="ALL" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>All Roles</option>
+              <option value="Super Admin" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Super Admin</option>
+              <option value="Audit Manager" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Audit Manager</option>
+              <option value="Tenant Owner" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Tenant Owner</option>
+              <option value="Support Agent" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Support Agent</option>
+              <option value="Agent" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Agent</option>
+              <option value="caller" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Caller</option>
+              <option value="root" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Root</option>
             </select>
           </div>
 
@@ -163,9 +165,9 @@ export default function UsersTab({ users, onUpdateUser, onCreateUser, onImperson
               onChange={(e) => setFilterWorkspace(e.target.value)}
               className="bg-transparent focus:outline-none border-none text-brand-text-bright pr-4"
             >
-              <option value="ALL">All Workspaces</option>
+              <option value="ALL" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>All Workspaces</option>
               {uniqueWorkspaces.map(ws => (
-                <option key={ws} value={ws}>{ws}</option>
+                <option key={ws} value={ws} style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>{ws}</option>
               ))}
             </select>
           </div>
@@ -200,7 +202,7 @@ export default function UsersTab({ users, onUpdateUser, onCreateUser, onImperson
                   <th className="px-6 py-4">Assigned Workspace</th>
                   <th className="px-6 py-4">Global Security Clearance</th>
                   <th className="px-6 py-4">State</th>
-                  <th className="px-6 py-4 text-right">Administrative Actions</th>
+                  <th className="px-6 py-4 text-center">Administrative Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-border/40 text-xs">
@@ -228,11 +230,13 @@ export default function UsersTab({ users, onUpdateUser, onCreateUser, onImperson
                           onChange={(e) => handleRoleChange(u.id, e.target.value)}
                           className="bg-[#131722] border border-brand-border/60 rounded px-2 py-1 text-xs text-brand-text-bright focus:outline-none focus:border-indigo-500 font-sans cursor-pointer"
                         >
-                          <option value="Super Admin">Super Admin</option>
-                          <option value="Audit Manager">Audit Manager</option>
-                          <option value="Tenant Owner">Tenant Owner</option>
-                          <option value="Support Agent">Support Agent</option>
-                          <option value="Agent">Agent</option>
+                          <option value="Super Admin" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Super Admin</option>
+                          <option value="Audit Manager" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Audit Manager</option>
+                          <option value="Tenant Owner" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Tenant Owner</option>
+                          <option value="Support Agent" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Support Agent</option>
+                          <option value="Agent" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Agent</option>
+                          <option value="caller" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Caller</option>
+                          <option value="root" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Root</option>
                         </select>
                       </div>
                     </td>
@@ -244,8 +248,8 @@ export default function UsersTab({ users, onUpdateUser, onCreateUser, onImperson
                         {u.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-1.5 flex-nowrap whitespace-nowrap">
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5 flex-nowrap whitespace-nowrap">
                       {/* Password Reset */}
                       <button
                         type="button"

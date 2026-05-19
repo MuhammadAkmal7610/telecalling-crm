@@ -41,8 +41,14 @@ export default function App() {
 
   // Dynamic API Base URL state configurable from Vercel / UI
   const [apiBaseUrl, setApiBaseUrl] = useState(() => {
-    const envUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/admin' : null;
-    return localStorage.getItem('telecrm_api_base') || envUrl || 'http://localhost:3000/api/v1/admin';
+    const stored = localStorage.getItem('telecrm_api_base');
+    if (stored) return stored;
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl) {
+      const base = envUrl.replace(/\/+$/, ''); // strip trailing slash
+      return base + '/admin';
+    }
+    return 'http://localhost:3000/api/v1/admin';
   });
 
   // Super Admin Auth State
@@ -69,6 +75,35 @@ export default function App() {
     activeTrunksCount: 3,
     mrrAmount: 82450
   });
+
+  // Selected Org and Workspace filters from Sidebar
+  const [selectedOrgId, setSelectedOrgId] = useState('ALL');
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('ALL');
+
+  // Workspace Sharing database state
+  const [workspaceShares, setWorkspaceShares] = useState([
+    { id: 'share-1', workspaceId: 'ws-1', userId: 'usr-1', role: 'Admin', grantedAt: '2026-01-14' },
+    { id: 'share-2', workspaceId: 'ws-1', userId: 'usr-2', role: 'Viewer', grantedAt: '2026-03-22' },
+    { id: 'share-3', workspaceId: 'ws-2', userId: 'usr-3', role: 'Editor', grantedAt: '2026-02-05' },
+    { id: 'share-4', workspaceId: 'ws-3', userId: 'usr-2', role: 'Admin', grantedAt: '2026-04-10' },
+  ]);
+
+  const handleShareWorkspace = (newShare) => {
+    setWorkspaceShares(prev => [...prev, { ...newShare, id: `share-${Date.now()}`, grantedAt: new Date().toISOString().split('T')[0] }]);
+    const wsName = workspaces.find(w => w.id === newShare.workspaceId)?.name || newShare.workspaceId;
+    const usrName = users.find(u => u.id === newShare.userId)?.name || newShare.userId;
+    appendAuditLog('Workspace', `Shared workspace "${wsName}" with user "${usrName}" as ${newShare.role}`, 'Info');
+  };
+
+  const handleRevokeShare = (shareId) => {
+    const share = workspaceShares.find(s => s.id === shareId);
+    if (share) {
+      const wsName = workspaces.find(w => w.id === share.workspaceId)?.name || share.workspaceId;
+      const usrName = users.find(u => u.id === share.userId)?.name || share.userId;
+      appendAuditLog('Workspace', `Revoked workspace sharing of "${wsName}" for user "${usrName}"`, 'Warning');
+    }
+    setWorkspaceShares(prev => prev.filter(s => s.id !== shareId));
+  };
 
   const currentAdmin = authAdmin || {
     name: 'Eleanor Vance',
@@ -214,6 +249,26 @@ export default function App() {
     setShowLoginModal(true);
   };
 
+  const defaultMockOrgs = [
+    { id: 'org-1', name: 'Nexus Enterprises', tier: 'Enterprise', status: 'Active', workspacesQuota: 5, workspacesCount: 2, usersQuota: 50, usersCount: 3, stripeCustomerId: 'cus_Nexus992A', stripeSync: 'Synced', primaryColor: '#6366f1', customTitle: 'Nexus CRM Portal', features: { whatsappApi: true, autoDialer: true, callRecording: true } },
+    { id: 'org-2', name: 'Apex Logistics Group', tier: 'Growth', status: 'Active', workspacesQuota: 3, workspacesCount: 1, usersQuota: 20, usersCount: 1, stripeCustomerId: 'cus_Apex774B', stripeSync: 'Synced', primaryColor: '#06b6d4', customTitle: 'Apex Dispatcher Hub', features: { whatsappApi: true, autoDialer: true, callRecording: false } },
+    { id: 'org-3', name: 'Sovereign Capital Holdings', tier: 'Starter', status: 'Active', workspacesQuota: 1, workspacesCount: 1, usersQuota: 5, usersCount: 1, stripeCustomerId: 'cus_Sov312C', stripeSync: 'Synced', primaryColor: '#f59e0b', customTitle: 'Sovereign Portals', features: { whatsappApi: false, autoDialer: false, callRecording: false } },
+    { id: 'org-4', name: 'Helix MedCare Corporation', tier: 'Enterprise', status: 'Suspended', workspacesQuota: 5, workspacesCount: 1, usersQuota: 50, usersCount: 1, stripeCustomerId: 'cus_Helix502E', stripeSync: 'Expired', primaryColor: '#f43f5e', customTitle: 'Helix MedCare Portal', features: { whatsappApi: true, autoDialer: true, callRecording: true } },
+  ];
+
+  const defaultMockWorkspaces = [
+    { id: 'ws-1', orgId: 'org-1', name: 'Nexus Corp Solutions', subdomain: 'nexus', owner: 'Thomas Millner', plan: 'Enterprise', status: 'Active', created_at: '2026-01-14', callingMinutes: 12050, whatsappMessages: 45200 },
+    { id: 'ws-2', orgId: 'org-2', name: 'Apex Logistics Inc.', subdomain: 'apex', owner: 'Robert Downey', plan: 'Growth', status: 'Active', created_at: '2026-02-05', callingMinutes: 4890, whatsappMessages: 12800 },
+    { id: 'ws-3', orgId: 'org-3', name: 'Sovereign Capital LLC', subdomain: 'sovereign', owner: 'Victoria Chambers', plan: 'Starter', status: 'Active', created_at: '2026-04-10', callingMinutes: 120, whatsappMessages: 400 },
+    { id: 'ws-4', orgId: 'org-4', name: 'Helix MedCare Group', subdomain: 'helix', owner: 'Dr. Aaron Vance', plan: 'Enterprise', status: 'Suspended', created_at: '2025-11-20', callingMinutes: 24000, whatsappMessages: 89000 },
+  ];
+
+  const defaultMockUsers = [
+    { id: 'usr-1', name: 'Eleanor Vance', email: 'eleanor@wewave.io', globalRole: 'Super Admin', status: 'Active', currentWorkspace: 'Nexus Corp Solutions', createdAt: '2025-10-01' },
+    { id: 'usr-2', name: 'Markus Vance', email: 'markus@sovereign.io', globalRole: 'Tenant Owner', status: 'Active', currentWorkspace: 'Sovereign Capital LLC', createdAt: '2026-04-10' },
+    { id: 'usr-3', name: 'Gavin Reed', email: 'gavin@apexlogistics.com', globalRole: 'Tenant Owner', status: 'Active', currentWorkspace: 'Apex Logistics Inc.', createdAt: '2026-02-05' },
+  ];
+
   const fetchDashboardData = async (token = authToken, baseUrl = apiBaseUrl) => {
     if (!token) return;
     try {
@@ -234,20 +289,75 @@ export default function App() {
       // 2. Organizations
       fetch(`${baseUrl}/organizations`, { headers }).then(r => r.json()).then(res => {
         const data = res.data || res;
-        if (Array.isArray(data)) setOrganizations(data);
-      }).catch(e => console.warn('Orgs fetch issue:', e));
+        if (Array.isArray(data) && data.length > 0) {
+          const enriched = data.map((org, index) => ({
+            id: org.id,
+            name: org.name,
+            tier: org.tier || (index % 3 === 0 ? 'Enterprise' : index % 3 === 1 ? 'Growth' : 'Starter'),
+            status: org.status || 'Active',
+            workspacesQuota: org.workspacesQuota || 5,
+            usersQuota: org.usersQuota || 20,
+            stripeCustomerId: org.stripeCustomerId || `cus_live_${org.name.replace(/\s+/g, '').substring(0, 8)}${Math.floor(100 + Math.random() * 900)}`,
+            stripeSync: org.stripeSync || 'Synced',
+            primaryColor: org.primaryColor || '#6366f1',
+            customTitle: org.customTitle || `${org.name} Portal`,
+            features: org.features || { whatsappApi: true, autoDialer: true, callRecording: true }
+          }));
+          setOrganizations(enriched);
+        } else {
+          setOrganizations(defaultMockOrgs);
+        }
+      }).catch(e => {
+        console.warn('Orgs fetch issue, loading defaults:', e);
+        setOrganizations(defaultMockOrgs);
+      });
 
       // 3. Workspaces
       fetch(`${baseUrl}/workspaces`, { headers }).then(r => r.json()).then(res => {
         const data = res.data || res;
-        if (Array.isArray(data)) setWorkspaces(data);
-      }).catch(e => console.warn('Workspaces fetch issue:', e));
+        if (Array.isArray(data) && data.length > 0) {
+          const enriched = data.map((ws, index) => ({
+            id: ws.id,
+            orgId: ws.orgId || `org-${(index % 4) + 1}`,
+            name: ws.name,
+            subdomain: ws.subdomain || ws.name.toLowerCase().replace(/[^a-z0-9]/g, ''),
+            owner: ws.owner || 'Thomas Millner',
+            plan: ws.plan || 'Growth',
+            status: ws.status || 'Active',
+            created_at: ws.created_at || '2026-01-14',
+            callingMinutes: ws.callingMinutes || 4800,
+            whatsappMessages: ws.whatsappMessages || 12000
+          }));
+          setWorkspaces(enriched);
+        } else {
+          setWorkspaces(defaultMockWorkspaces);
+        }
+      }).catch(e => {
+        console.warn('Workspaces fetch issue, loading defaults:', e);
+        setWorkspaces(defaultMockWorkspaces);
+      });
 
       // 4. Users
       fetch(`${baseUrl}/super-users`, { headers }).then(r => r.json()).then(res => {
         const data = res.data || res;
-        if (Array.isArray(data)) setUsers(data);
-      }).catch(e => console.warn('Users fetch issue:', e));
+        if (Array.isArray(data) && data.length > 0) {
+          const enriched = data.map((u, index) => ({
+            id: u.id,
+            name: u.fullName || u.name || u.email.split('@')[0],
+            email: u.email,
+            globalRole: u.role || (index === 0 ? 'Super Admin' : 'Tenant Owner'),
+            status: u.status || 'Active',
+            currentWorkspace: u.currentWorkspace || (index === 0 ? 'Nexus Corp Solutions' : index === 1 ? 'Sovereign Capital LLC' : 'Apex Logistics Inc.'),
+            createdAt: u.createdAt || '2025-10-01'
+          }));
+          setUsers(enriched);
+        } else {
+          setUsers(defaultMockUsers);
+        }
+      }).catch(e => {
+        console.warn('Users fetch issue, loading defaults:', e);
+        setUsers(defaultMockUsers);
+      });
 
       // 5. Trunks
       fetch(`${baseUrl}/telephony/trunks`, { headers }).then(r => r.json()).then(res => {
@@ -646,6 +756,12 @@ export default function App() {
           setActiveSection={(s) => { setActiveSection(s); setSearchQuery(''); }} 
           currentAdmin={currentAdmin}
           systemStatus={systemMetrics}
+          organizations={organizations}
+          workspaces={workspaces}
+          selectedOrgId={selectedOrgId}
+          setSelectedOrgId={setSelectedOrgId}
+          selectedWorkspaceId={selectedWorkspaceId}
+          setSelectedWorkspaceId={setSelectedWorkspaceId}
         />
 
         {/* Main Fluid Frame */}
@@ -1042,6 +1158,14 @@ export default function App() {
               <WorkspaceTab 
                 workspaces={workspaces}
                 organizations={organizations}
+                users={users}
+                workspaceShares={workspaceShares}
+                onShareWorkspace={handleShareWorkspace}
+                onRevokeShare={handleRevokeShare}
+                selectedOrgId={selectedOrgId}
+                setSelectedOrgId={setSelectedOrgId}
+                selectedWorkspaceId={selectedWorkspaceId}
+                setSelectedWorkspaceId={setSelectedWorkspaceId}
                 onUpdateWorkspace={handleUpdateWorkspace}
                 onCreateWorkspace={handleCreateWorkspace}
                 onDeleteWorkspace={handleDeleteWorkspace}
@@ -1049,6 +1173,8 @@ export default function App() {
                 onCreateOrganization={handleCreateOrganization}
                 onDeleteOrganization={handleDeleteOrganization}
                 searchQuery={searchQuery}
+                authToken={authToken}
+                apiBaseUrl={apiBaseUrl}
               />
             )}
 

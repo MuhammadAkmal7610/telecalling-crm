@@ -66,10 +66,10 @@ export default function WhatsAppTab({ templates, onUpdateTemplate, searchQuery }
             onChange={(e) => setFilterStatus(e.target.value)}
             className="bg-transparent focus:outline-none border-none text-brand-text-bright pr-4"
           >
-            <option value="ALL">All Templates</option>
-            <option value="Pending Meta Approval">Pending Approval</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
+            <option value="ALL" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>All Templates</option>
+            <option value="Pending Meta Approval" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Pending Approval</option>
+            <option value="Approved" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Approved</option>
+            <option value="Rejected" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Rejected</option>
           </select>
         </div>
 

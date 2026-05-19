@@ -586,6 +586,15 @@ export class ReportsService {
         }));
     }
 
+    private validateIds(organizationId?: string, workspaceId?: string) {
+        if (organizationId === 'undefined' || organizationId === 'null' || !organizationId) {
+            throw new BadRequestException('Organization ID is required and must be valid');
+        }
+        if (workspaceId === 'undefined' || workspaceId === 'null' || !workspaceId) {
+            throw new BadRequestException('Workspace ID is required and must be valid');
+        }
+    }
+
   async getReportHistory(workspaceId: string, organizationId: string) {
     this.validateIds(organizationId, workspaceId);
     return [

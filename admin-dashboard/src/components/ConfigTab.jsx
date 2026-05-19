@@ -20,20 +20,34 @@ import {
 export default function ConfigTab({ organizations, onUpdateOrganization }) {
   const [selectedOrgId, setSelectedOrgId] = useState(organizations[0]?.id || '');
 
-  // 1. Feature Flags with AI Caller Beta Included
-  const [featureFlags, setFeatureFlags] = useState({
-    'org-1': { aiScoring: true, whatsappV2: true, speechToText: false, reportsPdf: true, aiCaller: true },
-    'org-2': { aiScoring: false, whatsappV2: true, speechToText: false, reportsPdf: false, aiCaller: false },
-    'org-3': { aiScoring: false, whatsappV2: false, speechToText: false, reportsPdf: false, aiCaller: false },
-    'org-4': { aiScoring: true, whatsappV2: true, speechToText: true, reportsPdf: true, aiCaller: true },
+  // 1. Feature Flags — initialized from real org IDs dynamically
+  const [featureFlags, setFeatureFlags] = useState(() => {
+    const flags = {};
+    organizations.forEach((org, i) => {
+      flags[org.id] = org.features
+        ? {
+            aiScoring: !!(org.features.aiScoring ?? (i % 2 === 0)),
+            whatsappV2: !!(org.features.whatsappApi ?? true),
+            speechToText: !!(org.features.speechToText ?? false),
+            reportsPdf: !!(org.features.callRecording ?? (i % 3 === 0)),
+            aiCaller: !!(org.features.autoDialer ?? (i === 0)),
+          }
+        : { aiScoring: false, whatsappV2: false, speechToText: false, reportsPdf: false, aiCaller: false };
+    });
+    return flags;
   });
 
-  // 2. Paid Ecosystem Add-ons (Feature Gating)
-  const [paidAddons, setPaidAddons] = useState({
-    'org-1': { whatsappScheduler: true, customDomain: true, analyticsPlus: false },
-    'org-2': { whatsappScheduler: false, customDomain: true, analyticsPlus: false },
-    'org-3': { whatsappScheduler: false, customDomain: false, analyticsPlus: false },
-    'org-4': { whatsappScheduler: true, customDomain: true, analyticsPlus: true },
+  // 2. Paid Ecosystem Add-ons — initialized from real org IDs dynamically
+  const [paidAddons, setPaidAddons] = useState(() => {
+    const addons = {};
+    organizations.forEach((org, i) => {
+      addons[org.id] = {
+        whatsappScheduler: i === 0 || i === 3,
+        customDomain: i !== 2,
+        analyticsPlus: i === 3,
+      };
+    });
+    return addons;
   });
 
   // 3. Global System-Wide Orchestrations (Global Config)
@@ -281,10 +295,9 @@ export default function ConfigTab({ organizations, onUpdateOrganization }) {
                     onChange={(e) => setNewKeyForm(prev => ({ ...prev, workspace: e.target.value }))}
                     className="w-full bg-[#131722]/85 border border-brand-border rounded px-2 py-1 text-xs text-brand-text-bright focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="Nexus Corp Solutions">Nexus Corp Solutions</option>
-                    <option value="Apex Logistics Inc.">Apex Logistics Inc.</option>
-                    <option value="Sovereign Capital LLC">Sovereign Capital LLC</option>
-                    <option value="Helix MedCare Group">Helix MedCare Group</option>
+                    {organizations.map(org => (
+                      <option key={org.id} value={org.name} style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>{org.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -294,9 +307,9 @@ export default function ConfigTab({ organizations, onUpdateOrganization }) {
                     onChange={(e) => setNewKeyForm(prev => ({ ...prev, scope: e.target.value }))}
                     className="w-full bg-[#131722]/85 border border-brand-border rounded px-2 py-1 text-xs text-brand-text-bright focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="Full read/write">Full read/write</option>
-                    <option value="WhatsApp Campaigns">WhatsApp Campaigns</option>
-                    <option value="Read-only analytics">Read-only analytics</option>
+                    <option value="Full read/write" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Full read/write</option>
+                    <option value="WhatsApp Campaigns" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>WhatsApp Campaigns</option>
+                    <option value="Read-only analytics" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Read-only analytics</option>
                   </select>
                 </div>
               </div>
@@ -392,10 +405,10 @@ export default function ConfigTab({ organizations, onUpdateOrganization }) {
                   onChange={(e) => handleGlobalConfigChange('defaultLanguage', e.target.value)}
                   className="w-full bg-[#131722]/85 border border-brand-border rounded-lg px-3 py-2 text-xs text-brand-text-bright focus:outline-none focus:border-indigo-500 transition-colors"
                 >
-                  <option value="en_US">English (United States) - en_US</option>
-                  <option value="es_ES">Spanish (Spain) - es_ES</option>
-                  <option value="hi_IN">Hindi (India) - hi_IN</option>
-                  <option value="de_DE">German (Germany) - de_DE</option>
+                  <option value="en_US" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>English (United States) - en_US</option>
+                  <option value="es_ES" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Spanish (Spain) - es_ES</option>
+                  <option value="hi_IN" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Hindi (India) - hi_IN</option>
+                  <option value="de_DE" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>German (Germany) - de_DE</option>
                 </select>
               </div>
 
@@ -407,9 +420,9 @@ export default function ConfigTab({ organizations, onUpdateOrganization }) {
                   onChange={(e) => handleGlobalConfigChange('primarySmsGateway', e.target.value)}
                   className="w-full bg-[#131722]/85 border border-brand-border rounded-lg px-3 py-2 text-xs text-brand-text-bright focus:outline-none focus:border-indigo-500 transition-colors"
                 >
-                  <option value="Direct SIM Bridge">Direct WebSocket Mobile Gateway (Free SIM)</option>
-                  <option value="Infobip Cloud SMTP">Infobip Premium Enterprise Cloud</option>
-                  <option value="Plivo Backup Relay">Plivo Secondary Failover Carrier</option>
+                  <option value="Direct SIM Bridge" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Direct WebSocket Mobile Gateway (Free SIM)</option>
+                  <option value="Infobip Cloud SMTP" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Infobip Premium Enterprise Cloud</option>
+                  <option value="Plivo Backup Relay" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Plivo Secondary Failover Carrier</option>
                 </select>
                 <span className="text-[10px] text-brand-text/40 block mt-1">
                   Default messaging carrier route used for global non-WhatsApp SMS workflows.
@@ -465,7 +478,7 @@ export default function ConfigTab({ organizations, onUpdateOrganization }) {
                     className="w-full bg-[#131722]/85 border border-brand-border rounded-lg px-3 py-2 text-xs text-brand-text-bright focus:outline-none focus:border-cyan-500 transition-colors"
                   >
                     {organizations.map(o => (
-                      <option key={o.id} value={o.id}>{o.name}</option>
+                      <option key={o.id} value={o.id} style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>{o.name}</option>
                     ))}
                   </select>
                 </div>

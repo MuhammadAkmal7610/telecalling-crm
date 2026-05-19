@@ -63,10 +63,10 @@ export default function AuditTab({ auditLogs, searchQuery }) {
               onChange={(e) => setFilterSeverity(e.target.value)}
               className="bg-transparent focus:outline-none border-none text-brand-text-bright pr-4"
             >
-              <option value="ALL">All Threat Levels</option>
-              <option value="Info">Info</option>
-              <option value="Warning">Warning</option>
-              <option value="High">High Severity</option>
+              <option value="ALL" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>All Threat Levels</option>
+              <option value="Info" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Info</option>
+              <option value="Warning" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Warning</option>
+              <option value="High" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>High Severity</option>
             </select>
           </div>
 
@@ -78,11 +78,12 @@ export default function AuditTab({ auditLogs, searchQuery }) {
               onChange={(e) => setFilterCategory(e.target.value)}
               className="bg-transparent focus:outline-none border-none text-brand-text-bright pr-4"
             >
-              <option value="ALL">All Operations</option>
-              <option value="Auth">Auth Systems</option>
-              <option value="Workspace">Workspace Mgmt</option>
-              <option value="Billing">Billing Tiers</option>
-              <option value="Gateway">Carrier SIP</option>
+              <option value="ALL" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>All Operations</option>
+              <option value="Auth" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Auth Systems</option>
+              <option value="Workspace" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Workspace Mgmt</option>
+              <option value="Billing" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Billing Tiers</option>
+              <option value="Gateway" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Carrier SIP</option>
+              <option value="Templates" style={{ backgroundColor: '#131722', color: '#e2e8f0' }}>Templates</option>
             </select>
           </div>
         </div>
